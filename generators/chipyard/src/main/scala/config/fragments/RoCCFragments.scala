@@ -45,3 +45,10 @@ class WithCharacterCountRoCC(op: OpcodeSet = OpcodeSet.custom2) extends Config((
     counter
   })
 })
+
+class WithCGRA(op: OpcodeSet = OpcodeSet.custom0) extends Config((site, here, up) => {
+  case BuildRoCC => up(BuildRoCC) ++ Seq((p: Parameters) => {
+    val cgra = LazyModule(new chipyard.example.CGRAAccelerator(op)(p))
+    cgra
+  })
+})
