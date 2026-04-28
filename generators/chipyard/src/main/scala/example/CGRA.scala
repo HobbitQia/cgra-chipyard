@@ -16,7 +16,9 @@ case class CGRAParams(
   intraPktWidth: Int = 182,
   // InterCgraPkt bit width
   interPktWidth: Int = 185,
-  // DataType bit width (32 payload + 1 predicate + 1 bypass + 1 delay)
+  // Data payload bit width
+  dataPayloadWidth: Int = 32,
+  // DataType bit width (payload + predicate + bypass + delay)
   dataWidth: Int = 35,
   // CgraPayload bit width
   payloadWidth: Int = 157,
@@ -30,14 +32,32 @@ case class CGRAParams(
   // cmd field width (clog2(32) = 5)
   cmdWidth: Int = 5,
   // Number of tiles
-  numTiles: Int = 4
+  numTiles: Int = 4,
+  // Static single-CGRA address map
+  addressLower: Int = 0,
+  addressUpper: Int = 31,
+  // Generated Verilog resources
+  topModuleName: String = "CgraRTL_2x2",
+  wrapperModuleName: String = "CgraRTL_2x2_wrapper",
+  rtlResource: String = "/vsrc/CgraRTL_2x2__pickled.v",
+  wrapperResource: String = "/vsrc/CgraRTL_2x2_wrapper.v"
 )
 
 // ============================================================================
-// CGRA BlackBox — wraps CgraRTL_2x2_wrapper.v which in turn wraps the
-// PyMTL3-generated CgraRTL_2x2. The wrapper flattens SystemVerilog structs
-// and unpacked arrays into plain logic ports for Chisel compatibility.
+// CGRA BlackBox
 // ============================================================================
+
+class CgraRecvChannel(width: Int) extends Bundle {
+  val `val` = Input(Bool())
+  val msg = Input(UInt(width.W))
+  val rdy = Output(Bool())
+}
+
+class CgraSendChannel(width: Int) extends Bundle {
+  val `val` = Output(Bool())
+  val msg = Output(UInt(width.W))
+  val rdy = Input(Bool())
+}
 
 class CGRABlackBox(params: CGRAParams) extends BlackBox with HasBlackBoxResource {
   val io = IO(new Bundle {
@@ -62,65 +82,15 @@ class CGRABlackBox(params: CGRAParams) extends BlackBox with HasBlackBoxResource
     val send_to_inter_cgra_noc_msg = Output(UInt(params.interPktWidth.W))
     val send_to_inter_cgra_noc_rdy = Input(Bool())
 
-    // Boundary data ports — south [0] and [1] (DataType = 35 bits each)
-    val recv_data_on_boundary_south_0_val = Input(Bool())
-    val recv_data_on_boundary_south_0_msg = Input(UInt(params.dataWidth.W))
-    val recv_data_on_boundary_south_0_rdy = Output(Bool())
-    val recv_data_on_boundary_south_1_val = Input(Bool())
-    val recv_data_on_boundary_south_1_msg = Input(UInt(params.dataWidth.W))
-    val recv_data_on_boundary_south_1_rdy = Output(Bool())
-
-    val send_data_on_boundary_south_0_val = Output(Bool())
-    val send_data_on_boundary_south_0_msg = Output(UInt(params.dataWidth.W))
-    val send_data_on_boundary_south_0_rdy = Input(Bool())
-    val send_data_on_boundary_south_1_val = Output(Bool())
-    val send_data_on_boundary_south_1_msg = Output(UInt(params.dataWidth.W))
-    val send_data_on_boundary_south_1_rdy = Input(Bool())
-
-    // Boundary data ports — north [0] and [1]
-    val recv_data_on_boundary_north_0_val = Input(Bool())
-    val recv_data_on_boundary_north_0_msg = Input(UInt(params.dataWidth.W))
-    val recv_data_on_boundary_north_0_rdy = Output(Bool())
-    val recv_data_on_boundary_north_1_val = Input(Bool())
-    val recv_data_on_boundary_north_1_msg = Input(UInt(params.dataWidth.W))
-    val recv_data_on_boundary_north_1_rdy = Output(Bool())
-
-    val send_data_on_boundary_north_0_val = Output(Bool())
-    val send_data_on_boundary_north_0_msg = Output(UInt(params.dataWidth.W))
-    val send_data_on_boundary_north_0_rdy = Input(Bool())
-    val send_data_on_boundary_north_1_val = Output(Bool())
-    val send_data_on_boundary_north_1_msg = Output(UInt(params.dataWidth.W))
-    val send_data_on_boundary_north_1_rdy = Input(Bool())
-
-    // Boundary data ports — east [0] and [1]
-    val recv_data_on_boundary_east_0_val = Input(Bool())
-    val recv_data_on_boundary_east_0_msg = Input(UInt(params.dataWidth.W))
-    val recv_data_on_boundary_east_0_rdy = Output(Bool())
-    val recv_data_on_boundary_east_1_val = Input(Bool())
-    val recv_data_on_boundary_east_1_msg = Input(UInt(params.dataWidth.W))
-    val recv_data_on_boundary_east_1_rdy = Output(Bool())
-
-    val send_data_on_boundary_east_0_val = Output(Bool())
-    val send_data_on_boundary_east_0_msg = Output(UInt(params.dataWidth.W))
-    val send_data_on_boundary_east_0_rdy = Input(Bool())
-    val send_data_on_boundary_east_1_val = Output(Bool())
-    val send_data_on_boundary_east_1_msg = Output(UInt(params.dataWidth.W))
-    val send_data_on_boundary_east_1_rdy = Input(Bool())
-
-    // Boundary data ports — west [0] and [1]
-    val recv_data_on_boundary_west_0_val = Input(Bool())
-    val recv_data_on_boundary_west_0_msg = Input(UInt(params.dataWidth.W))
-    val recv_data_on_boundary_west_0_rdy = Output(Bool())
-    val recv_data_on_boundary_west_1_val = Input(Bool())
-    val recv_data_on_boundary_west_1_msg = Input(UInt(params.dataWidth.W))
-    val recv_data_on_boundary_west_1_rdy = Output(Bool())
-
-    val send_data_on_boundary_west_0_val = Output(Bool())
-    val send_data_on_boundary_west_0_msg = Output(UInt(params.dataWidth.W))
-    val send_data_on_boundary_west_0_rdy = Input(Bool())
-    val send_data_on_boundary_west_1_val = Output(Bool())
-    val send_data_on_boundary_west_1_msg = Output(UInt(params.dataWidth.W))
-    val send_data_on_boundary_west_1_rdy = Input(Bool())
+    // Boundary data ports. North/south scale with xTiles; east/west scale with yTiles.
+    val recv_data_on_boundary_south = Vec(params.xTiles, new CgraRecvChannel(params.dataWidth))
+    val send_data_on_boundary_south = Vec(params.xTiles, new CgraSendChannel(params.dataWidth))
+    val recv_data_on_boundary_north = Vec(params.xTiles, new CgraRecvChannel(params.dataWidth))
+    val send_data_on_boundary_north = Vec(params.xTiles, new CgraSendChannel(params.dataWidth))
+    val recv_data_on_boundary_east = Vec(params.yTiles, new CgraRecvChannel(params.dataWidth))
+    val send_data_on_boundary_east = Vec(params.yTiles, new CgraSendChannel(params.dataWidth))
+    val recv_data_on_boundary_west = Vec(params.yTiles, new CgraRecvChannel(params.dataWidth))
+    val send_data_on_boundary_west = Vec(params.yTiles, new CgraSendChannel(params.dataWidth))
 
     // Configuration
     val cgra_id       = Input(UInt(params.idWidth.W))
@@ -128,17 +98,17 @@ class CGRABlackBox(params: CGRAParams) extends BlackBox with HasBlackBoxResource
     val address_upper = Input(UInt(params.addrWidth.W))
   })
 
-  override def desiredName: String = "CgraRTL_2x2_wrapper"
-  addResource("/vsrc/CgraRTL_2x2_wrapper.v")
-  addResource("/vsrc/CgraRTL_2x2__pickled.v")
+  override def desiredName: String = params.wrapperModuleName
+  addResource(params.rtlResource)
+  addResource(params.wrapperResource)
 }
 
 object CGRACmd {
   // The wrapper forwards raw packets and only interprets commands needed for
   // host-side busy/completion tracking.
-  val CMD_LAUNCH   = 0.U(5.W)
-  val CMD_COMPLETE = 14.U(5.W)
-  val CMD_RESUME   = 15.U(5.W)
+  def launch(width: Int): UInt = 0.U(width.W)
+  def complete(width: Int): UInt = 14.U(width.W)
+  def resume(width: Int): UInt = 15.U(width.W)
 }
 
 // ============================================================================
@@ -156,7 +126,7 @@ object CGRACmd {
 //
 // ============================================================================
 
-class CGRAAccelerator(opcodes: OpcodeSet, params: CGRAParams = CGRAParams())(implicit p: Parameters)
+class CGRAAccelerator(opcodes: OpcodeSet, params: CGRAParams = CGRAGenerated.params)(implicit p: Parameters)
     extends LazyRoCC(opcodes) {
   override lazy val module = new CGRAAcceleratorImp(this, params)
 }
@@ -173,8 +143,8 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   // Static configuration
   cgra.io.cgra_id       := 0.U  // Single CGRA, ID = 0
-  cgra.io.address_lower := 0.U
-  cgra.io.address_upper := 31.U // per_cgra_data_size - 1 = 128/4 - 1 = 31
+  cgra.io.address_lower := params.addressLower.U
+  cgra.io.address_upper := params.addressUpper.U
 
   // ---- Tie off unused ports ----
 
@@ -183,34 +153,24 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   cgra.io.recv_from_inter_cgra_noc_msg := 0.U
   cgra.io.send_to_inter_cgra_noc_rdy   := false.B
 
-  // Boundary data ports — all tied off (Phase 1: no external data connections)
-  cgra.io.recv_data_on_boundary_south_0_val := false.B
-  cgra.io.recv_data_on_boundary_south_0_msg := 0.U
-  cgra.io.send_data_on_boundary_south_0_rdy := false.B
-  cgra.io.recv_data_on_boundary_south_1_val := false.B
-  cgra.io.recv_data_on_boundary_south_1_msg := 0.U
-  cgra.io.send_data_on_boundary_south_1_rdy := false.B
+  // Boundary data ports — all tied off until a kernel needs external streams.
+  def tieOffRecv(ch: CgraRecvChannel): Unit = {
+    ch.`val` := false.B
+    ch.msg := 0.U
+  }
 
-  cgra.io.recv_data_on_boundary_north_0_val := false.B
-  cgra.io.recv_data_on_boundary_north_0_msg := 0.U
-  cgra.io.send_data_on_boundary_north_0_rdy := false.B
-  cgra.io.recv_data_on_boundary_north_1_val := false.B
-  cgra.io.recv_data_on_boundary_north_1_msg := 0.U
-  cgra.io.send_data_on_boundary_north_1_rdy := false.B
+  def tieOffSend(ch: CgraSendChannel): Unit = {
+    ch.rdy := false.B
+  }
 
-  cgra.io.recv_data_on_boundary_east_0_val := false.B
-  cgra.io.recv_data_on_boundary_east_0_msg := 0.U
-  cgra.io.send_data_on_boundary_east_0_rdy := false.B
-  cgra.io.recv_data_on_boundary_east_1_val := false.B
-  cgra.io.recv_data_on_boundary_east_1_msg := 0.U
-  cgra.io.send_data_on_boundary_east_1_rdy := false.B
-
-  cgra.io.recv_data_on_boundary_west_0_val := false.B
-  cgra.io.recv_data_on_boundary_west_0_msg := 0.U
-  cgra.io.send_data_on_boundary_west_0_rdy := false.B
-  cgra.io.recv_data_on_boundary_west_1_val := false.B
-  cgra.io.recv_data_on_boundary_west_1_msg := 0.U
-  cgra.io.send_data_on_boundary_west_1_rdy := false.B
+  cgra.io.recv_data_on_boundary_south.foreach(tieOffRecv)
+  cgra.io.send_data_on_boundary_south.foreach(tieOffSend)
+  cgra.io.recv_data_on_boundary_north.foreach(tieOffRecv)
+  cgra.io.send_data_on_boundary_north.foreach(tieOffSend)
+  cgra.io.recv_data_on_boundary_east.foreach(tieOffRecv)
+  cgra.io.send_data_on_boundary_east.foreach(tieOffSend)
+  cgra.io.recv_data_on_boundary_west.foreach(tieOffRecv)
+  cgra.io.send_data_on_boundary_west.foreach(tieOffSend)
 
   // ---- RoCC Command Interface ----
   val cmd = Queue(io.cmd)
@@ -243,35 +203,26 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val rawPktLo  = RegInit(0.U(64.W))
   val rawPktMid = RegInit(0.U(64.W))
   val rawPktHiWidth = params.intraPktWidth - 128
+  require(rawPktHiWidth > 0, s"intraPktWidth must be greater than 128, got ${params.intraPktWidth}")
 
   // Most CGRA kernels return scalar data in the payload bits of CMD_COMPLETE.
-  val lastCompleteData = RegInit(0.U(32.W))
+  val lastCompleteData = RegInit(0.U(params.dataPayloadWidth.W))
 
   // Response registers
   val respValid = RegInit(false.B)
   val respData  = RegInit(0.U(xLen.W))
   val respRd    = Reg(chiselTypeOf(io.resp.bits.rd))
 
-  // ---- IntraCgraPkt Field Layout ----
-  // From PyMTL3 generated struct (MSB first in packed struct):
-  //   src[2:0]         — bits [181:179]
-  //   dst[2:0]         — bits [178:176]
-  //   src_cgra_id[1:0] — bits [175:174]
-  //   dst_cgra_id[1:0] — bits [173:172]
-  //   src_cgra_x[1:0]  — bits [171:170]
-  //   src_cgra_y[0:0]  — bits [169:169]
-  //   dst_cgra_x[1:0]  — bits [168:167]
-  //   dst_cgra_y[0:0]  — bits [166:166]
-  //   opaque[7:0]      — bits [165:158]
-  //   vc_id[0:0]       — bits [157:157]
-  //   payload[156:0]   — bits [156:0]
-  //
-  // Payload layout (CgraPayload, 157 bits):
-  //   cmd[4:0]         — bits [156:152]
-  //   data[34:0]       — bits [151:117]
-  //   data_addr[6:0]   — bits [116:110]
-  //   ctrl[106:0]      — bits [109:3]
-  //   ctrl_addr[2:0]   — bits [2:0]
+  // PyMTL packs payload at the LSB side of IntraCgraPkt. Within the payload,
+  // cmd is the MSB field and data immediately follows it.
+  val pktCmdMsb = params.payloadWidth - 1
+  val pktCmdLsb = params.payloadWidth - params.cmdWidth
+  val pktDataPayloadMsb = pktCmdLsb - 1
+  val pktDataPayloadLsb = pktDataPayloadMsb - params.dataPayloadWidth + 1
+  require(params.payloadWidth <= params.intraPktWidth,
+    s"payloadWidth ${params.payloadWidth} exceeds intraPktWidth ${params.intraPktWidth}")
+  require(pktDataPayloadLsb >= 0,
+    s"data payload does not fit payloadWidth=${params.payloadWidth}, cmdWidth=${params.cmdWidth}")
 
   def noteLaunchIssued(): Unit = {
     when (expectedCompleteCount === 0.U) {
@@ -319,10 +270,11 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       rawPktMid := rs1
     } .elsewhen (isRawPktHi) {
       val assembledPkt = Cat(rs1(rawPktHiWidth - 1, 0), rawPktMid, rawPktLo)
-      val assembledCmd = assembledPkt(156, 152)
+      val assembledCmd = assembledPkt(pktCmdMsb, pktCmdLsb)
       pktData := assembledPkt
       pktValid := true.B
-      when (assembledCmd === CGRACmd.CMD_LAUNCH || assembledCmd === CGRACmd.CMD_RESUME) {
+      when (assembledCmd === CGRACmd.launch(params.cmdWidth) ||
+            assembledCmd === CGRACmd.resume(params.cmdWidth)) {
         noteLaunchIssued()
       }
       state := s_send_pkt
@@ -352,9 +304,9 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   when (cgra.io.send_to_cpu_pkt_val) {
     val recvPkt = cgra.io.send_to_cpu_pkt_msg
-    val recvCmd = recvPkt(156, 152)
-    when (recvCmd === CGRACmd.CMD_COMPLETE) {
-      lastCompleteData := recvPkt(151, 120)
+    val recvCmd = recvPkt(pktCmdMsb, pktCmdLsb)
+    when (recvCmd === CGRACmd.complete(params.cmdWidth)) {
+      lastCompleteData := recvPkt(pktDataPayloadMsb, pktDataPayloadLsb)
       when (expectedCompleteCount =/= 0.U) {
         completeCount := completeCount + 1.U
         when (completeCount + 1.U >= expectedCompleteCount) {
