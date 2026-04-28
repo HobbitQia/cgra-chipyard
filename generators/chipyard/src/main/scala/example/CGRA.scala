@@ -133,18 +133,12 @@ class CGRABlackBox(params: CGRAParams) extends BlackBox with HasBlackBoxResource
   addResource("/vsrc/CgraRTL_2x2__pickled.v")
 }
 
-// ============================================================================
-// CGRA Command Types (matching VectorCGRA/lib/cmd_type.py)
-// ============================================================================
-
 object CGRACmd {
-  val CMD_LAUNCH                  = 0.U(5.W)
-  val CMD_PAUSE                   = 1.U(5.W)
-  val CMD_TERMINATE               = 2.U(5.W)
-  val CMD_CONFIG                  = 3.U(5.W)
-  val CMD_CONFIG_TOTAL_CTRL_COUNT = 7.U(5.W)
-  val CMD_CONFIG_COUNT_PER_ITER   = 8.U(5.W)
-  val CMD_COMPLETE                = 14.U(5.W)
+  // The wrapper forwards raw packets and only interprets commands needed for
+  // host-side busy/completion tracking.
+  val CMD_LAUNCH   = 0.U(5.W)
+  val CMD_COMPLETE = 14.U(5.W)
+  val CMD_RESUME   = 15.U(5.W)
 }
 
 // ============================================================================
@@ -152,11 +146,13 @@ object CGRACmd {
 // ============================================================================
 //
 // RoCC instruction encoding (funct7 field):
-//   0 = LAUNCH:      Start CGRA execution
-//   1 = CONFIG:       Configure tile — rs1=tile_id, rs2=config_word
-//   2 = STATUS:       Query status → result in rd
-//   3 = CONFIG_LOOP:  Configure loop — rs1=count_per_iter, rs2=total_count
+//   2 = STATUS:       Query status -> result in rd
 //   4 = WAIT:         Block until the CGRA is no longer busy
+//   5 = RAW_PKT_LO:   Stash low 64 bits of an IntraCgraPkt
+//   6 = RAW_PKT_MID:  Stash middle 64 bits of an IntraCgraPkt
+//   7 = RAW_PKT_HI:   Send top bits of an IntraCgraPkt and trigger transmit
+//   8 = SET_EXPECTED_COMPLETES: rs1=number of CMD_COMPLETE packets to wait for
+//   9 = RESULT:       Return the last 32-bit CMD_COMPLETE payload
 //
 // ============================================================================
 
@@ -221,27 +217,35 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   val funct = cmd.bits.inst.funct
   val rs1   = cmd.bits.rs1
-  val rs2   = cmd.bits.rs2
 
   // Funct7 command encoding
-  val isLaunch    = funct === 0.U
-  val isConfig    = funct === 1.U
   val isStatus    = funct === 2.U
-  val isLoopCfg   = funct === 3.U
   val isWait      = funct === 4.U
+  val isRawPktLo  = funct === 5.U
+  val isRawPktMid = funct === 6.U
+  val isRawPktHi  = funct === 7.U
+  val isSetExpectedCompletes = funct === 8.U
+  val isResult    = funct === 9.U
 
   // ---- State Machine ----
-  val s_idle :: s_send_pkt :: s_wait_rdy :: s_wait_complete :: s_resp :: Nil = Enum(5)
+  val s_idle :: s_send_pkt :: s_wait_complete :: s_resp :: Nil = Enum(4)
   val state = RegInit(s_idle)
 
   // Status registers
   val cgraComplete = RegInit(false.B)
   val cgraBusy     = RegInit(false.B)
   val completeCount = RegInit(0.U(16.W))
+  val expectedCompleteCount = RegInit(0.U(16.W))
 
   // Packet assembly registers
   val pktValid = RegInit(false.B)
   val pktData  = RegInit(0.U(params.intraPktWidth.W))
+  val rawPktLo  = RegInit(0.U(64.W))
+  val rawPktMid = RegInit(0.U(64.W))
+  val rawPktHiWidth = params.intraPktWidth - 128
+
+  // Most CGRA kernels return scalar data in the payload bits of CMD_COMPLETE.
+  val lastCompleteData = RegInit(0.U(32.W))
 
   // Response registers
   val respValid = RegInit(false.B)
@@ -269,66 +273,34 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   //   ctrl[106:0]      — bits [109:3]
   //   ctrl_addr[2:0]   — bits [2:0]
 
-  def mkIntraPkt(src: UInt, dst: UInt, cmd: UInt, data: UInt = 0.U,
-                 dataAddr: UInt = 0.U, ctrl: UInt = 0.U, ctrlAddr: UInt = 0.U): UInt = {
-    val srcCgraId = 0.U(2.W)
-    val dstCgraId = 0.U(2.W)
-    val srcCgraX  = 0.U(2.W)
-    val srcCgraY  = 0.U(1.W)
-    val dstCgraX  = 0.U(2.W)
-    val dstCgraY  = 0.U(1.W)
-    val opaque    = 0.U(8.W)
-    val vcId      = 0.U(1.W)
-
-    // Build payload (157 bits)
-    val payload = Cat(cmd(4, 0), data(34, 0), dataAddr(6, 0), ctrl(106, 0), ctrlAddr(2, 0))
-
-    // Build full packet (182 bits)
-    Cat(src(2, 0), dst(2, 0), srcCgraId, dstCgraId, srcCgraX, srcCgraY,
-        dstCgraX, dstCgraY, opaque, vcId, payload)
-  }
-
-  // Build DataType from a 32-bit value: {payload[31:0], predicate=1, bypass=0, delay=0}
-  def mkDataType(value: UInt): UInt = {
-    Cat(value(31, 0), 1.U(1.W), 0.U(1.W), 0.U(1.W))
+  def noteLaunchIssued(): Unit = {
+    when (expectedCompleteCount === 0.U) {
+      when (cgraBusy) {
+        expectedCompleteCount := expectedCompleteCount + 1.U
+      } .otherwise {
+        completeCount := 0.U
+        expectedCompleteCount := 1.U
+      }
+    }
+    when (!cgraBusy && expectedCompleteCount === 0.U) {
+      completeCount := 0.U
+    }
+    cgraBusy := true.B
+    cgraComplete := false.B
   }
 
   // ---- Packet Construction Logic ----
   when (state === s_idle && cmd.valid) {
     respRd := cmd.bits.inst.rd
 
-    when (isConfig) {
-      // CONFIG: rs1 = tile_id, rs2 = config_word (low 64 bits of ctrl, zero-extended)
-      val tileId = rs1(2, 0)
-      pktData := mkIntraPkt(
-        src = 0.U, dst = tileId,
-        cmd = CGRACmd.CMD_CONFIG,
-        ctrl = Cat(0.U(43.W), rs2), ctrlAddr = 0.U
-      )
-      pktValid := true.B
-      state := s_send_pkt
-    } .elsewhen (isLaunch) {
-      pktData := mkIntraPkt(
-        src = 0.U, dst = 0.U,
-        cmd = CGRACmd.CMD_LAUNCH
-      )
-      pktValid := true.B
-      cgraBusy := true.B
-      cgraComplete := false.B
-      completeCount := 0.U
-      state := s_send_pkt
-    } .elsewhen (isStatus) {
+    when (isStatus) {
       respData := Cat(0.U((xLen - 17).W), completeCount, cgraComplete)
       respValid := true.B
       state := s_resp
-    } .elsewhen (isLoopCfg) {
-      pktData := mkIntraPkt(
-        src = 0.U, dst = 0.U,
-        cmd = CGRACmd.CMD_CONFIG_COUNT_PER_ITER,
-        data = mkDataType(rs1)
-      )
-      pktValid := true.B
-      state := s_send_pkt
+    } .elsewhen (isResult) {
+      respData := lastCompleteData
+      respValid := true.B
+      state := s_resp
     } .elsewhen (isWait) {
       when (!cgraBusy) {
         respData := 1.U
@@ -337,6 +309,23 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       } .otherwise {
         state := s_wait_complete
       }
+    } .elsewhen (isSetExpectedCompletes) {
+      expectedCompleteCount := rs1(15, 0)
+      completeCount := 0.U
+      cgraComplete := false.B
+    } .elsewhen (isRawPktLo) {
+      rawPktLo := rs1
+    } .elsewhen (isRawPktMid) {
+      rawPktMid := rs1
+    } .elsewhen (isRawPktHi) {
+      val assembledPkt = Cat(rs1(rawPktHiWidth - 1, 0), rawPktMid, rawPktLo)
+      val assembledCmd = assembledPkt(156, 152)
+      pktData := assembledPkt
+      pktValid := true.B
+      when (assembledCmd === CGRACmd.CMD_LAUNCH || assembledCmd === CGRACmd.CMD_RESUME) {
+        noteLaunchIssued()
+      }
+      state := s_send_pkt
     }
   }
 
@@ -365,10 +354,14 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     val recvPkt = cgra.io.send_to_cpu_pkt_msg
     val recvCmd = recvPkt(156, 152)
     when (recvCmd === CGRACmd.CMD_COMPLETE) {
-      completeCount := completeCount + 1.U
-      when (completeCount + 1.U >= params.numTiles.U) {
-        cgraComplete := true.B
-        cgraBusy := false.B
+      lastCompleteData := recvPkt(151, 120)
+      when (expectedCompleteCount =/= 0.U) {
+        completeCount := completeCount + 1.U
+        when (completeCount + 1.U >= expectedCompleteCount) {
+          cgraComplete := true.B
+          cgraBusy := false.B
+          expectedCompleteCount := 0.U
+        }
       }
     }
   }
