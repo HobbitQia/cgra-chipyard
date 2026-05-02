@@ -36,6 +36,8 @@ case class CGRAParams(
   // Static single-CGRA address map
   addressLower: Int = 0,
   addressUpper: Int = 31,
+  // Whether the generated PyMTL top exposes multi-CGRA boundary data ports
+  hasBoundaryPorts: Boolean = true,
   // Generated Verilog resources
   topModuleName: String = "CgraRTL_2x2",
   wrapperModuleName: String = "CgraRTL_2x2_wrapper",
@@ -82,15 +84,23 @@ class CGRABlackBox(params: CGRAParams) extends BlackBox with HasBlackBoxResource
     val send_to_inter_cgra_noc_msg = Output(UInt(params.interPktWidth.W))
     val send_to_inter_cgra_noc_rdy = Input(Bool())
 
-    // Boundary data ports. North/south scale with xTiles; east/west scale with yTiles.
-    val recv_data_on_boundary_south = Vec(params.xTiles, new CgraRecvChannel(params.dataWidth))
-    val send_data_on_boundary_south = Vec(params.xTiles, new CgraSendChannel(params.dataWidth))
-    val recv_data_on_boundary_north = Vec(params.xTiles, new CgraRecvChannel(params.dataWidth))
-    val send_data_on_boundary_north = Vec(params.xTiles, new CgraSendChannel(params.dataWidth))
-    val recv_data_on_boundary_east = Vec(params.yTiles, new CgraRecvChannel(params.dataWidth))
-    val send_data_on_boundary_east = Vec(params.yTiles, new CgraSendChannel(params.dataWidth))
-    val recv_data_on_boundary_west = Vec(params.yTiles, new CgraRecvChannel(params.dataWidth))
-    val send_data_on_boundary_west = Vec(params.yTiles, new CgraSendChannel(params.dataWidth))
+    // Boundary data ports. Single-CGRA CgraTemplateRTL builds omit them.
+    val recv_data_on_boundary_south =
+      if (params.hasBoundaryPorts) Some(Vec(params.xTiles, new CgraRecvChannel(params.dataWidth))) else None
+    val send_data_on_boundary_south =
+      if (params.hasBoundaryPorts) Some(Vec(params.xTiles, new CgraSendChannel(params.dataWidth))) else None
+    val recv_data_on_boundary_north =
+      if (params.hasBoundaryPorts) Some(Vec(params.xTiles, new CgraRecvChannel(params.dataWidth))) else None
+    val send_data_on_boundary_north =
+      if (params.hasBoundaryPorts) Some(Vec(params.xTiles, new CgraSendChannel(params.dataWidth))) else None
+    val recv_data_on_boundary_east =
+      if (params.hasBoundaryPorts) Some(Vec(params.yTiles, new CgraRecvChannel(params.dataWidth))) else None
+    val send_data_on_boundary_east =
+      if (params.hasBoundaryPorts) Some(Vec(params.yTiles, new CgraSendChannel(params.dataWidth))) else None
+    val recv_data_on_boundary_west =
+      if (params.hasBoundaryPorts) Some(Vec(params.yTiles, new CgraRecvChannel(params.dataWidth))) else None
+    val send_data_on_boundary_west =
+      if (params.hasBoundaryPorts) Some(Vec(params.yTiles, new CgraSendChannel(params.dataWidth))) else None
 
     // Configuration
     val cgra_id       = Input(UInt(params.idWidth.W))
@@ -120,9 +130,10 @@ object CGRACmd {
 //   4 = WAIT:         Block until the CGRA is no longer busy
 //   5 = RAW_PKT_LO:   Stash low 64 bits of an IntraCgraPkt
 //   6 = RAW_PKT_MID:  Stash middle 64 bits of an IntraCgraPkt
-//   7 = RAW_PKT_HI:   Send top bits of an IntraCgraPkt and trigger transmit
+//   7 = RAW_PKT_HI:   Stash or send bits [191:128] of an IntraCgraPkt
 //   8 = SET_EXPECTED_COMPLETES: rs1=number of CMD_COMPLETE packets to wait for
 //   9 = RESULT:       Return the last 32-bit CMD_COMPLETE payload
+//   10 = RAW_PKT_TOP: Send bits above 192 and trigger transmit when needed
 //
 // ============================================================================
 
@@ -163,14 +174,14 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     ch.rdy := false.B
   }
 
-  cgra.io.recv_data_on_boundary_south.foreach(tieOffRecv)
-  cgra.io.send_data_on_boundary_south.foreach(tieOffSend)
-  cgra.io.recv_data_on_boundary_north.foreach(tieOffRecv)
-  cgra.io.send_data_on_boundary_north.foreach(tieOffSend)
-  cgra.io.recv_data_on_boundary_east.foreach(tieOffRecv)
-  cgra.io.send_data_on_boundary_east.foreach(tieOffSend)
-  cgra.io.recv_data_on_boundary_west.foreach(tieOffRecv)
-  cgra.io.send_data_on_boundary_west.foreach(tieOffSend)
+  cgra.io.recv_data_on_boundary_south.foreach(_.foreach(tieOffRecv))
+  cgra.io.send_data_on_boundary_south.foreach(_.foreach(tieOffSend))
+  cgra.io.recv_data_on_boundary_north.foreach(_.foreach(tieOffRecv))
+  cgra.io.send_data_on_boundary_north.foreach(_.foreach(tieOffSend))
+  cgra.io.recv_data_on_boundary_east.foreach(_.foreach(tieOffRecv))
+  cgra.io.send_data_on_boundary_east.foreach(_.foreach(tieOffSend))
+  cgra.io.recv_data_on_boundary_west.foreach(_.foreach(tieOffRecv))
+  cgra.io.send_data_on_boundary_west.foreach(_.foreach(tieOffSend))
 
   // ---- RoCC Command Interface ----
   val cmd = Queue(io.cmd)
@@ -186,6 +197,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val isRawPktHi  = funct === 7.U
   val isSetExpectedCompletes = funct === 8.U
   val isResult    = funct === 9.U
+  val isRawPktTop = funct === 10.U
 
   // ---- State Machine ----
   val s_idle :: s_send_pkt :: s_wait_complete :: s_resp :: Nil = Enum(4)
@@ -202,8 +214,15 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val pktData  = RegInit(0.U(params.intraPktWidth.W))
   val rawPktLo  = RegInit(0.U(64.W))
   val rawPktMid = RegInit(0.U(64.W))
+  val rawPktHi = RegInit(0.U(64.W))
   val rawPktHiWidth = params.intraPktWidth - 128
   require(rawPktHiWidth > 0, s"intraPktWidth must be greater than 128, got ${params.intraPktWidth}")
+  val needsRawPktTop = rawPktHiWidth > 64
+  val rawPktTopWidth = params.intraPktWidth - 192
+  if (needsRawPktTop) {
+    require(rawPktTopWidth > 0 && rawPktTopWidth <= 64,
+      s"intraPktWidth ${params.intraPktWidth} requires unsupported raw packet top width ${rawPktTopWidth}")
+  }
 
   // Most CGRA kernels return scalar data in the payload bits of CMD_COMPLETE.
   val lastCompleteData = RegInit(0.U(params.dataPayloadWidth.W))
@@ -223,6 +242,17 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     s"payloadWidth ${params.payloadWidth} exceeds intraPktWidth ${params.intraPktWidth}")
   require(pktDataPayloadLsb >= 0,
     s"data payload does not fit payloadWidth=${params.payloadWidth}, cmdWidth=${params.cmdWidth}")
+
+  def acceptAssembledPkt(assembledPkt: UInt): Unit = {
+    val assembledCmd = assembledPkt(pktCmdMsb, pktCmdLsb)
+    pktData := assembledPkt
+    pktValid := true.B
+    when (assembledCmd === CGRACmd.launch(params.cmdWidth) ||
+          assembledCmd === CGRACmd.resume(params.cmdWidth)) {
+      noteLaunchIssued()
+    }
+    state := s_send_pkt
+  }
 
   def noteLaunchIssued(): Unit = {
     when (expectedCompleteCount === 0.U) {
@@ -269,15 +299,15 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     } .elsewhen (isRawPktMid) {
       rawPktMid := rs1
     } .elsewhen (isRawPktHi) {
-      val assembledPkt = Cat(rs1(rawPktHiWidth - 1, 0), rawPktMid, rawPktLo)
-      val assembledCmd = assembledPkt(pktCmdMsb, pktCmdLsb)
-      pktData := assembledPkt
-      pktValid := true.B
-      when (assembledCmd === CGRACmd.launch(params.cmdWidth) ||
-            assembledCmd === CGRACmd.resume(params.cmdWidth)) {
-        noteLaunchIssued()
+      if (needsRawPktTop) {
+        rawPktHi := rs1
+      } else {
+        acceptAssembledPkt(Cat(rs1(rawPktHiWidth - 1, 0), rawPktMid, rawPktLo))
       }
-      state := s_send_pkt
+    } .elsewhen (isRawPktTop) {
+      if (needsRawPktTop) {
+        acceptAssembledPkt(Cat(rs1(rawPktTopWidth - 1, 0), rawPktHi, rawPktMid, rawPktLo))
+      }
     }
   }
 
@@ -306,8 +336,8 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     val recvPkt = cgra.io.send_to_cpu_pkt_msg
     val recvCmd = recvPkt(pktCmdMsb, pktCmdLsb)
     when (recvCmd === CGRACmd.complete(params.cmdWidth)) {
-      lastCompleteData := recvPkt(pktDataPayloadMsb, pktDataPayloadLsb)
       when (expectedCompleteCount =/= 0.U) {
+        lastCompleteData := recvPkt(pktDataPayloadMsb, pktDataPayloadLsb)
         completeCount := completeCount + 1.U
         when (completeCount + 1.U >= expectedCompleteCount) {
           cgraComplete := true.B
