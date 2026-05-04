@@ -4,17 +4,17 @@ package chipyard.example
 // Do not edit by hand; regenerate after PyMTL3 RTL changes.
 object CGRAGenerated {
   val params = CGRAParams(
-    intraPktWidth = 210,
-    interPktWidth = 213,
+    intraPktWidth = 206,
+    interPktWidth = 210,
     dataPayloadWidth = 32,
     dataWidth = 35,
-    payloadWidth = 189,
+    payloadWidth = 181,
     idWidth = 1,
     addrWidth = 7,
-    xTiles = 2,
-    yTiles = 2,
+    xTiles = 4,
+    yTiles = 4,
     cmdWidth = 5,
-    numTiles = 4,
+    numTiles = 16,
     addressLower = 0,
     addressUpper = 127,
     hasBoundaryPorts = false,

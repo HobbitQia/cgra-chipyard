@@ -255,18 +255,9 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   }
 
   def noteLaunchIssued(): Unit = {
-    when (expectedCompleteCount === 0.U) {
-      when (cgraBusy) {
-        expectedCompleteCount := expectedCompleteCount + 1.U
-      } .otherwise {
-        completeCount := 0.U
-        expectedCompleteCount := 1.U
-      }
-    }
-    when (!cgraBusy && expectedCompleteCount === 0.U) {
+    when (expectedCompleteCount === 0.U && cgraComplete) {
       completeCount := 0.U
     }
-    cgraBusy := true.B
     cgraComplete := false.B
   }
 
@@ -283,11 +274,12 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       respValid := true.B
       state := s_resp
     } .elsewhen (isWait) {
-      when (!cgraBusy) {
+      when (expectedCompleteCount === 0.U || cgraComplete) {
         respData := 1.U
         respValid := true.B
         state := s_resp
       } .otherwise {
+        cgraBusy := true.B
         state := s_wait_complete
       }
     } .elsewhen (isSetExpectedCompletes) {
@@ -323,7 +315,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   }
 
   // ---- Wait for completion ----
-  when (state === s_wait_complete && !cgraBusy) {
+  when (state === s_wait_complete && (expectedCompleteCount === 0.U || cgraComplete)) {
     respData := 1.U
     respValid := true.B
     state := s_resp
