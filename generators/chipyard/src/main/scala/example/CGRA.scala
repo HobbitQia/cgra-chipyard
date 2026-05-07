@@ -117,6 +117,8 @@ object CGRACmd {
   // The wrapper forwards raw packets and only interprets commands needed for
   // host-side busy/completion tracking.
   def launch(width: Int): UInt = 0.U(width.W)
+  def loadRequest(width: Int): UInt = 10.U(width.W)
+  def loadResponse(width: Int): UInt = 11.U(width.W)
   def complete(width: Int): UInt = 14.U(width.W)
   def resume(width: Int): UInt = 15.U(width.W)
 }
@@ -134,6 +136,7 @@ object CGRACmd {
 //   8 = SET_EXPECTED_COMPLETES: rs1=number of CMD_COMPLETE packets to wait for
 //   9 = RESULT:       Return the last 32-bit CMD_COMPLETE payload
 //   10 = RAW_PKT_TOP: Send bits above 192 and trigger transmit when needed
+//   11 = LOAD_MEM:    rs1=data memory address, return CMD_LOAD_RESPONSE payload
 //
 // ============================================================================
 
@@ -198,9 +201,10 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val isSetExpectedCompletes = funct === 8.U
   val isResult    = funct === 9.U
   val isRawPktTop = funct === 10.U
+  val isLoadMem   = funct === 11.U
 
   // ---- State Machine ----
-  val s_idle :: s_send_pkt :: s_wait_complete :: s_resp :: Nil = Enum(4)
+  val s_idle :: s_send_pkt :: s_wait_complete :: s_wait_load_response :: s_resp :: Nil = Enum(5)
   val state = RegInit(s_idle)
 
   // Status registers
@@ -211,6 +215,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   // Packet assembly registers
   val pktValid = RegInit(false.B)
+  val pktNeedsLoadResponse = RegInit(false.B)
   val pktData  = RegInit(0.U(params.intraPktWidth.W))
   val rawPktLo  = RegInit(0.U(64.W))
   val rawPktMid = RegInit(0.U(64.W))
@@ -231,6 +236,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val respValid = RegInit(false.B)
   val respData  = RegInit(0.U(xLen.W))
   val respRd    = Reg(chiselTypeOf(io.resp.bits.rd))
+  val respReturnsToIdle = RegInit(false.B)
 
   // PyMTL packs payload at the LSB side of IntraCgraPkt. Within the payload,
   // cmd is the MSB field and data immediately follows it.
@@ -238,15 +244,33 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val pktCmdLsb = params.payloadWidth - params.cmdWidth
   val pktDataPayloadMsb = pktCmdLsb - 1
   val pktDataPayloadLsb = pktDataPayloadMsb - params.dataPayloadWidth + 1
+  val pktDataMsb = pktCmdLsb - 1
+  val pktDataLsb = pktDataMsb - params.dataWidth + 1
+  val pktDataAddrMsb = pktDataLsb - 1
+  val pktDataAddrLsb = pktDataAddrMsb - params.addrWidth + 1
   require(params.payloadWidth <= params.intraPktWidth,
     s"payloadWidth ${params.payloadWidth} exceeds intraPktWidth ${params.intraPktWidth}")
+  require(params.dataWidth >= params.dataPayloadWidth,
+    s"dataWidth ${params.dataWidth} is smaller than dataPayloadWidth ${params.dataPayloadWidth}")
   require(pktDataPayloadLsb >= 0,
     s"data payload does not fit payloadWidth=${params.payloadWidth}, cmdWidth=${params.cmdWidth}")
+  require(pktDataAddrLsb >= 0,
+    s"data address does not fit payloadWidth=${params.payloadWidth}, dataWidth=${params.dataWidth}, addrWidth=${params.addrWidth}")
 
-  def acceptAssembledPkt(assembledPkt: UInt): Unit = {
+  val loadRequestPayload = (
+    (CGRACmd.loadRequest(params.cmdWidth) << pktCmdLsb) |
+    (rs1(params.addrWidth - 1, 0) << pktDataAddrLsb)
+  )(params.payloadWidth - 1, 0)
+  val loadRequestPkt = Cat(
+    0.U((params.intraPktWidth - params.payloadWidth).W),
+    loadRequestPayload,
+  )
+
+  def acceptAssembledPkt(assembledPkt: UInt, needsLoadResponse: Bool = false.B): Unit = {
     val assembledCmd = assembledPkt(pktCmdMsb, pktCmdLsb)
     pktData := assembledPkt
     pktValid := true.B
+    pktNeedsLoadResponse := needsLoadResponse
     when (assembledCmd === CGRACmd.launch(params.cmdWidth) ||
           assembledCmd === CGRACmd.resume(params.cmdWidth)) {
       noteLaunchIssued()
@@ -262,21 +286,22 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   }
 
   // ---- Packet Construction Logic ----
-  when (state === s_idle && cmd.valid) {
+  when (cmd.valid && !respValid && (isStatus || isResult)) {
+    respRd := cmd.bits.inst.rd
+    respData := Mux(isStatus,
+      Cat(0.U((xLen - 17).W), completeCount, cgraComplete),
+      lastCompleteData,
+    )
+    respValid := true.B
+    respReturnsToIdle := false.B
+  } .elsewhen (state === s_idle && cmd.valid) {
     respRd := cmd.bits.inst.rd
 
-    when (isStatus) {
-      respData := Cat(0.U((xLen - 17).W), completeCount, cgraComplete)
-      respValid := true.B
-      state := s_resp
-    } .elsewhen (isResult) {
-      respData := lastCompleteData
-      respValid := true.B
-      state := s_resp
-    } .elsewhen (isWait) {
+    when (isWait) {
       when (expectedCompleteCount === 0.U || cgraComplete) {
         respData := 1.U
         respValid := true.B
+        respReturnsToIdle := true.B
         state := s_resp
       } .otherwise {
         cgraBusy := true.B
@@ -286,6 +311,8 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       expectedCompleteCount := rs1(15, 0)
       completeCount := 0.U
       cgraComplete := false.B
+    } .elsewhen (isLoadMem) {
+      acceptAssembledPkt(loadRequestPkt, true.B)
     } .elsewhen (isRawPktLo) {
       rawPktLo := rs1
     } .elsewhen (isRawPktMid) {
@@ -310,7 +337,12 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   when (state === s_send_pkt) {
     when (cgra.io.recv_from_cpu_pkt_rdy && pktValid) {
       pktValid := false.B
-      state := s_idle
+      when (pktNeedsLoadResponse) {
+        state := s_wait_load_response
+      } .otherwise {
+        state := s_idle
+      }
+      pktNeedsLoadResponse := false.B
     }
   }
 
@@ -318,6 +350,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   when (state === s_wait_complete && (expectedCompleteCount === 0.U || cgraComplete)) {
     respData := 1.U
     respValid := true.B
+    respReturnsToIdle := true.B
     state := s_resp
   }
 
@@ -337,11 +370,18 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
           expectedCompleteCount := 0.U
         }
       }
+    } .elsewhen (recvCmd === CGRACmd.loadResponse(params.cmdWidth)) {
+      when (state === s_wait_load_response) {
+        respData := recvPkt(pktDataPayloadMsb, pktDataPayloadLsb)
+        respValid := true.B
+        respReturnsToIdle := true.B
+        state := s_resp
+      }
     }
   }
 
   // ---- RoCC Command Ready ----
-  cmd.ready := (state === s_idle) && !respValid
+  cmd.ready := !respValid && ((state === s_idle) || isStatus || isResult)
 
   // ---- RoCC Response Interface ----
   io.resp.valid     := respValid
@@ -350,11 +390,15 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   when (io.resp.fire) {
     respValid := false.B
-    state := s_idle
+    when (respReturnsToIdle) {
+      state := s_idle
+      respReturnsToIdle := false.B
+    }
   }
 
   // ---- RoCC Busy / Interrupt ----
-  io.busy := cmd.valid || cgraBusy || pktValid || (state =/= s_idle)
+  io.busy := respValid || (state === s_wait_complete) ||
+             (state === s_wait_load_response) || (state === s_resp)
   io.interrupt := false.B
 
   // ---- Unused memory interface ----
