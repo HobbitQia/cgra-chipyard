@@ -11,97 +11,97 @@ typedef struct packed {
   logic [0:0] delay;
 } CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1;
 
-// PyMTL BitStruct CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 Definition
+// PyMTL BitStruct CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 Definition
 typedef struct packed {
   logic [6:0] operation;
   logic [3:0][2:0] fu_in;
-  logic [11:0][3:0] routing_xbar_outport;
-  logic [11:0][1:0] fu_xbar_outport;
+  logic [7:0][3:0] routing_xbar_outport;
+  logic [7:0][1:0] fu_xbar_outport;
   logic [2:0] vector_factor_power;
   logic [0:0] is_last_ctrl;
   logic [3:0][1:0] write_reg_from;
   logic [3:0][2:0] write_reg_idx;
-  logic [3:0][0:0] read_reg_from;
+  logic [3:0][1:0] read_reg_towards;
   logic [3:0][2:0] read_reg_idx;
-} CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247;
+} CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9;
 
-// PyMTL BitStruct MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa Definition
+// PyMTL BitStruct MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 Definition
 typedef struct packed {
-  logic [4:0] cmd;
+  logic [5:0] cmd;
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 data;
   logic [6:0] data_addr;
-  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 ctrl;
+  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 ctrl;
   logic [2:0] ctrl_addr;
-} MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa;
+} MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077;
 
-// PyMTL BitStruct InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d Definition
+// PyMTL BitStruct InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b Definition
 typedef struct packed {
-  logic [0:0] src;
-  logic [0:0] dst;
-  logic [0:0] src_x;
+  logic [1:0] src;
+  logic [1:0] dst;
+  logic [1:0] src_x;
   logic [0:0] src_y;
-  logic [0:0] dst_x;
+  logic [1:0] dst_x;
   logic [0:0] dst_y;
   logic [4:0] src_tile_id;
   logic [4:0] dst_tile_id;
   logic [2:0] remote_src_port;
   logic [7:0] opaque;
   logic [1:0] vc_id;
-  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa payload;
-} InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d;
+  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 payload;
+} InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b;
 
-// PyMTL BitStruct IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 Definition
+// PyMTL BitStruct IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e Definition
 typedef struct packed {
   logic [4:0] src;
   logic [4:0] dst;
-  logic [0:0] src_cgra_id;
-  logic [0:0] dst_cgra_id;
-  logic [0:0] src_cgra_x;
+  logic [1:0] src_cgra_id;
+  logic [1:0] dst_cgra_id;
+  logic [1:0] src_cgra_x;
   logic [0:0] src_cgra_y;
-  logic [0:0] dst_cgra_x;
+  logic [1:0] dst_cgra_x;
   logic [0:0] dst_cgra_y;
   logic [7:0] opaque;
   logic [0:0] vc_id;
-  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa payload;
-} IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3;
+  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 payload;
+} IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e;
 
-// PyMTL BitStruct ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 Definition
+// PyMTL BitStruct ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 Definition
 typedef struct packed {
   logic [0:0] dst;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d inter_cgra_pkt;
-} ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b inter_cgra_pkt;
+} ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5;
 
-// PyMTL BitStruct MemAccessPacket_8_3_128__43d1e1e5bc923019 Definition
+// PyMTL BitStruct MemAccessPacket_8_3_128__50b29b2dbc59831b Definition
 typedef struct packed {
   logic [2:0] src;
   logic [1:0] dst;
   logic [6:0] addr;
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 data;
-  logic [0:0] src_cgra;
+  logic [1:0] src_cgra;
   logic [4:0] src_tile;
   logic [2:0] remote_src_port;
-} MemAccessPacket_8_3_128__43d1e1e5bc923019;
+} MemAccessPacket_8_3_128__50b29b2dbc59831b;
 
-// PyMTL BitStruct MemAccessPacket_3_8_128__46ca7671c0feb658 Definition
+// PyMTL BitStruct MemAccessPacket_3_8_128__fd2f0111edd219ae Definition
 typedef struct packed {
   logic [1:0] src;
   logic [2:0] dst;
   logic [6:0] addr;
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 data;
-  logic [0:0] src_cgra;
+  logic [1:0] src_cgra;
   logic [4:0] src_tile;
   logic [2:0] remote_src_port;
-} MemAccessPacket_3_8_128__46ca7671c0feb658;
+} MemAccessPacket_3_8_128__fd2f0111edd219ae;
 
 // PyMTL Component Mux Definition
-// Full name: Mux__Type_InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d__ninputs_2
+// Full name: Mux__Type_InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b__ninputs_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/arithmetics.py
 
-module Mux__ae576045606458e3
+module Mux__72b78af676e0ee08
 (
   input  logic [0:0] clk ,
-  input  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d in_ [0:1],
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d out ,
+  input  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b in_ [0:1],
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b out ,
   input  logic [0:0] reset ,
   input  logic [0:0] sel 
 );
@@ -120,34 +120,34 @@ endmodule
 
 
 // PyMTL Component BypassQueue1EntryRTL Definition
-// Full name: BypassQueue1EntryRTL__EntryType_InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d
+// Full name: BypassQueue1EntryRTL__EntryType_InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module BypassQueue1EntryRTL__7981a7f43b261b71
+module BypassQueue1EntryRTL__0b03b88e444df6db
 (
   input  logic [0:0] clk ,
   output logic [0:0] count ,
   input  logic [0:0] reset ,
-  input InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv__msg  ,
+  input InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send__msg  ,
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d entry;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b entry;
   logic [0:0] full;
   //-------------------------------------------------------------
   // Component bypass_mux
   //-------------------------------------------------------------
 
   logic [0:0] bypass_mux__clk;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d bypass_mux__in_ [0:1];
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d bypass_mux__out;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b bypass_mux__in_ [0:1];
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b bypass_mux__out;
   logic [0:0] bypass_mux__reset;
   logic [0:0] bypass_mux__sel;
 
-  Mux__ae576045606458e3 bypass_mux
+  Mux__72b78af676e0ee08 bypass_mux
   (
     .clk( bypass_mux__clk ),
     .in_( bypass_mux__in_ ),
@@ -212,18 +212,18 @@ endmodule
 
 
 // PyMTL Component BypassQueueRTL Definition
-// Full name: BypassQueueRTL__EntryType_InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d__num_entries_1
+// Full name: BypassQueueRTL__EntryType_InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b__num_entries_1
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module BypassQueueRTL__59f175e7cf505267
+module BypassQueueRTL__103b241972a0d957
 (
   input  logic [0:0] clk ,
   output logic [0:0] count ,
   input  logic [0:0] reset ,
-  input InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv__msg  ,
+  input InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send__msg  ,
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -234,14 +234,14 @@ module BypassQueueRTL__59f175e7cf505267
   logic [0:0] q__clk;
   logic [0:0] q__count;
   logic [0:0] q__reset;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d q__recv__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b q__recv__msg;
   logic [0:0] q__recv__rdy;
   logic [0:0] q__recv__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d q__send__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b q__send__msg;
   logic [0:0] q__send__rdy;
   logic [0:0] q__send__val;
 
-  BypassQueue1EntryRTL__7981a7f43b261b71 q
+  BypassQueue1EntryRTL__0b03b88e444df6db q
   (
     .clk( q__clk ),
     .count( q__count ),
@@ -378,22 +378,22 @@ endmodule
 
 
 // PyMTL Component RegisterFile Definition
-// Full name: RegisterFile__Type_ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679__nregs_2__rd_ports_1__wr_ports_1__const_zero_False
+// Full name: RegisterFile__Type_ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5__nregs_2__rd_ports_1__wr_ports_1__const_zero_False
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py
 
-module RegisterFile__024754c4d259ff8e
+module RegisterFile__3044949d7e25cf59
 (
   input  logic [0:0] clk ,
   input  logic [0:0] raddr [0:0],
-  output ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 rdata [0:0],
+  output ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 rdata [0:0],
   input  logic [0:0] reset ,
   input  logic [0:0] waddr [0:0],
-  input  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 wdata [0:0],
+  input  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 wdata [0:0],
   input  logic [0:0] wen [0:0]
 );
   localparam logic [0:0] __const__rd_ports_at_up_rf_read  = 1'd1;
   localparam logic [0:0] __const__wr_ports_at_up_rf_write  = 1'd1;
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 regs [0:1];
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 regs [0:1];
 
   // PyMTL Update Block Source
   // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py:20
@@ -426,16 +426,16 @@ endmodule
 
 
 // PyMTL Component NormalQueueDpathRTL Definition
-// Full name: NormalQueueDpathRTL__EntryType_ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679__num_entries_2
+// Full name: NormalQueueDpathRTL__EntryType_ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5__num_entries_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module NormalQueueDpathRTL__7aa2298b3dafd049
+module NormalQueueDpathRTL__1157496d81e351b3
 (
   input  logic [0:0] clk ,
   input  logic [0:0] raddr ,
-  input  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 recv_msg ,
+  input  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 recv_msg ,
   input  logic [0:0] reset ,
-  output ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 send_msg ,
+  output ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 send_msg ,
   input  logic [0:0] waddr ,
   input  logic [0:0] wen 
 );
@@ -445,13 +445,13 @@ module NormalQueueDpathRTL__7aa2298b3dafd049
 
   logic [0:0] rf__clk;
   logic [0:0] rf__raddr [0:0];
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 rf__rdata [0:0];
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 rf__rdata [0:0];
   logic [0:0] rf__reset;
   logic [0:0] rf__waddr [0:0];
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 rf__wdata [0:0];
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 rf__wdata [0:0];
   logic [0:0] rf__wen [0:0];
 
-  RegisterFile__024754c4d259ff8e rf
+  RegisterFile__3044949d7e25cf59 rf
   (
     .clk( rf__clk ),
     .raddr( rf__raddr ),
@@ -478,18 +478,18 @@ endmodule
 
 
 // PyMTL Component NormalQueueRTL Definition
-// Full name: NormalQueueRTL__EntryType_ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679__num_entries_2
+// Full name: NormalQueueRTL__EntryType_ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5__num_entries_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module NormalQueueRTL__7aa2298b3dafd049
+module NormalQueueRTL__1157496d81e351b3
 (
   input  logic [0:0] clk ,
   output logic [1:0] count ,
   input  logic [0:0] reset ,
-  input ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 recv__msg  ,
+  input ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 send__msg  ,
+  output ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -532,13 +532,13 @@ module NormalQueueRTL__7aa2298b3dafd049
 
   logic [0:0] dpath__clk;
   logic [0:0] dpath__raddr;
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 dpath__recv_msg;
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 dpath__recv_msg;
   logic [0:0] dpath__reset;
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 dpath__send_msg;
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 dpath__send_msg;
   logic [0:0] dpath__waddr;
   logic [0:0] dpath__wen;
 
-  NormalQueueDpathRTL__7aa2298b3dafd049 dpath
+  NormalQueueDpathRTL__1157496d81e351b3 dpath
   (
     .clk( dpath__clk ),
     .raddr( dpath__raddr ),
@@ -572,17 +572,17 @@ endmodule
 
 
 // PyMTL Component InputUnitRTL Definition
-// Full name: InputUnitRTL__PacketType_ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679__QueueType_NormalQueueRTL
+// Full name: InputUnitRTL__PacketType_ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5__QueueType_NormalQueueRTL
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/router/InputUnitRTL.py
 
-module InputUnitRTL__b460b8ed221c4145
+module InputUnitRTL__9b7c55c269f5be7d
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 recv__msg  ,
+  input ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 send__msg  ,
+  output ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -593,14 +593,14 @@ module InputUnitRTL__b460b8ed221c4145
   logic [0:0] queue__clk;
   logic [1:0] queue__count;
   logic [0:0] queue__reset;
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 queue__recv__msg;
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 queue__recv__msg;
   logic [0:0] queue__recv__rdy;
   logic [0:0] queue__recv__val;
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 queue__send__msg;
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 queue__send__msg;
   logic [0:0] queue__send__rdy;
   logic [0:0] queue__send__val;
 
-  NormalQueueRTL__7aa2298b3dafd049 queue
+  NormalQueueRTL__1157496d81e351b3 queue
   (
     .clk( queue__clk ),
     .count( queue__count ),
@@ -630,17 +630,17 @@ endmodule
 
 
 // PyMTL Component OutputUnitRTL Definition
-// Full name: OutputUnitRTL__PacketType_ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679__QueueType_None
+// Full name: OutputUnitRTL__PacketType_ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5__QueueType_None
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/router/OutputUnitRTL.py
 
-module OutputUnitRTL__455216f01c969df6
+module OutputUnitRTL__4ebb1a5860984044
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 recv__msg  ,
+  input ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 send__msg  ,
+  output ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -653,17 +653,17 @@ endmodule
 
 
 // PyMTL Component XbarRouteUnitRTL Definition
-// Full name: XbarRouteUnitRTL__PacketType_ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679__num_outports_1
+// Full name: XbarRouteUnitRTL__PacketType_ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5__num_outports_1
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/xbar/XbarRouteUnitRTL.py
 
-module XbarRouteUnitRTL__eef7706ea81ae063
+module XbarRouteUnitRTL__451929ab73097405
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 recv__msg  ,
+  input ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 send__msg [0:0] ,
+  output ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 send__msg [0:0] ,
   input logic [0:0] send__rdy [0:0] ,
   output logic [0:0] send__val [0:0] 
 );
@@ -913,14 +913,14 @@ endmodule
 
 
 // PyMTL Component Mux Definition
-// Full name: Mux__Type_ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679__ninputs_6
+// Full name: Mux__Type_ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5__ninputs_6
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/arithmetics.py
 
-module Mux__729a283d19c009c9
+module Mux__d996d4d02ea4ba58
 (
   input  logic [0:0] clk ,
-  input  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 in_ [0:5],
-  output ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 out ,
+  input  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 in_ [0:5],
+  output ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 out ,
   input  logic [0:0] reset ,
   input  logic [2:0] sel 
 );
@@ -939,17 +939,17 @@ endmodule
 
 
 // PyMTL Component SwitchUnitRTL Definition
-// Full name: SwitchUnitRTL__PacketType_ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679__num_inports_6
+// Full name: SwitchUnitRTL__PacketType_ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5__num_inports_6
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/router/SwitchUnitRTL.py
 
-module SwitchUnitRTL__2ec83af9ef3244ad
+module SwitchUnitRTL__f5c991a21903b48b
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 recv__msg [0:5] ,
+  input ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 recv__msg [0:5] ,
   output logic [0:0] recv__rdy [0:5] ,
   input logic [0:0] recv__val [0:5] ,
-  output ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 send__msg  ,
+  output ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -1003,12 +1003,12 @@ module SwitchUnitRTL__2ec83af9ef3244ad
   //-------------------------------------------------------------
 
   logic [0:0] mux__clk;
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 mux__in_ [0:5];
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 mux__out;
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 mux__in_ [0:5];
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 mux__out;
   logic [0:0] mux__reset;
   logic [2:0] mux__sel;
 
-  Mux__729a283d19c009c9 mux
+  Mux__d996d4d02ea4ba58 mux
   (
     .clk( mux__clk ),
     .in_( mux__in_ ),
@@ -1070,17 +1070,17 @@ endmodule
 
 
 // PyMTL Component XbarRTL Definition
-// Full name: XbarRTL__PacketType_ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679__num_inports_6__num_outports_1__InputUnitType_InputUnitRTL__RouteUnitType_XbarRouteUnitRTL__SwitchUnitType_SwitchUnitRTL__OutputUnitType_OutputUnitRTL
+// Full name: XbarRTL__PacketType_ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5__num_inports_6__num_outports_1__InputUnitType_InputUnitRTL__RouteUnitType_XbarRouteUnitRTL__SwitchUnitType_SwitchUnitRTL__OutputUnitType_OutputUnitRTL
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/xbar/XbarRTL.py
 
-module XbarRTL__135aed49a5dfecd3
+module XbarRTL__c24443cfd29d1ae5
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 recv__msg [0:5] ,
+  input ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 recv__msg [0:5] ,
   output logic [0:0] recv__rdy [0:5] ,
   input logic [0:0] recv__val [0:5] ,
-  output ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 send__msg [0:0] ,
+  output ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 send__msg [0:0] ,
   input logic [0:0] send__rdy [0:0] ,
   output logic [0:0] send__val [0:0] 
 );
@@ -1090,14 +1090,14 @@ module XbarRTL__135aed49a5dfecd3
 
   logic [0:0] input_units__clk [0:5];
   logic [0:0] input_units__reset [0:5];
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 input_units__recv__msg [0:5];
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 input_units__recv__msg [0:5];
   logic [0:0] input_units__recv__rdy [0:5];
   logic [0:0] input_units__recv__val [0:5];
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 input_units__send__msg [0:5];
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 input_units__send__msg [0:5];
   logic [0:0] input_units__send__rdy [0:5];
   logic [0:0] input_units__send__val [0:5];
 
-  InputUnitRTL__b460b8ed221c4145 input_units__0
+  InputUnitRTL__9b7c55c269f5be7d input_units__0
   (
     .clk( input_units__clk[0] ),
     .reset( input_units__reset[0] ),
@@ -1109,7 +1109,7 @@ module XbarRTL__135aed49a5dfecd3
     .send__val( input_units__send__val[0] )
   );
 
-  InputUnitRTL__b460b8ed221c4145 input_units__1
+  InputUnitRTL__9b7c55c269f5be7d input_units__1
   (
     .clk( input_units__clk[1] ),
     .reset( input_units__reset[1] ),
@@ -1121,7 +1121,7 @@ module XbarRTL__135aed49a5dfecd3
     .send__val( input_units__send__val[1] )
   );
 
-  InputUnitRTL__b460b8ed221c4145 input_units__2
+  InputUnitRTL__9b7c55c269f5be7d input_units__2
   (
     .clk( input_units__clk[2] ),
     .reset( input_units__reset[2] ),
@@ -1133,7 +1133,7 @@ module XbarRTL__135aed49a5dfecd3
     .send__val( input_units__send__val[2] )
   );
 
-  InputUnitRTL__b460b8ed221c4145 input_units__3
+  InputUnitRTL__9b7c55c269f5be7d input_units__3
   (
     .clk( input_units__clk[3] ),
     .reset( input_units__reset[3] ),
@@ -1145,7 +1145,7 @@ module XbarRTL__135aed49a5dfecd3
     .send__val( input_units__send__val[3] )
   );
 
-  InputUnitRTL__b460b8ed221c4145 input_units__4
+  InputUnitRTL__9b7c55c269f5be7d input_units__4
   (
     .clk( input_units__clk[4] ),
     .reset( input_units__reset[4] ),
@@ -1157,7 +1157,7 @@ module XbarRTL__135aed49a5dfecd3
     .send__val( input_units__send__val[4] )
   );
 
-  InputUnitRTL__b460b8ed221c4145 input_units__5
+  InputUnitRTL__9b7c55c269f5be7d input_units__5
   (
     .clk( input_units__clk[5] ),
     .reset( input_units__reset[5] ),
@@ -1179,14 +1179,14 @@ module XbarRTL__135aed49a5dfecd3
 
   logic [0:0] output_units__clk [0:0];
   logic [0:0] output_units__reset [0:0];
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 output_units__recv__msg [0:0];
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 output_units__recv__msg [0:0];
   logic [0:0] output_units__recv__rdy [0:0];
   logic [0:0] output_units__recv__val [0:0];
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 output_units__send__msg [0:0];
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 output_units__send__msg [0:0];
   logic [0:0] output_units__send__rdy [0:0];
   logic [0:0] output_units__send__val [0:0];
 
-  OutputUnitRTL__455216f01c969df6 output_units__0
+  OutputUnitRTL__4ebb1a5860984044 output_units__0
   (
     .clk( output_units__clk[0] ),
     .reset( output_units__reset[0] ),
@@ -1208,14 +1208,14 @@ module XbarRTL__135aed49a5dfecd3
 
   logic [0:0] route_units__clk [0:5];
   logic [0:0] route_units__reset [0:5];
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 route_units__recv__msg [0:5];
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 route_units__recv__msg [0:5];
   logic [0:0] route_units__recv__rdy [0:5];
   logic [0:0] route_units__recv__val [0:5];
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 route_units__send__msg [0:5][0:0];
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 route_units__send__msg [0:5][0:0];
   logic [0:0] route_units__send__rdy [0:5][0:0];
   logic [0:0] route_units__send__val [0:5][0:0];
 
-  XbarRouteUnitRTL__eef7706ea81ae063 route_units__0
+  XbarRouteUnitRTL__451929ab73097405 route_units__0
   (
     .clk( route_units__clk[0] ),
     .reset( route_units__reset[0] ),
@@ -1227,7 +1227,7 @@ module XbarRTL__135aed49a5dfecd3
     .send__val( route_units__send__val[0] )
   );
 
-  XbarRouteUnitRTL__eef7706ea81ae063 route_units__1
+  XbarRouteUnitRTL__451929ab73097405 route_units__1
   (
     .clk( route_units__clk[1] ),
     .reset( route_units__reset[1] ),
@@ -1239,7 +1239,7 @@ module XbarRTL__135aed49a5dfecd3
     .send__val( route_units__send__val[1] )
   );
 
-  XbarRouteUnitRTL__eef7706ea81ae063 route_units__2
+  XbarRouteUnitRTL__451929ab73097405 route_units__2
   (
     .clk( route_units__clk[2] ),
     .reset( route_units__reset[2] ),
@@ -1251,7 +1251,7 @@ module XbarRTL__135aed49a5dfecd3
     .send__val( route_units__send__val[2] )
   );
 
-  XbarRouteUnitRTL__eef7706ea81ae063 route_units__3
+  XbarRouteUnitRTL__451929ab73097405 route_units__3
   (
     .clk( route_units__clk[3] ),
     .reset( route_units__reset[3] ),
@@ -1263,7 +1263,7 @@ module XbarRTL__135aed49a5dfecd3
     .send__val( route_units__send__val[3] )
   );
 
-  XbarRouteUnitRTL__eef7706ea81ae063 route_units__4
+  XbarRouteUnitRTL__451929ab73097405 route_units__4
   (
     .clk( route_units__clk[4] ),
     .reset( route_units__reset[4] ),
@@ -1275,7 +1275,7 @@ module XbarRTL__135aed49a5dfecd3
     .send__val( route_units__send__val[4] )
   );
 
-  XbarRouteUnitRTL__eef7706ea81ae063 route_units__5
+  XbarRouteUnitRTL__451929ab73097405 route_units__5
   (
     .clk( route_units__clk[5] ),
     .reset( route_units__reset[5] ),
@@ -1297,14 +1297,14 @@ module XbarRTL__135aed49a5dfecd3
 
   logic [0:0] switch_units__clk [0:0];
   logic [0:0] switch_units__reset [0:0];
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 switch_units__recv__msg [0:0][0:5];
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 switch_units__recv__msg [0:0][0:5];
   logic [0:0] switch_units__recv__rdy [0:0][0:5];
   logic [0:0] switch_units__recv__val [0:0][0:5];
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 switch_units__send__msg [0:0];
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 switch_units__send__msg [0:0];
   logic [0:0] switch_units__send__rdy [0:0];
   logic [0:0] switch_units__send__val [0:0];
 
-  SwitchUnitRTL__2ec83af9ef3244ad switch_units__0
+  SwitchUnitRTL__f5c991a21903b48b switch_units__0
   (
     .clk( switch_units__clk[0] ),
     .reset( switch_units__reset[0] ),
@@ -1519,22 +1519,22 @@ endmodule
 
 
 // PyMTL Component RegisterFile Definition
-// Full name: RegisterFile__Type_InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d__nregs_16__rd_ports_1__wr_ports_1__const_zero_False
+// Full name: RegisterFile__Type_InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b__nregs_16__rd_ports_1__wr_ports_1__const_zero_False
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py
 
-module RegisterFile__a7ff89946c47af6b
+module RegisterFile__4c236c1f88616812
 (
   input  logic [0:0] clk ,
   input  logic [3:0] raddr [0:0],
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d rdata [0:0],
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b rdata [0:0],
   input  logic [0:0] reset ,
   input  logic [3:0] waddr [0:0],
-  input  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d wdata [0:0],
+  input  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b wdata [0:0],
   input  logic [0:0] wen [0:0]
 );
   localparam logic [0:0] __const__rd_ports_at_up_rf_read  = 1'd1;
   localparam logic [0:0] __const__wr_ports_at_up_rf_write  = 1'd1;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d regs [0:15];
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b regs [0:15];
 
   // PyMTL Update Block Source
   // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py:20
@@ -1567,16 +1567,16 @@ endmodule
 
 
 // PyMTL Component NormalQueueDpathRTL Definition
-// Full name: NormalQueueDpathRTL__EntryType_InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d__num_entries_16
+// Full name: NormalQueueDpathRTL__EntryType_InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b__num_entries_16
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module NormalQueueDpathRTL__b97c578e61f5c950
+module NormalQueueDpathRTL__1a0a417fdf2c1fdf
 (
   input  logic [0:0] clk ,
   input  logic [3:0] raddr ,
-  input  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_msg ,
+  input  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_msg ,
   input  logic [0:0] reset ,
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_msg ,
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_msg ,
   input  logic [3:0] waddr ,
   input  logic [0:0] wen 
 );
@@ -1586,13 +1586,13 @@ module NormalQueueDpathRTL__b97c578e61f5c950
 
   logic [0:0] rf__clk;
   logic [3:0] rf__raddr [0:0];
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d rf__rdata [0:0];
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b rf__rdata [0:0];
   logic [0:0] rf__reset;
   logic [3:0] rf__waddr [0:0];
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d rf__wdata [0:0];
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b rf__wdata [0:0];
   logic [0:0] rf__wen [0:0];
 
-  RegisterFile__a7ff89946c47af6b rf
+  RegisterFile__4c236c1f88616812 rf
   (
     .clk( rf__clk ),
     .raddr( rf__raddr ),
@@ -1619,18 +1619,18 @@ endmodule
 
 
 // PyMTL Component NormalQueueRTL Definition
-// Full name: NormalQueueRTL__EntryType_InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d__num_entries_16
+// Full name: NormalQueueRTL__EntryType_InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b__num_entries_16
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module NormalQueueRTL__b97c578e61f5c950
+module NormalQueueRTL__1a0a417fdf2c1fdf
 (
   input  logic [0:0] clk ,
   output logic [4:0] count ,
   input  logic [0:0] reset ,
-  input InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv__msg  ,
+  input InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send__msg  ,
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -1673,13 +1673,13 @@ module NormalQueueRTL__b97c578e61f5c950
 
   logic [0:0] dpath__clk;
   logic [3:0] dpath__raddr;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d dpath__recv_msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b dpath__recv_msg;
   logic [0:0] dpath__reset;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d dpath__send_msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b dpath__send_msg;
   logic [3:0] dpath__waddr;
   logic [0:0] dpath__wen;
 
-  NormalQueueDpathRTL__b97c578e61f5c950 dpath
+  NormalQueueDpathRTL__1a0a417fdf2c1fdf dpath
   (
     .clk( dpath__clk ),
     .raddr( dpath__raddr ),
@@ -1713,20 +1713,20 @@ endmodule
 
 
 // PyMTL Component GlobalReduceUnitRTL Definition
-// Full name: GlobalReduceUnitRTL__InterCgraPktType_InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d
+// Full name: GlobalReduceUnitRTL__InterCgraPktType_InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/controller/GlobalReduceUnitRTL.py
 
-module GlobalReduceUnitRTL__1829d064febb7bae
+module GlobalReduceUnitRTL__d9d5e1a97613c115
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_count__msg  ,
+  input InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_count__msg  ,
   output logic [0:0] recv_count__rdy  ,
   input logic [0:0] recv_count__val  ,
-  input InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_data__msg  ,
+  input InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_data__msg  ,
   output logic [0:0] recv_data__rdy  ,
   input logic [0:0] recv_data__val  ,
-  output ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 send__msg  ,
+  output ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -1746,14 +1746,14 @@ module GlobalReduceUnitRTL__1829d064febb7bae
   logic [0:0] queue__clk;
   logic [4:0] queue__count;
   logic [0:0] queue__reset;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d queue__recv__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b queue__recv__msg;
   logic [0:0] queue__recv__rdy;
   logic [0:0] queue__recv__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d queue__send__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b queue__send__msg;
   logic [0:0] queue__send__rdy;
   logic [0:0] queue__send__val;
 
-  NormalQueueRTL__b97c578e61f5c950 queue
+  NormalQueueRTL__1a0a417fdf2c1fdf queue
   (
     .clk( queue__clk ),
     .count( queue__count ),
@@ -1785,7 +1785,7 @@ module GlobalReduceUnitRTL__1829d064febb7bae
   always_comb begin : set_recv_rdy
     recv_data__rdy = 1'd0;
     queue__recv__val = 1'd0;
-    queue__recv__msg = { 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, 181'd0 };
+    queue__recv__msg = { 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, 162'd0 };
     if ( target_count.payload > receiving_count.payload ) begin
       recv_data__rdy = queue__recv__rdy;
       queue__recv__msg = recv_data__msg;
@@ -1820,16 +1820,16 @@ module GlobalReduceUnitRTL__1829d064febb7bae
   //     s.send.val @= s.queue.send.val
   
   always_comb begin : update_send
-    send__msg = { 1'd0, 210'd0 };
+    send__msg = { 1'd0, 195'd0 };
     send__val = 1'd0;
     queue__send__rdy = 1'd0;
     if ( ( target_count.payload > 32'd0 ) & ( receiving_count.payload == target_count.payload ) ) begin
-      if ( queue__send__msg.payload.cmd == 5'( __const__CMD_GLOBAL_REDUCE_ADD ) ) begin
-        send__msg.inter_cgra_pkt.payload.cmd = 5'( __const__CMD_GLOBAL_REDUCE_ADD_RESPONSE );
+      if ( queue__send__msg.payload.cmd == 6'( __const__CMD_GLOBAL_REDUCE_ADD ) ) begin
+        send__msg.inter_cgra_pkt.payload.cmd = 6'( __const__CMD_GLOBAL_REDUCE_ADD_RESPONSE );
         send__msg.inter_cgra_pkt.payload.data = reduce_add_value;
       end
-      else if ( queue__send__msg.payload.cmd == 5'( __const__CMD_GLOBAL_REDUCE_MUL ) ) begin
-        send__msg.inter_cgra_pkt.payload.cmd = 5'( __const__CMD_GLOBAL_REDUCE_MUL_RESPONSE );
+      else if ( queue__send__msg.payload.cmd == 6'( __const__CMD_GLOBAL_REDUCE_MUL ) ) begin
+        send__msg.inter_cgra_pkt.payload.cmd = 6'( __const__CMD_GLOBAL_REDUCE_MUL_RESPONSE );
         send__msg.inter_cgra_pkt.payload.data = reduce_mul_value;
       end
       send__msg.inter_cgra_pkt.src = queue__send__msg.dst;
@@ -1872,10 +1872,10 @@ module GlobalReduceUnitRTL__1829d064febb7bae
       reduce_mul_value <= { 32'd1, 1'd0, 1'd0, 1'd0 };
     end
     else if ( recv_data__val & recv_data__rdy ) begin
-      if ( recv_data__msg.payload.cmd == 5'( __const__CMD_GLOBAL_REDUCE_ADD ) ) begin
+      if ( recv_data__msg.payload.cmd == 6'( __const__CMD_GLOBAL_REDUCE_ADD ) ) begin
         reduce_add_value <= { reduce_add_value.payload + recv_data__msg.payload.data.payload, recv_data__msg.payload.data.predicate, 1'd0, 1'd0 };
       end
-      else if ( recv_data__msg.payload.cmd == 5'( __const__CMD_GLOBAL_REDUCE_MUL ) ) begin
+      else if ( recv_data__msg.payload.cmd == 6'( __const__CMD_GLOBAL_REDUCE_MUL ) ) begin
         reduce_mul_value <= { reduce_mul_value.payload * recv_data__msg.payload.data.payload, recv_data__msg.payload.data.predicate, 1'd0, 1'd0 };
       end
     end
@@ -1933,22 +1933,22 @@ endmodule
 
 
 // PyMTL Component RegisterFile Definition
-// Full name: RegisterFile__Type_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__nregs_2__rd_ports_1__wr_ports_1__const_zero_False
+// Full name: RegisterFile__Type_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__nregs_2__rd_ports_1__wr_ports_1__const_zero_False
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py
 
-module RegisterFile__6b5d339280fcc295
+module RegisterFile__8ab072f207609ffd
 (
   input  logic [0:0] clk ,
   input  logic [0:0] raddr [0:0],
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 rdata [0:0],
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e rdata [0:0],
   input  logic [0:0] reset ,
   input  logic [0:0] waddr [0:0],
-  input  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 wdata [0:0],
+  input  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e wdata [0:0],
   input  logic [0:0] wen [0:0]
 );
   localparam logic [0:0] __const__rd_ports_at_up_rf_read  = 1'd1;
   localparam logic [0:0] __const__wr_ports_at_up_rf_write  = 1'd1;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 regs [0:1];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e regs [0:1];
 
   // PyMTL Update Block Source
   // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py:20
@@ -1981,16 +1981,16 @@ endmodule
 
 
 // PyMTL Component NormalQueueDpathRTL Definition
-// Full name: NormalQueueDpathRTL__EntryType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__num_entries_2
+// Full name: NormalQueueDpathRTL__EntryType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_entries_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module NormalQueueDpathRTL__5f45783c4055af06
+module NormalQueueDpathRTL__8bb43b4184ab4504
 (
   input  logic [0:0] clk ,
   input  logic [0:0] raddr ,
-  input  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv_msg ,
+  input  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv_msg ,
   input  logic [0:0] reset ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send_msg ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send_msg ,
   input  logic [0:0] waddr ,
   input  logic [0:0] wen 
 );
@@ -2000,13 +2000,13 @@ module NormalQueueDpathRTL__5f45783c4055af06
 
   logic [0:0] rf__clk;
   logic [0:0] rf__raddr [0:0];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 rf__rdata [0:0];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e rf__rdata [0:0];
   logic [0:0] rf__reset;
   logic [0:0] rf__waddr [0:0];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 rf__wdata [0:0];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e rf__wdata [0:0];
   logic [0:0] rf__wen [0:0];
 
-  RegisterFile__6b5d339280fcc295 rf
+  RegisterFile__8ab072f207609ffd rf
   (
     .clk( rf__clk ),
     .raddr( rf__raddr ),
@@ -2033,18 +2033,18 @@ endmodule
 
 
 // PyMTL Component NormalQueueRTL Definition
-// Full name: NormalQueueRTL__EntryType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__num_entries_2
+// Full name: NormalQueueRTL__EntryType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_entries_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module NormalQueueRTL__5f45783c4055af06
+module NormalQueueRTL__8bb43b4184ab4504
 (
   input  logic [0:0] clk ,
   output logic [1:0] count ,
   input  logic [0:0] reset ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv__msg  ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send__msg  ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -2087,13 +2087,13 @@ module NormalQueueRTL__5f45783c4055af06
 
   logic [0:0] dpath__clk;
   logic [0:0] dpath__raddr;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 dpath__recv_msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e dpath__recv_msg;
   logic [0:0] dpath__reset;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 dpath__send_msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e dpath__send_msg;
   logic [0:0] dpath__waddr;
   logic [0:0] dpath__wen;
 
-  NormalQueueDpathRTL__5f45783c4055af06 dpath
+  NormalQueueDpathRTL__8bb43b4184ab4504 dpath
   (
     .clk( dpath__clk ),
     .raddr( dpath__raddr ),
@@ -2127,22 +2127,22 @@ endmodule
 
 
 // PyMTL Component RegisterFile Definition
-// Full name: RegisterFile__Type_InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d__nregs_2__rd_ports_1__wr_ports_1__const_zero_False
+// Full name: RegisterFile__Type_InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b__nregs_2__rd_ports_1__wr_ports_1__const_zero_False
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py
 
-module RegisterFile__55d0675317df9f57
+module RegisterFile__c83abc2d80c9f324
 (
   input  logic [0:0] clk ,
   input  logic [0:0] raddr [0:0],
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d rdata [0:0],
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b rdata [0:0],
   input  logic [0:0] reset ,
   input  logic [0:0] waddr [0:0],
-  input  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d wdata [0:0],
+  input  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b wdata [0:0],
   input  logic [0:0] wen [0:0]
 );
   localparam logic [0:0] __const__rd_ports_at_up_rf_read  = 1'd1;
   localparam logic [0:0] __const__wr_ports_at_up_rf_write  = 1'd1;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d regs [0:1];
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b regs [0:1];
 
   // PyMTL Update Block Source
   // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py:20
@@ -2175,16 +2175,16 @@ endmodule
 
 
 // PyMTL Component NormalQueueDpathRTL Definition
-// Full name: NormalQueueDpathRTL__EntryType_InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d__num_entries_2
+// Full name: NormalQueueDpathRTL__EntryType_InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b__num_entries_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module NormalQueueDpathRTL__7c8ed41a8ab182c0
+module NormalQueueDpathRTL__0e2abcd0e39aa70d
 (
   input  logic [0:0] clk ,
   input  logic [0:0] raddr ,
-  input  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_msg ,
+  input  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_msg ,
   input  logic [0:0] reset ,
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_msg ,
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_msg ,
   input  logic [0:0] waddr ,
   input  logic [0:0] wen 
 );
@@ -2194,13 +2194,13 @@ module NormalQueueDpathRTL__7c8ed41a8ab182c0
 
   logic [0:0] rf__clk;
   logic [0:0] rf__raddr [0:0];
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d rf__rdata [0:0];
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b rf__rdata [0:0];
   logic [0:0] rf__reset;
   logic [0:0] rf__waddr [0:0];
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d rf__wdata [0:0];
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b rf__wdata [0:0];
   logic [0:0] rf__wen [0:0];
 
-  RegisterFile__55d0675317df9f57 rf
+  RegisterFile__c83abc2d80c9f324 rf
   (
     .clk( rf__clk ),
     .raddr( rf__raddr ),
@@ -2227,18 +2227,18 @@ endmodule
 
 
 // PyMTL Component NormalQueueRTL Definition
-// Full name: NormalQueueRTL__EntryType_InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d__num_entries_2
+// Full name: NormalQueueRTL__EntryType_InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b__num_entries_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module NormalQueueRTL__7c8ed41a8ab182c0
+module NormalQueueRTL__0e2abcd0e39aa70d
 (
   input  logic [0:0] clk ,
   output logic [1:0] count ,
   input  logic [0:0] reset ,
-  input InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv__msg  ,
+  input InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send__msg  ,
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -2281,13 +2281,13 @@ module NormalQueueRTL__7c8ed41a8ab182c0
 
   logic [0:0] dpath__clk;
   logic [0:0] dpath__raddr;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d dpath__recv_msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b dpath__recv_msg;
   logic [0:0] dpath__reset;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d dpath__send_msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b dpath__send_msg;
   logic [0:0] dpath__waddr;
   logic [0:0] dpath__wen;
 
-  NormalQueueDpathRTL__7c8ed41a8ab182c0 dpath
+  NormalQueueDpathRTL__0e2abcd0e39aa70d dpath
   (
     .clk( dpath__clk ),
     .raddr( dpath__raddr ),
@@ -2321,17 +2321,17 @@ endmodule
 
 
 // PyMTL Component ChannelRTL Definition
-// Full name: ChannelRTL__PacketType_InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d__QueueType_NormalQueueRTL__latency_1
+// Full name: ChannelRTL__PacketType_InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b__QueueType_NormalQueueRTL__latency_1
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/channel/ChannelRTL.py
 
-module ChannelRTL__ac15cd0f44ca73bf
+module ChannelRTL__abd12e184cf527b9
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv__msg  ,
+  input InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send__msg  ,
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -2342,14 +2342,14 @@ module ChannelRTL__ac15cd0f44ca73bf
   logic [0:0] queues__clk [0:0];
   logic [1:0] queues__count [0:0];
   logic [0:0] queues__reset [0:0];
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d queues__recv__msg [0:0];
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b queues__recv__msg [0:0];
   logic [0:0] queues__recv__rdy [0:0];
   logic [0:0] queues__recv__val [0:0];
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d queues__send__msg [0:0];
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b queues__send__msg [0:0];
   logic [0:0] queues__send__rdy [0:0];
   logic [0:0] queues__send__val [0:0];
 
-  NormalQueueRTL__7c8ed41a8ab182c0 queues__0
+  NormalQueueRTL__0e2abcd0e39aa70d queues__0
   (
     .clk( queues__clk[0] ),
     .count( queues__count[0] ),
@@ -2379,48 +2379,48 @@ endmodule
 
 
 // PyMTL Component ControllerRTL Definition
-// Full name: ControllerRTL__InterCgraPktType_InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d__multi_cgra_rows_1__multi_cgra_columns_1__num_tiles_16__controller2addr_map_{0: (0, 127)}__idTo2d_map_{0: (0, 0)}
+// Full name: ControllerRTL__InterCgraPktType_InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b__multi_cgra_rows_1__multi_cgra_columns_4__num_tiles_16__controller2addr_map_{0: [0, 31], 1: [32, 63], 2: [64, 95], 3: [96, 127]}__idTo2d_map_{0: [0, 0], 1: [1, 0], 2: [2, 0], 3: [3, 0]}
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/controller/ControllerRTL.py
 
-module ControllerRTL__6540e011c4a26b19
+module ControllerRTL__977902f3afea1ac1
 (
-  input  logic [0:0] cgra_id ,
+  input  logic [1:0] cgra_id ,
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv_from_cpu_pkt__msg  ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv_from_cpu_pkt__msg  ,
   output logic [0:0] recv_from_cpu_pkt__rdy  ,
   input logic [0:0] recv_from_cpu_pkt__val  ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv_from_ctrl_ring_pkt__msg  ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv_from_ctrl_ring_pkt__msg  ,
   output logic [0:0] recv_from_ctrl_ring_pkt__rdy  ,
   input logic [0:0] recv_from_ctrl_ring_pkt__val  ,
-  input InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_from_inter_cgra_noc__msg  ,
+  input InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_from_inter_cgra_noc__msg  ,
   output logic [0:0] recv_from_inter_cgra_noc__rdy  ,
   input logic [0:0] recv_from_inter_cgra_noc__val  ,
-  input InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_from_tile_load_request_pkt__msg  ,
+  input InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_from_tile_load_request_pkt__msg  ,
   output logic [0:0] recv_from_tile_load_request_pkt__rdy  ,
   input logic [0:0] recv_from_tile_load_request_pkt__val  ,
-  input InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_from_tile_load_response_pkt__msg  ,
+  input InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_from_tile_load_response_pkt__msg  ,
   output logic [0:0] recv_from_tile_load_response_pkt__rdy  ,
   input logic [0:0] recv_from_tile_load_response_pkt__val  ,
-  input InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_from_tile_store_request_pkt__msg  ,
+  input InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_from_tile_store_request_pkt__msg  ,
   output logic [0:0] recv_from_tile_store_request_pkt__rdy  ,
   input logic [0:0] recv_from_tile_store_request_pkt__val  ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send_to_cpu_pkt__msg  ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send_to_cpu_pkt__msg  ,
   input logic [0:0] send_to_cpu_pkt__rdy  ,
   output logic [0:0] send_to_cpu_pkt__val  ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send_to_ctrl_ring_pkt__msg  ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send_to_ctrl_ring_pkt__msg  ,
   input logic [0:0] send_to_ctrl_ring_pkt__rdy  ,
   output logic [0:0] send_to_ctrl_ring_pkt__val  ,
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_to_inter_cgra_noc__msg  ,
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_to_inter_cgra_noc__msg  ,
   input logic [0:0] send_to_inter_cgra_noc__rdy  ,
   output logic [0:0] send_to_inter_cgra_noc__val  ,
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_to_mem_load_request__msg  ,
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_to_mem_load_request__msg  ,
   input logic [0:0] send_to_mem_load_request__rdy  ,
   output logic [0:0] send_to_mem_load_request__val  ,
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_to_mem_store_request__msg  ,
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_to_mem_store_request__msg  ,
   input logic [0:0] send_to_mem_store_request__rdy  ,
   output logic [0:0] send_to_mem_store_request__val  ,
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_to_tile_load_response__msg  ,
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_to_tile_load_response__msg  ,
   input logic [0:0] send_to_tile_load_response__rdy  ,
   output logic [0:0] send_to_tile_load_response__val  
 );
@@ -2455,25 +2455,25 @@ module ControllerRTL__6540e011c4a26b19
   localparam logic [4:0] __const__CMD_CONFIG_LOOP_LOWER  = 5'd28;
   localparam logic [4:0] __const__CMD_CONFIG_LOOP_UPPER  = 5'd29;
   localparam logic [4:0] __const__CMD_CONFIG_LOOP_STEP  = 5'd30;
-  localparam logic [2:0] __const__addr_offset_nbits_at_capture_addr_dst_id  = 3'd7;
-  logic [0:0] addr2controller_lut [0:0];
-  logic [0:0] addr_dst_id;
-  logic [0:0] idTo2d_x_lut [0:0];
-  logic [0:0] idTo2d_y_lut [0:0];
+  localparam logic [2:0] __const__addr_offset_nbits_at_capture_addr_dst_id  = 3'd5;
+  logic [1:0] addr2controller_lut [0:3];
+  logic [1:0] addr_dst_id;
+  logic [1:0] idTo2d_x_lut [0:3];
+  logic [0:0] idTo2d_y_lut [0:3];
   //-------------------------------------------------------------
   // Component crossbar
   //-------------------------------------------------------------
 
   logic [0:0] crossbar__clk;
   logic [0:0] crossbar__reset;
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 crossbar__recv__msg [0:5];
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 crossbar__recv__msg [0:5];
   logic [0:0] crossbar__recv__rdy [0:5];
   logic [0:0] crossbar__recv__val [0:5];
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 crossbar__send__msg [0:0];
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 crossbar__send__msg [0:0];
   logic [0:0] crossbar__send__rdy [0:0];
   logic [0:0] crossbar__send__val [0:0];
 
-  XbarRTL__135aed49a5dfecd3 crossbar
+  XbarRTL__c24443cfd29d1ae5 crossbar
   (
     .clk( crossbar__clk ),
     .reset( crossbar__reset ),
@@ -2495,17 +2495,17 @@ module ControllerRTL__6540e011c4a26b19
 
   logic [0:0] global_reduce_unit__clk;
   logic [0:0] global_reduce_unit__reset;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d global_reduce_unit__recv_count__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b global_reduce_unit__recv_count__msg;
   logic [0:0] global_reduce_unit__recv_count__rdy;
   logic [0:0] global_reduce_unit__recv_count__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d global_reduce_unit__recv_data__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b global_reduce_unit__recv_data__msg;
   logic [0:0] global_reduce_unit__recv_data__rdy;
   logic [0:0] global_reduce_unit__recv_data__val;
-  ControllerNocXbarPacket_InterCgraPktType__b7e0224cc4c09679 global_reduce_unit__send__msg;
+  ControllerNocXbarPacket_InterCgraPktType__7e0af19e496f89a5 global_reduce_unit__send__msg;
   logic [0:0] global_reduce_unit__send__rdy;
   logic [0:0] global_reduce_unit__send__val;
 
-  GlobalReduceUnitRTL__1829d064febb7bae global_reduce_unit
+  GlobalReduceUnitRTL__d9d5e1a97613c115 global_reduce_unit
   (
     .clk( global_reduce_unit__clk ),
     .reset( global_reduce_unit__reset ),
@@ -2531,14 +2531,14 @@ module ControllerRTL__6540e011c4a26b19
   logic [0:0] recv_from_cpu_pkt_queue__clk;
   logic [1:0] recv_from_cpu_pkt_queue__count;
   logic [0:0] recv_from_cpu_pkt_queue__reset;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv_from_cpu_pkt_queue__recv__msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv_from_cpu_pkt_queue__recv__msg;
   logic [0:0] recv_from_cpu_pkt_queue__recv__rdy;
   logic [0:0] recv_from_cpu_pkt_queue__recv__val;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv_from_cpu_pkt_queue__send__msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv_from_cpu_pkt_queue__send__msg;
   logic [0:0] recv_from_cpu_pkt_queue__send__rdy;
   logic [0:0] recv_from_cpu_pkt_queue__send__val;
 
-  NormalQueueRTL__5f45783c4055af06 recv_from_cpu_pkt_queue
+  NormalQueueRTL__8bb43b4184ab4504 recv_from_cpu_pkt_queue
   (
     .clk( recv_from_cpu_pkt_queue__clk ),
     .count( recv_from_cpu_pkt_queue__count ),
@@ -2561,14 +2561,14 @@ module ControllerRTL__6540e011c4a26b19
 
   logic [0:0] recv_from_tile_load_request_pkt_queue__clk;
   logic [0:0] recv_from_tile_load_request_pkt_queue__reset;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_from_tile_load_request_pkt_queue__recv__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_from_tile_load_request_pkt_queue__recv__msg;
   logic [0:0] recv_from_tile_load_request_pkt_queue__recv__rdy;
   logic [0:0] recv_from_tile_load_request_pkt_queue__recv__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_from_tile_load_request_pkt_queue__send__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_from_tile_load_request_pkt_queue__send__msg;
   logic [0:0] recv_from_tile_load_request_pkt_queue__send__rdy;
   logic [0:0] recv_from_tile_load_request_pkt_queue__send__val;
 
-  ChannelRTL__ac15cd0f44ca73bf recv_from_tile_load_request_pkt_queue
+  ChannelRTL__abd12e184cf527b9 recv_from_tile_load_request_pkt_queue
   (
     .clk( recv_from_tile_load_request_pkt_queue__clk ),
     .reset( recv_from_tile_load_request_pkt_queue__reset ),
@@ -2590,14 +2590,14 @@ module ControllerRTL__6540e011c4a26b19
 
   logic [0:0] recv_from_tile_load_response_pkt_queue__clk;
   logic [0:0] recv_from_tile_load_response_pkt_queue__reset;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_from_tile_load_response_pkt_queue__recv__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_from_tile_load_response_pkt_queue__recv__msg;
   logic [0:0] recv_from_tile_load_response_pkt_queue__recv__rdy;
   logic [0:0] recv_from_tile_load_response_pkt_queue__recv__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_from_tile_load_response_pkt_queue__send__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_from_tile_load_response_pkt_queue__send__msg;
   logic [0:0] recv_from_tile_load_response_pkt_queue__send__rdy;
   logic [0:0] recv_from_tile_load_response_pkt_queue__send__val;
 
-  ChannelRTL__ac15cd0f44ca73bf recv_from_tile_load_response_pkt_queue
+  ChannelRTL__abd12e184cf527b9 recv_from_tile_load_response_pkt_queue
   (
     .clk( recv_from_tile_load_response_pkt_queue__clk ),
     .reset( recv_from_tile_load_response_pkt_queue__reset ),
@@ -2619,14 +2619,14 @@ module ControllerRTL__6540e011c4a26b19
 
   logic [0:0] recv_from_tile_store_request_pkt_queue__clk;
   logic [0:0] recv_from_tile_store_request_pkt_queue__reset;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_from_tile_store_request_pkt_queue__recv__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_from_tile_store_request_pkt_queue__recv__msg;
   logic [0:0] recv_from_tile_store_request_pkt_queue__recv__rdy;
   logic [0:0] recv_from_tile_store_request_pkt_queue__recv__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_from_tile_store_request_pkt_queue__send__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_from_tile_store_request_pkt_queue__send__msg;
   logic [0:0] recv_from_tile_store_request_pkt_queue__send__rdy;
   logic [0:0] recv_from_tile_store_request_pkt_queue__send__val;
 
-  ChannelRTL__ac15cd0f44ca73bf recv_from_tile_store_request_pkt_queue
+  ChannelRTL__abd12e184cf527b9 recv_from_tile_store_request_pkt_queue
   (
     .clk( recv_from_tile_store_request_pkt_queue__clk ),
     .reset( recv_from_tile_store_request_pkt_queue__reset ),
@@ -2649,14 +2649,14 @@ module ControllerRTL__6540e011c4a26b19
   logic [0:0] send_to_cpu_pkt_queue__clk;
   logic [1:0] send_to_cpu_pkt_queue__count;
   logic [0:0] send_to_cpu_pkt_queue__reset;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send_to_cpu_pkt_queue__recv__msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send_to_cpu_pkt_queue__recv__msg;
   logic [0:0] send_to_cpu_pkt_queue__recv__rdy;
   logic [0:0] send_to_cpu_pkt_queue__recv__val;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send_to_cpu_pkt_queue__send__msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send_to_cpu_pkt_queue__send__msg;
   logic [0:0] send_to_cpu_pkt_queue__send__rdy;
   logic [0:0] send_to_cpu_pkt_queue__send__val;
 
-  NormalQueueRTL__5f45783c4055af06 send_to_cpu_pkt_queue
+  NormalQueueRTL__8bb43b4184ab4504 send_to_cpu_pkt_queue
   (
     .clk( send_to_cpu_pkt_queue__clk ),
     .count( send_to_cpu_pkt_queue__count ),
@@ -2679,14 +2679,14 @@ module ControllerRTL__6540e011c4a26b19
 
   logic [0:0] send_to_mem_load_request_queue__clk;
   logic [0:0] send_to_mem_load_request_queue__reset;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_to_mem_load_request_queue__recv__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_to_mem_load_request_queue__recv__msg;
   logic [0:0] send_to_mem_load_request_queue__recv__rdy;
   logic [0:0] send_to_mem_load_request_queue__recv__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_to_mem_load_request_queue__send__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_to_mem_load_request_queue__send__msg;
   logic [0:0] send_to_mem_load_request_queue__send__rdy;
   logic [0:0] send_to_mem_load_request_queue__send__val;
 
-  ChannelRTL__ac15cd0f44ca73bf send_to_mem_load_request_queue
+  ChannelRTL__abd12e184cf527b9 send_to_mem_load_request_queue
   (
     .clk( send_to_mem_load_request_queue__clk ),
     .reset( send_to_mem_load_request_queue__reset ),
@@ -2708,14 +2708,14 @@ module ControllerRTL__6540e011c4a26b19
 
   logic [0:0] send_to_mem_store_request_queue__clk;
   logic [0:0] send_to_mem_store_request_queue__reset;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_to_mem_store_request_queue__recv__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_to_mem_store_request_queue__recv__msg;
   logic [0:0] send_to_mem_store_request_queue__recv__rdy;
   logic [0:0] send_to_mem_store_request_queue__recv__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_to_mem_store_request_queue__send__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_to_mem_store_request_queue__send__msg;
   logic [0:0] send_to_mem_store_request_queue__send__rdy;
   logic [0:0] send_to_mem_store_request_queue__send__val;
 
-  ChannelRTL__ac15cd0f44ca73bf send_to_mem_store_request_queue
+  ChannelRTL__abd12e184cf527b9 send_to_mem_store_request_queue
   (
     .clk( send_to_mem_store_request_queue__clk ),
     .reset( send_to_mem_store_request_queue__reset ),
@@ -2737,14 +2737,14 @@ module ControllerRTL__6540e011c4a26b19
 
   logic [0:0] send_to_tile_load_response_queue__clk;
   logic [0:0] send_to_tile_load_response_queue__reset;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_to_tile_load_response_queue__recv__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_to_tile_load_response_queue__recv__msg;
   logic [0:0] send_to_tile_load_response_queue__recv__rdy;
   logic [0:0] send_to_tile_load_response_queue__recv__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_to_tile_load_response_queue__send__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_to_tile_load_response_queue__send__msg;
   logic [0:0] send_to_tile_load_response_queue__send__rdy;
   logic [0:0] send_to_tile_load_response_queue__send__val;
 
-  ChannelRTL__ac15cd0f44ca73bf send_to_tile_load_response_queue
+  ChannelRTL__abd12e184cf527b9 send_to_tile_load_response_queue
   (
     .clk( send_to_tile_load_response_queue__clk ),
     .reset( send_to_tile_load_response_queue__reset ),
@@ -2765,7 +2765,7 @@ module ControllerRTL__6540e011c4a26b19
   logic [1:0] __tmpvar__update_received_msg_kFromCpuCtrlAndDataIdx;
   logic [2:0] __tmpvar__update_received_msg_kFromInterTileRingIdx;
   logic [2:0] __tmpvar__update_received_msg_kFromReduceUnitIdx;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d __tmpvar__update_received_msg_received_pkt;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b __tmpvar__update_received_msg_received_pkt;
 
   // PyMTL Update Block Source
   // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/controller/ControllerRTL.py:373
@@ -2774,7 +2774,7 @@ module ControllerRTL__6540e011c4a26b19
   //   s.addr_dst_id @= s.addr2controller_lut[trunc(s.crossbar.send[0].msg.inter_cgra_pkt.payload.data_addr >> addr_offset_nbits, CgraIdType)]
   
   always_comb begin : capture_addr_dst_id
-    addr_dst_id = addr2controller_lut[1'(crossbar__send__msg[1'd0].inter_cgra_pkt.payload.data_addr >> 3'( __const__addr_offset_nbits_at_capture_addr_dst_id ))];
+    addr_dst_id = addr2controller_lut[2'(crossbar__send__msg[1'd0].inter_cgra_pkt.payload.data_addr >> 3'( __const__addr_offset_nbits_at_capture_addr_dst_id ))];
   end
 
   // PyMTL Update Block Source
@@ -3007,11 +3007,11 @@ module ControllerRTL__6540e011c4a26b19
     __tmpvar__update_received_msg_kFromInterTileRingIdx = 3'd4;
     __tmpvar__update_received_msg_kFromReduceUnitIdx = 3'd5;
     send_to_cpu_pkt_queue__recv__val = 1'd0;
-    send_to_cpu_pkt_queue__recv__msg = { 5'd0, 5'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 8'd0, 1'd0, 181'd0 };
+    send_to_cpu_pkt_queue__recv__msg = { 5'd0, 5'd0, 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 8'd0, 1'd0, 162'd0 };
     recv_from_ctrl_ring_pkt__rdy = 1'd0;
     for ( int unsigned i = 1'd0; i < 3'( __const__CONTROLLER_CROSSBAR_INPORTS ); i += 1'd1 ) begin
       crossbar__recv__val[3'(i)] = 1'd0;
-      crossbar__recv__msg[3'(i)] = { 1'd0, 210'd0 };
+      crossbar__recv__msg[3'(i)] = { 1'd0, 195'd0 };
     end
     crossbar__recv__val[__tmpvar__update_received_msg_kFromInterTileRingIdx] = recv_from_ctrl_ring_pkt__val;
     recv_from_ctrl_ring_pkt__rdy = crossbar__recv__rdy[3'(__tmpvar__update_received_msg_kFromInterTileRingIdx)];
@@ -3030,37 +3030,37 @@ module ControllerRTL__6540e011c4a26b19
     crossbar__recv__msg[__tmpvar__update_received_msg_kFromReduceUnitIdx] = global_reduce_unit__send__msg;
     crossbar__recv__val[__tmpvar__update_received_msg_kFromCpuCtrlAndDataIdx] = recv_from_cpu_pkt_queue__send__val;
     recv_from_cpu_pkt_queue__send__rdy = crossbar__recv__rdy[3'(__tmpvar__update_received_msg_kFromCpuCtrlAndDataIdx)];
-    crossbar__recv__msg[__tmpvar__update_received_msg_kFromCpuCtrlAndDataIdx] = { 1'd0, { cgra_id, recv_from_cpu_pkt_queue__send__msg.dst_cgra_id, 1'd0, 1'd0, idTo2d_x_lut[recv_from_cpu_pkt_queue__send__msg.dst_cgra_id], idTo2d_y_lut[recv_from_cpu_pkt_queue__send__msg.dst_cgra_id], 5'( __const__num_tiles_at_update_received_msg ), recv_from_cpu_pkt_queue__send__msg.dst, 3'd0, 8'd0, 2'd0, recv_from_cpu_pkt_queue__send__msg.payload } };
+    crossbar__recv__msg[__tmpvar__update_received_msg_kFromCpuCtrlAndDataIdx] = { 1'd0, { cgra_id, recv_from_cpu_pkt_queue__send__msg.dst_cgra_id, 2'd0, 1'd0, idTo2d_x_lut[recv_from_cpu_pkt_queue__send__msg.dst_cgra_id], idTo2d_y_lut[recv_from_cpu_pkt_queue__send__msg.dst_cgra_id], 5'( __const__num_tiles_at_update_received_msg ), recv_from_cpu_pkt_queue__send__msg.dst, 3'd0, 8'd0, 2'd0, recv_from_cpu_pkt_queue__send__msg.payload } };
     send_to_mem_load_request_queue__recv__val = 1'd0;
     send_to_mem_store_request_queue__recv__val = 1'd0;
     send_to_tile_load_response_queue__recv__val = 1'd0;
-    send_to_mem_load_request_queue__recv__msg = { 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, 181'd0 };
-    send_to_mem_store_request_queue__recv__msg = { 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, 181'd0 };
-    send_to_tile_load_response_queue__recv__msg = { 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, 181'd0 };
+    send_to_mem_load_request_queue__recv__msg = { 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, 162'd0 };
+    send_to_mem_store_request_queue__recv__msg = { 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, 162'd0 };
+    send_to_tile_load_response_queue__recv__msg = { 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, 162'd0 };
     recv_from_inter_cgra_noc__rdy = 1'd0;
     send_to_ctrl_ring_pkt__val = 1'd0;
-    send_to_ctrl_ring_pkt__msg = { 5'd0, 5'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 8'd0, 1'd0, 181'd0 };
+    send_to_ctrl_ring_pkt__msg = { 5'd0, 5'd0, 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 8'd0, 1'd0, 162'd0 };
     global_reduce_unit__recv_count__val = 1'd0;
-    global_reduce_unit__recv_count__msg = { 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, 181'd0 };
+    global_reduce_unit__recv_count__msg = { 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, 162'd0 };
     global_reduce_unit__recv_data__val = 1'd0;
-    global_reduce_unit__recv_data__msg = { 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, 181'd0 };
+    global_reduce_unit__recv_data__msg = { 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, 162'd0 };
     __tmpvar__update_received_msg_received_pkt = recv_from_inter_cgra_noc__msg;
     if ( recv_from_inter_cgra_noc__val ) begin
-      if ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_LOAD_REQUEST ) ) begin
+      if ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_LOAD_REQUEST ) ) begin
         send_to_mem_load_request_queue__recv__val = 1'd1;
         if ( send_to_mem_load_request_queue__recv__rdy ) begin
           recv_from_inter_cgra_noc__rdy = 1'd1;
           send_to_mem_load_request_queue__recv__msg = __tmpvar__update_received_msg_received_pkt;
         end
       end
-      else if ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_STORE_REQUEST ) ) begin
+      else if ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_STORE_REQUEST ) ) begin
         send_to_mem_store_request_queue__recv__msg = __tmpvar__update_received_msg_received_pkt;
         send_to_mem_store_request_queue__recv__val = 1'd1;
         if ( send_to_mem_store_request_queue__recv__rdy ) begin
           recv_from_inter_cgra_noc__rdy = 1'd1;
         end
       end
-      else if ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_LOAD_RESPONSE ) ) begin
+      else if ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_LOAD_RESPONSE ) ) begin
         if ( recv_from_inter_cgra_noc__msg.dst_tile_id == 5'( __const__num_tiles_at_update_received_msg ) ) begin
           recv_from_inter_cgra_noc__rdy = send_to_cpu_pkt_queue__recv__rdy;
           send_to_cpu_pkt_queue__recv__val = 1'd1;
@@ -3072,25 +3072,25 @@ module ControllerRTL__6540e011c4a26b19
           send_to_tile_load_response_queue__recv__val = 1'd1;
         end
       end
-      else if ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_COMPLETE ) ) begin
+      else if ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_COMPLETE ) ) begin
         recv_from_inter_cgra_noc__rdy = send_to_cpu_pkt_queue__recv__rdy;
         send_to_cpu_pkt_queue__recv__val = 1'd1;
         send_to_cpu_pkt_queue__recv__msg = { recv_from_inter_cgra_noc__msg.src_tile_id, recv_from_inter_cgra_noc__msg.dst_tile_id, recv_from_inter_cgra_noc__msg.src, recv_from_inter_cgra_noc__msg.dst, recv_from_inter_cgra_noc__msg.src_x, recv_from_inter_cgra_noc__msg.src_y, recv_from_inter_cgra_noc__msg.dst_x, recv_from_inter_cgra_noc__msg.dst_y, 8'd0, 1'd0, recv_from_inter_cgra_noc__msg.payload };
       end
-      else if ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_LEAF_COUNTER_COMPLETE ) ) begin
+      else if ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_LEAF_COUNTER_COMPLETE ) ) begin
         recv_from_inter_cgra_noc__rdy = 1'd1;
       end
-      else if ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_GLOBAL_REDUCE_ADD ) ) begin
+      else if ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_GLOBAL_REDUCE_ADD ) ) begin
         recv_from_inter_cgra_noc__rdy = global_reduce_unit__recv_data__rdy;
         global_reduce_unit__recv_data__val = 1'd1;
         global_reduce_unit__recv_data__msg = recv_from_inter_cgra_noc__msg;
       end
-      else if ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_GLOBAL_REDUCE_COUNT ) ) begin
+      else if ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_GLOBAL_REDUCE_COUNT ) ) begin
         recv_from_inter_cgra_noc__rdy = global_reduce_unit__recv_count__rdy;
         global_reduce_unit__recv_count__val = 1'd1;
         global_reduce_unit__recv_count__msg = recv_from_inter_cgra_noc__msg;
       end
-      else if ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_CONFIG ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_CONFIG_PROLOGUE_FU ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_CONFIG_PROLOGUE_FU_CROSSBAR ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_CONFIG_PROLOGUE_ROUTING_CROSSBAR ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_CONFIG_TOTAL_CTRL_COUNT ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_CONFIG_COUNT_PER_ITER ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_CONFIG_CTRL_LOWER_BOUND ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_CONST ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_GLOBAL_REDUCE_ADD_RESPONSE ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_GLOBAL_REDUCE_MUL_RESPONSE ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_CONFIG_STREAMING_LD_START_ADDR ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_CONFIG_STREAMING_LD_STRIDE ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_CONFIG_STREAMING_LD_END_ADDR ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_PAUSE ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_PRESERVE ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_RESUME ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_RECORD_PHI_ADDR ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_TERMINATE ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_LAUNCH ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_CONFIG_LOOP_LOWER ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_CONFIG_LOOP_UPPER ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 5'( __const__CMD_CONFIG_LOOP_STEP ) ) ) begin
+      else if ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_CONFIG ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_CONFIG_PROLOGUE_FU ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_CONFIG_PROLOGUE_FU_CROSSBAR ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_CONFIG_PROLOGUE_ROUTING_CROSSBAR ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_CONFIG_TOTAL_CTRL_COUNT ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_CONFIG_COUNT_PER_ITER ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_CONFIG_CTRL_LOWER_BOUND ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_CONST ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_GLOBAL_REDUCE_ADD_RESPONSE ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_GLOBAL_REDUCE_MUL_RESPONSE ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_CONFIG_STREAMING_LD_START_ADDR ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_CONFIG_STREAMING_LD_STRIDE ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_CONFIG_STREAMING_LD_END_ADDR ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_PAUSE ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_PRESERVE ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_RESUME ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_RECORD_PHI_ADDR ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_TERMINATE ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_LAUNCH ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_CONFIG_LOOP_LOWER ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_CONFIG_LOOP_UPPER ) ) ) | ( recv_from_inter_cgra_noc__msg.payload.cmd == 6'( __const__CMD_CONFIG_LOOP_STEP ) ) ) begin
         recv_from_inter_cgra_noc__rdy = send_to_ctrl_ring_pkt__rdy;
         send_to_ctrl_ring_pkt__val = recv_from_inter_cgra_noc__val;
         send_to_ctrl_ring_pkt__msg = { recv_from_inter_cgra_noc__msg.src_tile_id, recv_from_inter_cgra_noc__msg.dst_tile_id, recv_from_inter_cgra_noc__msg.src, recv_from_inter_cgra_noc__msg.dst, recv_from_inter_cgra_noc__msg.src_x, recv_from_inter_cgra_noc__msg.src_y, recv_from_inter_cgra_noc__msg.dst_x, recv_from_inter_cgra_noc__msg.dst_y, 8'd0, 1'd0, recv_from_inter_cgra_noc__msg.payload };
@@ -3116,7 +3116,7 @@ module ControllerRTL__6540e011c4a26b19
     send_to_inter_cgra_noc__val = crossbar__send__val[1'd0];
     crossbar__send__rdy[1'd0] = send_to_inter_cgra_noc__rdy;
     send_to_inter_cgra_noc__msg = crossbar__send__msg[1'd0].inter_cgra_pkt;
-    if ( ( crossbar__send__msg[1'd0].inter_cgra_pkt.payload.cmd == 5'( __const__CMD_LOAD_REQUEST ) ) | ( crossbar__send__msg[1'd0].inter_cgra_pkt.payload.cmd == 5'( __const__CMD_STORE_REQUEST ) ) ) begin
+    if ( ( crossbar__send__msg[1'd0].inter_cgra_pkt.payload.cmd == 6'( __const__CMD_LOAD_REQUEST ) ) | ( crossbar__send__msg[1'd0].inter_cgra_pkt.payload.cmd == 6'( __const__CMD_STORE_REQUEST ) ) ) begin
       send_to_inter_cgra_noc__msg.dst = addr_dst_id;
       send_to_inter_cgra_noc__msg.dst_x = idTo2d_x_lut[addr_dst_id];
       send_to_inter_cgra_noc__msg.dst_y = idTo2d_y_lut[addr_dst_id];
@@ -3143,9 +3143,18 @@ module ControllerRTL__6540e011c4a26b19
   assign send_to_cpu_pkt_queue__reset = reset;
   assign global_reduce_unit__clk = clk;
   assign global_reduce_unit__reset = reset;
-  assign addr2controller_lut[0] = 1'd0;
-  assign idTo2d_x_lut[0] = 1'd0;
+  assign addr2controller_lut[0] = 2'd0;
+  assign addr2controller_lut[1] = 2'd1;
+  assign addr2controller_lut[2] = 2'd2;
+  assign addr2controller_lut[3] = 2'd3;
+  assign idTo2d_x_lut[0] = 2'd0;
   assign idTo2d_y_lut[0] = 1'd0;
+  assign idTo2d_x_lut[1] = 2'd1;
+  assign idTo2d_y_lut[1] = 1'd0;
+  assign idTo2d_x_lut[2] = 2'd2;
+  assign idTo2d_y_lut[2] = 1'd0;
+  assign idTo2d_x_lut[3] = 2'd3;
+  assign idTo2d_y_lut[3] = 1'd0;
   assign recv_from_tile_load_request_pkt_queue__recv__msg = recv_from_tile_load_request_pkt__msg;
   assign recv_from_tile_load_request_pkt__rdy = recv_from_tile_load_request_pkt_queue__recv__rdy;
   assign recv_from_tile_load_request_pkt_queue__recv__val = recv_from_tile_load_request_pkt__val;
@@ -3225,18 +3234,18 @@ endmodule
 
 
 // PyMTL Component RecvRTL2CreditSendRTL Definition
-// Full name: RecvRTL2CreditSendRTL__MsgType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__vc_2__credit_line_2
+// Full name: RecvRTL2CreditSendRTL__MsgType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__vc_2__credit_line_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/ocnlib/ifcs/CreditIfc.py
 
-module RecvRTL2CreditSendRTL__fc2f439353562a23
+module RecvRTL2CreditSendRTL__5846fa6da2c9d56b
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv__msg  ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
   output logic [0:0] send__en  ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send__msg  ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send__msg  ,
   input logic [0:0] send__yum [0:1] 
 );
   localparam logic [1:0] __const__vc_at_up_credit_send  = 2'd2;
@@ -3333,17 +3342,17 @@ endmodule
 
 
 // PyMTL Component InputUnitCreditRTL Definition
-// Full name: InputUnitCreditRTL__PacketType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__QueueType_NormalQueueRTL__vc_2__credit_line_2
+// Full name: InputUnitCreditRTL__PacketType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__QueueType_NormalQueueRTL__vc_2__credit_line_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/router/InputUnitCreditRTL.py
 
-module InputUnitCreditRTL__1a94807ca0d7ab1f
+module InputUnitCreditRTL__102443c0054f1b49
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
   input logic [0:0] recv__en  ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv__msg  ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv__msg  ,
   output logic [0:0] recv__yum [0:1] ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send__msg [0:1] ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send__msg [0:1] ,
   input logic [0:0] send__rdy [0:1] ,
   output logic [0:0] send__val [0:1] 
 );
@@ -3357,14 +3366,14 @@ module InputUnitCreditRTL__1a94807ca0d7ab1f
   logic [0:0] buffers__clk [0:1];
   logic [1:0] buffers__count [0:1];
   logic [0:0] buffers__reset [0:1];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 buffers__recv__msg [0:1];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e buffers__recv__msg [0:1];
   logic [0:0] buffers__recv__rdy [0:1];
   logic [0:0] buffers__recv__val [0:1];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 buffers__send__msg [0:1];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e buffers__send__msg [0:1];
   logic [0:0] buffers__send__rdy [0:1];
   logic [0:0] buffers__send__val [0:1];
 
-  NormalQueueRTL__5f45783c4055af06 buffers__0
+  NormalQueueRTL__8bb43b4184ab4504 buffers__0
   (
     .clk( buffers__clk[0] ),
     .count( buffers__count[0] ),
@@ -3377,7 +3386,7 @@ module InputUnitCreditRTL__1a94807ca0d7ab1f
     .send__val( buffers__send__val[0] )
   );
 
-  NormalQueueRTL__5f45783c4055af06 buffers__1
+  NormalQueueRTL__8bb43b4184ab4504 buffers__1
   (
     .clk( buffers__clk[1] ),
     .count( buffers__count[1] ),
@@ -3448,18 +3457,18 @@ endmodule
 
 
 // PyMTL Component OutputUnitCreditRTL Definition
-// Full name: OutputUnitCreditRTL__MsgType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__vc_2__credit_line_2
+// Full name: OutputUnitCreditRTL__MsgType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__vc_2__credit_line_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/router/OutputUnitCreditRTL.py
 
-module OutputUnitCreditRTL__fc2f439353562a23
+module OutputUnitCreditRTL__5846fa6da2c9d56b
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv__msg  ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
   output logic [0:0] send__en  ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send__msg  ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send__msg  ,
   input logic [0:0] send__yum [0:1] 
 );
   localparam logic [1:0] __const__vc_at_up_credit_send  = 2'd2;
@@ -3556,18 +3565,18 @@ endmodule
 
 
 // PyMTL Component RingRouteUnitRTL Definition
-// Full name: RingRouteUnitRTL__PacketType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__PositionType_Bits5__num_routers_17
+// Full name: RingRouteUnitRTL__PacketType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__PositionType_Bits5__num_routers_17
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/ringnet/RingRouteUnitRTL.py
 
-module RingRouteUnitRTL__bd95bc67fb418235
+module RingRouteUnitRTL__1953fe3f0212b7d6
 (
   input  logic [0:0] clk ,
   input  logic [4:0] pos ,
   input  logic [0:0] reset ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv__msg  ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send__msg [0:2] ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send__msg [0:2] ,
   input logic [0:0] send__rdy [0:2] ,
   output logic [0:0] send__val [0:2] 
 );
@@ -3577,7 +3586,7 @@ module RingRouteUnitRTL__bd95bc67fb418235
   logic [4:0] left_dist;
   logic [1:0] out_dir;
   logic [4:0] right_dist;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send_msg_wire;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send_msg_wire;
   logic [2:0] send_rdy;
 
   // PyMTL Update Block Source
@@ -3674,14 +3683,14 @@ endmodule
 
 
 // PyMTL Component Mux Definition
-// Full name: Mux__Type_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__ninputs_6
+// Full name: Mux__Type_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__ninputs_6
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/arithmetics.py
 
-module Mux__c3d1422e0c7846a6
+module Mux__710db6af9a2345a8
 (
   input  logic [0:0] clk ,
-  input  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 in_ [0:5],
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 out ,
+  input  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e in_ [0:5],
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e out ,
   input  logic [0:0] reset ,
   input  logic [2:0] sel 
 );
@@ -3700,17 +3709,17 @@ endmodule
 
 
 // PyMTL Component SwitchUnitRTL Definition
-// Full name: SwitchUnitRTL__PacketType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__num_inports_6
+// Full name: SwitchUnitRTL__PacketType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_inports_6
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/router/SwitchUnitRTL.py
 
-module SwitchUnitRTL__ea15f91efd779cb7
+module SwitchUnitRTL__42b0355320a64cab
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv__msg [0:5] ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv__msg [0:5] ,
   output logic [0:0] recv__rdy [0:5] ,
   input logic [0:0] recv__val [0:5] ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send__msg  ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -3764,12 +3773,12 @@ module SwitchUnitRTL__ea15f91efd779cb7
   //-------------------------------------------------------------
 
   logic [0:0] mux__clk;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 mux__in_ [0:5];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 mux__out;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e mux__in_ [0:5];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e mux__out;
   logic [0:0] mux__reset;
   logic [2:0] mux__sel;
 
-  Mux__c3d1422e0c7846a6 mux
+  Mux__710db6af9a2345a8 mux
   (
     .clk( mux__clk ),
     .in_( mux__in_ ),
@@ -3831,19 +3840,19 @@ endmodule
 
 
 // PyMTL Component RingRouterRTL Definition
-// Full name: RingRouterRTL__PacketType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__PositionType_Bits5__num_routers_17__InputUnitType_InputUnitCreditRTL__RouteUnitType_RingRouteUnitRTL__SwitchUnitType_SwitchUnitRTL__OutputUnitType_OutputUnitCreditRTL__vc_2__credit_line_2
+// Full name: RingRouterRTL__PacketType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__PositionType_Bits5__num_routers_17__InputUnitType_InputUnitCreditRTL__RouteUnitType_RingRouteUnitRTL__SwitchUnitType_SwitchUnitRTL__OutputUnitType_OutputUnitCreditRTL__vc_2__credit_line_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/ringnet/RingRouterRTL.py
 
-module RingRouterRTL__a707108113dcd9ca
+module RingRouterRTL__c18890f12338194c
 (
   input  logic [0:0] clk ,
   input  logic [4:0] pos ,
   input  logic [0:0] reset ,
   input logic [0:0] recv__en [0:2] ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv__msg [0:2] ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv__msg [0:2] ,
   output logic [0:0] recv__yum [0:2][0:1] ,
   output logic [0:0] send__en [0:2] ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send__msg [0:2] ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send__msg [0:2] ,
   input logic [0:0] send__yum [0:2][0:1] 
 );
   //-------------------------------------------------------------
@@ -3853,13 +3862,13 @@ module RingRouterRTL__a707108113dcd9ca
   logic [0:0] input_units__clk [0:2];
   logic [0:0] input_units__reset [0:2];
   logic [0:0] input_units__recv__en [0:2];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 input_units__recv__msg [0:2];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e input_units__recv__msg [0:2];
   logic [0:0] input_units__recv__yum [0:2][0:1];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 input_units__send__msg [0:2][0:1];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e input_units__send__msg [0:2][0:1];
   logic [0:0] input_units__send__rdy [0:2][0:1];
   logic [0:0] input_units__send__val [0:2][0:1];
 
-  InputUnitCreditRTL__1a94807ca0d7ab1f input_units__0
+  InputUnitCreditRTL__102443c0054f1b49 input_units__0
   (
     .clk( input_units__clk[0] ),
     .reset( input_units__reset[0] ),
@@ -3871,7 +3880,7 @@ module RingRouterRTL__a707108113dcd9ca
     .send__val( input_units__send__val[0] )
   );
 
-  InputUnitCreditRTL__1a94807ca0d7ab1f input_units__1
+  InputUnitCreditRTL__102443c0054f1b49 input_units__1
   (
     .clk( input_units__clk[1] ),
     .reset( input_units__reset[1] ),
@@ -3883,7 +3892,7 @@ module RingRouterRTL__a707108113dcd9ca
     .send__val( input_units__send__val[1] )
   );
 
-  InputUnitCreditRTL__1a94807ca0d7ab1f input_units__2
+  InputUnitCreditRTL__102443c0054f1b49 input_units__2
   (
     .clk( input_units__clk[2] ),
     .reset( input_units__reset[2] ),
@@ -3905,14 +3914,14 @@ module RingRouterRTL__a707108113dcd9ca
 
   logic [0:0] output_units__clk [0:2];
   logic [0:0] output_units__reset [0:2];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 output_units__recv__msg [0:2];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e output_units__recv__msg [0:2];
   logic [0:0] output_units__recv__rdy [0:2];
   logic [0:0] output_units__recv__val [0:2];
   logic [0:0] output_units__send__en [0:2];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 output_units__send__msg [0:2];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e output_units__send__msg [0:2];
   logic [0:0] output_units__send__yum [0:2][0:1];
 
-  OutputUnitCreditRTL__fc2f439353562a23 output_units__0
+  OutputUnitCreditRTL__5846fa6da2c9d56b output_units__0
   (
     .clk( output_units__clk[0] ),
     .reset( output_units__reset[0] ),
@@ -3924,7 +3933,7 @@ module RingRouterRTL__a707108113dcd9ca
     .send__yum( output_units__send__yum[0] )
   );
 
-  OutputUnitCreditRTL__fc2f439353562a23 output_units__1
+  OutputUnitCreditRTL__5846fa6da2c9d56b output_units__1
   (
     .clk( output_units__clk[1] ),
     .reset( output_units__reset[1] ),
@@ -3936,7 +3945,7 @@ module RingRouterRTL__a707108113dcd9ca
     .send__yum( output_units__send__yum[1] )
   );
 
-  OutputUnitCreditRTL__fc2f439353562a23 output_units__2
+  OutputUnitCreditRTL__5846fa6da2c9d56b output_units__2
   (
     .clk( output_units__clk[2] ),
     .reset( output_units__reset[2] ),
@@ -3959,14 +3968,14 @@ module RingRouterRTL__a707108113dcd9ca
   logic [0:0] route_units__clk [0:5];
   logic [4:0] route_units__pos [0:5];
   logic [0:0] route_units__reset [0:5];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 route_units__recv__msg [0:5];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e route_units__recv__msg [0:5];
   logic [0:0] route_units__recv__rdy [0:5];
   logic [0:0] route_units__recv__val [0:5];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 route_units__send__msg [0:5][0:2];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e route_units__send__msg [0:5][0:2];
   logic [0:0] route_units__send__rdy [0:5][0:2];
   logic [0:0] route_units__send__val [0:5][0:2];
 
-  RingRouteUnitRTL__bd95bc67fb418235 route_units__0
+  RingRouteUnitRTL__1953fe3f0212b7d6 route_units__0
   (
     .clk( route_units__clk[0] ),
     .pos( route_units__pos[0] ),
@@ -3979,7 +3988,7 @@ module RingRouterRTL__a707108113dcd9ca
     .send__val( route_units__send__val[0] )
   );
 
-  RingRouteUnitRTL__bd95bc67fb418235 route_units__1
+  RingRouteUnitRTL__1953fe3f0212b7d6 route_units__1
   (
     .clk( route_units__clk[1] ),
     .pos( route_units__pos[1] ),
@@ -3992,7 +4001,7 @@ module RingRouterRTL__a707108113dcd9ca
     .send__val( route_units__send__val[1] )
   );
 
-  RingRouteUnitRTL__bd95bc67fb418235 route_units__2
+  RingRouteUnitRTL__1953fe3f0212b7d6 route_units__2
   (
     .clk( route_units__clk[2] ),
     .pos( route_units__pos[2] ),
@@ -4005,7 +4014,7 @@ module RingRouterRTL__a707108113dcd9ca
     .send__val( route_units__send__val[2] )
   );
 
-  RingRouteUnitRTL__bd95bc67fb418235 route_units__3
+  RingRouteUnitRTL__1953fe3f0212b7d6 route_units__3
   (
     .clk( route_units__clk[3] ),
     .pos( route_units__pos[3] ),
@@ -4018,7 +4027,7 @@ module RingRouterRTL__a707108113dcd9ca
     .send__val( route_units__send__val[3] )
   );
 
-  RingRouteUnitRTL__bd95bc67fb418235 route_units__4
+  RingRouteUnitRTL__1953fe3f0212b7d6 route_units__4
   (
     .clk( route_units__clk[4] ),
     .pos( route_units__pos[4] ),
@@ -4031,7 +4040,7 @@ module RingRouterRTL__a707108113dcd9ca
     .send__val( route_units__send__val[4] )
   );
 
-  RingRouteUnitRTL__bd95bc67fb418235 route_units__5
+  RingRouteUnitRTL__1953fe3f0212b7d6 route_units__5
   (
     .clk( route_units__clk[5] ),
     .pos( route_units__pos[5] ),
@@ -4054,14 +4063,14 @@ module RingRouterRTL__a707108113dcd9ca
 
   logic [0:0] switch_units__clk [0:2];
   logic [0:0] switch_units__reset [0:2];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 switch_units__recv__msg [0:2][0:5];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e switch_units__recv__msg [0:2][0:5];
   logic [0:0] switch_units__recv__rdy [0:2][0:5];
   logic [0:0] switch_units__recv__val [0:2][0:5];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 switch_units__send__msg [0:2];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e switch_units__send__msg [0:2];
   logic [0:0] switch_units__send__rdy [0:2];
   logic [0:0] switch_units__send__val [0:2];
 
-  SwitchUnitRTL__ea15f91efd779cb7 switch_units__0
+  SwitchUnitRTL__42b0355320a64cab switch_units__0
   (
     .clk( switch_units__clk[0] ),
     .reset( switch_units__reset[0] ),
@@ -4073,7 +4082,7 @@ module RingRouterRTL__a707108113dcd9ca
     .send__val( switch_units__send__val[0] )
   );
 
-  SwitchUnitRTL__ea15f91efd779cb7 switch_units__1
+  SwitchUnitRTL__42b0355320a64cab switch_units__1
   (
     .clk( switch_units__clk[1] ),
     .reset( switch_units__reset[1] ),
@@ -4085,7 +4094,7 @@ module RingRouterRTL__a707108113dcd9ca
     .send__val( switch_units__send__val[1] )
   );
 
-  SwitchUnitRTL__ea15f91efd779cb7 switch_units__2
+  SwitchUnitRTL__42b0355320a64cab switch_units__2
   (
     .clk( switch_units__clk[2] ),
     .reset( switch_units__reset[2] ),
@@ -4535,14 +4544,14 @@ endmodule
 
 
 // PyMTL Component Mux Definition
-// Full name: Mux__Type_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__ninputs_2
+// Full name: Mux__Type_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__ninputs_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/arithmetics.py
 
-module Mux__e25932fdb0aa1c5d
+module Mux__0601dca3565416c6
 (
   input  logic [0:0] clk ,
-  input  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 in_ [0:1],
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 out ,
+  input  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e in_ [0:1],
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e out ,
   input  logic [0:0] reset ,
   input  logic [0:0] sel 
 );
@@ -4561,17 +4570,17 @@ endmodule
 
 
 // PyMTL Component BypassQueueDpathRTL Definition
-// Full name: BypassQueueDpathRTL__EntryType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__num_entries_2
+// Full name: BypassQueueDpathRTL__EntryType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_entries_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module BypassQueueDpathRTL__5f45783c4055af06
+module BypassQueueDpathRTL__8bb43b4184ab4504
 (
   input  logic [0:0] clk ,
   input  logic [0:0] mux_sel ,
   input  logic [0:0] raddr ,
-  input  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv_msg ,
+  input  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv_msg ,
   input  logic [0:0] reset ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send_msg ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send_msg ,
   input  logic [0:0] waddr ,
   input  logic [0:0] wen 
 );
@@ -4580,12 +4589,12 @@ module BypassQueueDpathRTL__5f45783c4055af06
   //-------------------------------------------------------------
 
   logic [0:0] mux__clk;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 mux__in_ [0:1];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 mux__out;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e mux__in_ [0:1];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e mux__out;
   logic [0:0] mux__reset;
   logic [0:0] mux__sel;
 
-  Mux__e25932fdb0aa1c5d mux
+  Mux__0601dca3565416c6 mux
   (
     .clk( mux__clk ),
     .in_( mux__in_ ),
@@ -4604,13 +4613,13 @@ module BypassQueueDpathRTL__5f45783c4055af06
 
   logic [0:0] rf__clk;
   logic [0:0] rf__raddr [0:0];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 rf__rdata [0:0];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e rf__rdata [0:0];
   logic [0:0] rf__reset;
   logic [0:0] rf__waddr [0:0];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 rf__wdata [0:0];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e rf__wdata [0:0];
   logic [0:0] rf__wen [0:0];
 
-  RegisterFile__6b5d339280fcc295 rf
+  RegisterFile__8ab072f207609ffd rf
   (
     .clk( rf__clk ),
     .raddr( rf__raddr ),
@@ -4642,18 +4651,18 @@ endmodule
 
 
 // PyMTL Component BypassQueueRTL Definition
-// Full name: BypassQueueRTL__EntryType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__num_entries_2
+// Full name: BypassQueueRTL__EntryType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_entries_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module BypassQueueRTL__5f45783c4055af06
+module BypassQueueRTL__8bb43b4184ab4504
 (
   input  logic [0:0] clk ,
   output logic [1:0] count ,
   input  logic [0:0] reset ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv__msg  ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send__msg  ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -4699,13 +4708,13 @@ module BypassQueueRTL__5f45783c4055af06
   logic [0:0] dpath__clk;
   logic [0:0] dpath__mux_sel;
   logic [0:0] dpath__raddr;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 dpath__recv_msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e dpath__recv_msg;
   logic [0:0] dpath__reset;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 dpath__send_msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e dpath__send_msg;
   logic [0:0] dpath__waddr;
   logic [0:0] dpath__wen;
 
-  BypassQueueDpathRTL__5f45783c4055af06 dpath
+  BypassQueueDpathRTL__8bb43b4184ab4504 dpath
   (
     .clk( dpath__clk ),
     .mux_sel( dpath__mux_sel ),
@@ -4772,17 +4781,17 @@ endmodule
 
 
 // PyMTL Component CreditRecvRTL2SendRTL Definition
-// Full name: CreditRecvRTL2SendRTL__MsgType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__vc_2__credit_line_2__QType_BypassQueueRTL
+// Full name: CreditRecvRTL2SendRTL__MsgType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__vc_2__credit_line_2__QType_BypassQueueRTL
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/ocnlib/ifcs/CreditIfc.py
 
-module CreditRecvRTL2SendRTL__6678e50a871f56c8
+module CreditRecvRTL2SendRTL__8579df8a8304f3e2
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
   input logic [0:0] recv__en  ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv__msg  ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv__msg  ,
   output logic [0:0] recv__yum [0:1] ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send__msg  ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -4819,14 +4828,14 @@ module CreditRecvRTL2SendRTL__6678e50a871f56c8
   logic [0:0] buffers__clk [0:1];
   logic [1:0] buffers__count [0:1];
   logic [0:0] buffers__reset [0:1];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 buffers__recv__msg [0:1];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e buffers__recv__msg [0:1];
   logic [0:0] buffers__recv__rdy [0:1];
   logic [0:0] buffers__recv__val [0:1];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 buffers__send__msg [0:1];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e buffers__send__msg [0:1];
   logic [0:0] buffers__send__rdy [0:1];
   logic [0:0] buffers__send__val [0:1];
 
-  BypassQueueRTL__5f45783c4055af06 buffers__0
+  BypassQueueRTL__8bb43b4184ab4504 buffers__0
   (
     .clk( buffers__clk[0] ),
     .count( buffers__count[0] ),
@@ -4839,7 +4848,7 @@ module CreditRecvRTL2SendRTL__6678e50a871f56c8
     .send__val( buffers__send__val[0] )
   );
 
-  BypassQueueRTL__5f45783c4055af06 buffers__1
+  BypassQueueRTL__8bb43b4184ab4504 buffers__1
   (
     .clk( buffers__clk[1] ),
     .count( buffers__count[1] ),
@@ -4956,17 +4965,17 @@ endmodule
 
 
 // PyMTL Component RingNetworkRTL Definition
-// Full name: RingNetworkRTL__PacketType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__PositionType_Bits5__num_routers_17__chl_lat_1__vc_2__credit_line_2
+// Full name: RingNetworkRTL__PacketType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__PositionType_Bits5__num_routers_17__chl_lat_1__vc_2__credit_line_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/ringnet/RingNetworkRTL.py
 
-module RingNetworkRTL__3e3e9efc26784367
+module RingNetworkRTL__e6c2f6171e4c41f6
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv__msg [0:16] ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv__msg [0:16] ,
   output logic [0:0] recv__rdy [0:16] ,
   input logic [0:0] recv__val [0:16] ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send__msg [0:16] ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send__msg [0:16] ,
   input logic [0:0] send__rdy [0:16] ,
   output logic [0:0] send__val [0:16] 
 );
@@ -4976,14 +4985,14 @@ module RingNetworkRTL__3e3e9efc26784367
 
   logic [0:0] recv_adp__clk [0:16];
   logic [0:0] recv_adp__reset [0:16];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv_adp__recv__msg [0:16];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv_adp__recv__msg [0:16];
   logic [0:0] recv_adp__recv__rdy [0:16];
   logic [0:0] recv_adp__recv__val [0:16];
   logic [0:0] recv_adp__send__en [0:16];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv_adp__send__msg [0:16];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv_adp__send__msg [0:16];
   logic [0:0] recv_adp__send__yum [0:16][0:1];
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__0
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__0
   (
     .clk( recv_adp__clk[0] ),
     .reset( recv_adp__reset[0] ),
@@ -4995,7 +5004,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[0] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__1
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__1
   (
     .clk( recv_adp__clk[1] ),
     .reset( recv_adp__reset[1] ),
@@ -5007,7 +5016,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[1] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__2
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__2
   (
     .clk( recv_adp__clk[2] ),
     .reset( recv_adp__reset[2] ),
@@ -5019,7 +5028,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[2] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__3
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__3
   (
     .clk( recv_adp__clk[3] ),
     .reset( recv_adp__reset[3] ),
@@ -5031,7 +5040,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[3] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__4
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__4
   (
     .clk( recv_adp__clk[4] ),
     .reset( recv_adp__reset[4] ),
@@ -5043,7 +5052,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[4] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__5
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__5
   (
     .clk( recv_adp__clk[5] ),
     .reset( recv_adp__reset[5] ),
@@ -5055,7 +5064,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[5] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__6
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__6
   (
     .clk( recv_adp__clk[6] ),
     .reset( recv_adp__reset[6] ),
@@ -5067,7 +5076,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[6] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__7
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__7
   (
     .clk( recv_adp__clk[7] ),
     .reset( recv_adp__reset[7] ),
@@ -5079,7 +5088,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[7] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__8
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__8
   (
     .clk( recv_adp__clk[8] ),
     .reset( recv_adp__reset[8] ),
@@ -5091,7 +5100,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[8] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__9
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__9
   (
     .clk( recv_adp__clk[9] ),
     .reset( recv_adp__reset[9] ),
@@ -5103,7 +5112,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[9] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__10
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__10
   (
     .clk( recv_adp__clk[10] ),
     .reset( recv_adp__reset[10] ),
@@ -5115,7 +5124,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[10] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__11
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__11
   (
     .clk( recv_adp__clk[11] ),
     .reset( recv_adp__reset[11] ),
@@ -5127,7 +5136,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[11] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__12
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__12
   (
     .clk( recv_adp__clk[12] ),
     .reset( recv_adp__reset[12] ),
@@ -5139,7 +5148,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[12] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__13
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__13
   (
     .clk( recv_adp__clk[13] ),
     .reset( recv_adp__reset[13] ),
@@ -5151,7 +5160,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[13] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__14
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__14
   (
     .clk( recv_adp__clk[14] ),
     .reset( recv_adp__reset[14] ),
@@ -5163,7 +5172,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[14] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__15
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__15
   (
     .clk( recv_adp__clk[15] ),
     .reset( recv_adp__reset[15] ),
@@ -5175,7 +5184,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( recv_adp__send__yum[15] )
   );
 
-  RecvRTL2CreditSendRTL__fc2f439353562a23 recv_adp__16
+  RecvRTL2CreditSendRTL__5846fa6da2c9d56b recv_adp__16
   (
     .clk( recv_adp__clk[16] ),
     .reset( recv_adp__reset[16] ),
@@ -5199,13 +5208,13 @@ module RingNetworkRTL__3e3e9efc26784367
   logic [4:0] routers__pos [0:16];
   logic [0:0] routers__reset [0:16];
   logic [0:0] routers__recv__en [0:16][0:2];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 routers__recv__msg [0:16][0:2];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e routers__recv__msg [0:16][0:2];
   logic [0:0] routers__recv__yum [0:16][0:2][0:1];
   logic [0:0] routers__send__en [0:16][0:2];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 routers__send__msg [0:16][0:2];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e routers__send__msg [0:16][0:2];
   logic [0:0] routers__send__yum [0:16][0:2][0:1];
 
-  RingRouterRTL__a707108113dcd9ca routers__0
+  RingRouterRTL__c18890f12338194c routers__0
   (
     .clk( routers__clk[0] ),
     .pos( routers__pos[0] ),
@@ -5218,7 +5227,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[0] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__1
+  RingRouterRTL__c18890f12338194c routers__1
   (
     .clk( routers__clk[1] ),
     .pos( routers__pos[1] ),
@@ -5231,7 +5240,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[1] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__2
+  RingRouterRTL__c18890f12338194c routers__2
   (
     .clk( routers__clk[2] ),
     .pos( routers__pos[2] ),
@@ -5244,7 +5253,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[2] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__3
+  RingRouterRTL__c18890f12338194c routers__3
   (
     .clk( routers__clk[3] ),
     .pos( routers__pos[3] ),
@@ -5257,7 +5266,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[3] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__4
+  RingRouterRTL__c18890f12338194c routers__4
   (
     .clk( routers__clk[4] ),
     .pos( routers__pos[4] ),
@@ -5270,7 +5279,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[4] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__5
+  RingRouterRTL__c18890f12338194c routers__5
   (
     .clk( routers__clk[5] ),
     .pos( routers__pos[5] ),
@@ -5283,7 +5292,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[5] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__6
+  RingRouterRTL__c18890f12338194c routers__6
   (
     .clk( routers__clk[6] ),
     .pos( routers__pos[6] ),
@@ -5296,7 +5305,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[6] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__7
+  RingRouterRTL__c18890f12338194c routers__7
   (
     .clk( routers__clk[7] ),
     .pos( routers__pos[7] ),
@@ -5309,7 +5318,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[7] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__8
+  RingRouterRTL__c18890f12338194c routers__8
   (
     .clk( routers__clk[8] ),
     .pos( routers__pos[8] ),
@@ -5322,7 +5331,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[8] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__9
+  RingRouterRTL__c18890f12338194c routers__9
   (
     .clk( routers__clk[9] ),
     .pos( routers__pos[9] ),
@@ -5335,7 +5344,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[9] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__10
+  RingRouterRTL__c18890f12338194c routers__10
   (
     .clk( routers__clk[10] ),
     .pos( routers__pos[10] ),
@@ -5348,7 +5357,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[10] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__11
+  RingRouterRTL__c18890f12338194c routers__11
   (
     .clk( routers__clk[11] ),
     .pos( routers__pos[11] ),
@@ -5361,7 +5370,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[11] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__12
+  RingRouterRTL__c18890f12338194c routers__12
   (
     .clk( routers__clk[12] ),
     .pos( routers__pos[12] ),
@@ -5374,7 +5383,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[12] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__13
+  RingRouterRTL__c18890f12338194c routers__13
   (
     .clk( routers__clk[13] ),
     .pos( routers__pos[13] ),
@@ -5387,7 +5396,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[13] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__14
+  RingRouterRTL__c18890f12338194c routers__14
   (
     .clk( routers__clk[14] ),
     .pos( routers__pos[14] ),
@@ -5400,7 +5409,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[14] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__15
+  RingRouterRTL__c18890f12338194c routers__15
   (
     .clk( routers__clk[15] ),
     .pos( routers__pos[15] ),
@@ -5413,7 +5422,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__yum( routers__send__yum[15] )
   );
 
-  RingRouterRTL__a707108113dcd9ca routers__16
+  RingRouterRTL__c18890f12338194c routers__16
   (
     .clk( routers__clk[16] ),
     .pos( routers__pos[16] ),
@@ -5437,13 +5446,13 @@ module RingNetworkRTL__3e3e9efc26784367
   logic [0:0] send_adp__clk [0:16];
   logic [0:0] send_adp__reset [0:16];
   logic [0:0] send_adp__recv__en [0:16];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send_adp__recv__msg [0:16];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send_adp__recv__msg [0:16];
   logic [0:0] send_adp__recv__yum [0:16][0:1];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send_adp__send__msg [0:16];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send_adp__send__msg [0:16];
   logic [0:0] send_adp__send__rdy [0:16];
   logic [0:0] send_adp__send__val [0:16];
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__0
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__0
   (
     .clk( send_adp__clk[0] ),
     .reset( send_adp__reset[0] ),
@@ -5455,7 +5464,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[0] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__1
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__1
   (
     .clk( send_adp__clk[1] ),
     .reset( send_adp__reset[1] ),
@@ -5467,7 +5476,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[1] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__2
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__2
   (
     .clk( send_adp__clk[2] ),
     .reset( send_adp__reset[2] ),
@@ -5479,7 +5488,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[2] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__3
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__3
   (
     .clk( send_adp__clk[3] ),
     .reset( send_adp__reset[3] ),
@@ -5491,7 +5500,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[3] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__4
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__4
   (
     .clk( send_adp__clk[4] ),
     .reset( send_adp__reset[4] ),
@@ -5503,7 +5512,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[4] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__5
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__5
   (
     .clk( send_adp__clk[5] ),
     .reset( send_adp__reset[5] ),
@@ -5515,7 +5524,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[5] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__6
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__6
   (
     .clk( send_adp__clk[6] ),
     .reset( send_adp__reset[6] ),
@@ -5527,7 +5536,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[6] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__7
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__7
   (
     .clk( send_adp__clk[7] ),
     .reset( send_adp__reset[7] ),
@@ -5539,7 +5548,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[7] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__8
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__8
   (
     .clk( send_adp__clk[8] ),
     .reset( send_adp__reset[8] ),
@@ -5551,7 +5560,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[8] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__9
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__9
   (
     .clk( send_adp__clk[9] ),
     .reset( send_adp__reset[9] ),
@@ -5563,7 +5572,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[9] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__10
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__10
   (
     .clk( send_adp__clk[10] ),
     .reset( send_adp__reset[10] ),
@@ -5575,7 +5584,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[10] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__11
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__11
   (
     .clk( send_adp__clk[11] ),
     .reset( send_adp__reset[11] ),
@@ -5587,7 +5596,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[11] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__12
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__12
   (
     .clk( send_adp__clk[12] ),
     .reset( send_adp__reset[12] ),
@@ -5599,7 +5608,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[12] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__13
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__13
   (
     .clk( send_adp__clk[13] ),
     .reset( send_adp__reset[13] ),
@@ -5611,7 +5620,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[13] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__14
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__14
   (
     .clk( send_adp__clk[14] ),
     .reset( send_adp__reset[14] ),
@@ -5623,7 +5632,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[14] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__15
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__15
   (
     .clk( send_adp__clk[15] ),
     .reset( send_adp__reset[15] ),
@@ -5635,7 +5644,7 @@ module RingNetworkRTL__3e3e9efc26784367
     .send__val( send_adp__send__val[15] )
   );
 
-  CreditRecvRTL2SendRTL__6678e50a871f56c8 send_adp__16
+  CreditRecvRTL2SendRTL__8579df8a8304f3e2 send_adp__16
   (
     .clk( send_adp__clk[16] ),
     .reset( send_adp__reset[16] ),
@@ -6144,17 +6153,17 @@ endmodule
 
 
 // PyMTL Component ChannelRTL Definition
-// Full name: ChannelRTL__PacketType_MemAccessPacket_8_3_128__43d1e1e5bc923019__QueueType_NormalQueueRTL__latency_0
+// Full name: ChannelRTL__PacketType_MemAccessPacket_8_3_128__50b29b2dbc59831b__QueueType_NormalQueueRTL__latency_0
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/channel/ChannelRTL.py
 
-module ChannelRTL__3af2fb5d5d9bdd8b
+module ChannelRTL__a314b514ead67fc5
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input MemAccessPacket_8_3_128__43d1e1e5bc923019 recv__msg  ,
+  input MemAccessPacket_8_3_128__50b29b2dbc59831b recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output MemAccessPacket_8_3_128__43d1e1e5bc923019 send__msg  ,
+  output MemAccessPacket_8_3_128__50b29b2dbc59831b send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -6215,20 +6224,20 @@ endmodule
 
 
 // PyMTL Component DataMemWrapperRTL Definition
-// Full name: DataMemWrapperRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__MemReadType_MemAccessPacket_8_3_128__43d1e1e5bc923019__MemWriteType_MemAccessPacket_8_3_128__43d1e1e5bc923019__MemResponseType_MemAccessPacket_3_8_128__46ca7671c0feb658__global_data_mem_size_128__per_bank_data_mem_size_16__is_combinational_True
+// Full name: DataMemWrapperRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__MemReadType_MemAccessPacket_8_3_128__50b29b2dbc59831b__MemWriteType_MemAccessPacket_8_3_128__50b29b2dbc59831b__MemResponseType_MemAccessPacket_3_8_128__fd2f0111edd219ae__global_data_mem_size_128__per_bank_data_mem_size_16__is_combinational_True
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/data/DataMemWrapperRTL.py
 
-module DataMemWrapperRTL__e06d1f6e4fba725f
+module DataMemWrapperRTL__4777c60d73176261
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input MemAccessPacket_8_3_128__43d1e1e5bc923019 recv_rd__msg  ,
+  input MemAccessPacket_8_3_128__50b29b2dbc59831b recv_rd__msg  ,
   output logic [0:0] recv_rd__rdy  ,
   input logic [0:0] recv_rd__val  ,
-  input MemAccessPacket_8_3_128__43d1e1e5bc923019 recv_wr__msg  ,
+  input MemAccessPacket_8_3_128__50b29b2dbc59831b recv_wr__msg  ,
   output logic [0:0] recv_wr__rdy  ,
   input logic [0:0] recv_wr__val  ,
-  output MemAccessPacket_3_8_128__46ca7671c0feb658 send__msg  ,
+  output MemAccessPacket_3_8_128__fd2f0111edd219ae send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -6239,14 +6248,14 @@ module DataMemWrapperRTL__e06d1f6e4fba725f
 
   logic [0:0] channel_rd__clk;
   logic [0:0] channel_rd__reset;
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 channel_rd__recv__msg;
+  MemAccessPacket_8_3_128__50b29b2dbc59831b channel_rd__recv__msg;
   logic [0:0] channel_rd__recv__rdy;
   logic [0:0] channel_rd__recv__val;
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 channel_rd__send__msg;
+  MemAccessPacket_8_3_128__50b29b2dbc59831b channel_rd__send__msg;
   logic [0:0] channel_rd__send__rdy;
   logic [0:0] channel_rd__send__val;
 
-  ChannelRTL__3af2fb5d5d9bdd8b channel_rd
+  ChannelRTL__a314b514ead67fc5 channel_rd
   (
     .clk( channel_rd__clk ),
     .reset( channel_rd__reset ),
@@ -6268,14 +6277,14 @@ module DataMemWrapperRTL__e06d1f6e4fba725f
 
   logic [0:0] channel_wr__clk;
   logic [0:0] channel_wr__reset;
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 channel_wr__recv__msg;
+  MemAccessPacket_8_3_128__50b29b2dbc59831b channel_wr__recv__msg;
   logic [0:0] channel_wr__recv__rdy;
   logic [0:0] channel_wr__recv__val;
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 channel_wr__send__msg;
+  MemAccessPacket_8_3_128__50b29b2dbc59831b channel_wr__send__msg;
   logic [0:0] channel_wr__send__rdy;
   logic [0:0] channel_wr__send__val;
 
-  ChannelRTL__3af2fb5d5d9bdd8b channel_wr
+  ChannelRTL__a314b514ead67fc5 channel_wr
   (
     .clk( channel_wr__clk ),
     .reset( channel_wr__reset ),
@@ -6334,7 +6343,7 @@ module DataMemWrapperRTL__e06d1f6e4fba725f
   //     s.send.msg.remote_src_port    @= s.channel_rd.send.msg.remote_src_port
   
   always_comb begin : compose_send_msg
-    send__msg = { 2'd0, 3'd0, 7'd0, { 32'd0, 1'd0, 1'd0, 1'd0 }, 1'd0, 5'd0, 3'd0 };
+    send__msg = { 2'd0, 3'd0, 7'd0, { 32'd0, 1'd0, 1'd0, 1'd0 }, 2'd0, 5'd0, 3'd0 };
     if ( channel_rd__send__val ) begin
       send__msg.src = channel_rd__send__msg.dst;
       send__msg.dst = channel_rd__send__msg.src;
@@ -6425,11 +6434,11 @@ endmodule
 // PyMTL Component Mux Definition
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/arithmetics.py
 
-module Mux__Type_MemAccessPacket_8_3_128__43d1e1e5bc923019__ninputs_2
+module Mux__Type_MemAccessPacket_8_3_128__50b29b2dbc59831b__ninputs_2
 (
   input  logic [0:0] clk ,
-  input  MemAccessPacket_8_3_128__43d1e1e5bc923019 in_ [0:1],
-  output MemAccessPacket_8_3_128__43d1e1e5bc923019 out ,
+  input  MemAccessPacket_8_3_128__50b29b2dbc59831b in_ [0:1],
+  output MemAccessPacket_8_3_128__50b29b2dbc59831b out ,
   input  logic [0:0] reset ,
   input  logic [0:0] sel 
 );
@@ -6448,22 +6457,22 @@ endmodule
 
 
 // PyMTL Component RegisterFile Definition
-// Full name: RegisterFile__Type_MemAccessPacket_8_3_128__43d1e1e5bc923019__nregs_2__rd_ports_1__wr_ports_1__const_zero_False
+// Full name: RegisterFile__Type_MemAccessPacket_8_3_128__50b29b2dbc59831b__nregs_2__rd_ports_1__wr_ports_1__const_zero_False
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py
 
-module RegisterFile__5ceab76422faed4c
+module RegisterFile__43f2ec9f79d7b224
 (
   input  logic [0:0] clk ,
   input  logic [0:0] raddr [0:0],
-  output MemAccessPacket_8_3_128__43d1e1e5bc923019 rdata [0:0],
+  output MemAccessPacket_8_3_128__50b29b2dbc59831b rdata [0:0],
   input  logic [0:0] reset ,
   input  logic [0:0] waddr [0:0],
-  input  MemAccessPacket_8_3_128__43d1e1e5bc923019 wdata [0:0],
+  input  MemAccessPacket_8_3_128__50b29b2dbc59831b wdata [0:0],
   input  logic [0:0] wen [0:0]
 );
   localparam logic [0:0] __const__rd_ports_at_up_rf_read  = 1'd1;
   localparam logic [0:0] __const__wr_ports_at_up_rf_write  = 1'd1;
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 regs [0:1];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b regs [0:1];
 
   // PyMTL Update Block Source
   // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py:20
@@ -6496,17 +6505,17 @@ endmodule
 
 
 // PyMTL Component BypassQueueDpathRTL Definition
-// Full name: BypassQueueDpathRTL__EntryType_MemAccessPacket_8_3_128__43d1e1e5bc923019__num_entries_2
+// Full name: BypassQueueDpathRTL__EntryType_MemAccessPacket_8_3_128__50b29b2dbc59831b__num_entries_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module BypassQueueDpathRTL__17cda4e17d5b636d
+module BypassQueueDpathRTL__bdcc384fae3d96fe
 (
   input  logic [0:0] clk ,
   input  logic [0:0] mux_sel ,
   input  logic [0:0] raddr ,
-  input  MemAccessPacket_8_3_128__43d1e1e5bc923019 recv_msg ,
+  input  MemAccessPacket_8_3_128__50b29b2dbc59831b recv_msg ,
   input  logic [0:0] reset ,
-  output MemAccessPacket_8_3_128__43d1e1e5bc923019 send_msg ,
+  output MemAccessPacket_8_3_128__50b29b2dbc59831b send_msg ,
   input  logic [0:0] waddr ,
   input  logic [0:0] wen 
 );
@@ -6515,12 +6524,12 @@ module BypassQueueDpathRTL__17cda4e17d5b636d
   //-------------------------------------------------------------
 
   logic [0:0] mux__clk;
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 mux__in_ [0:1];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 mux__out;
+  MemAccessPacket_8_3_128__50b29b2dbc59831b mux__in_ [0:1];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b mux__out;
   logic [0:0] mux__reset;
   logic [0:0] mux__sel;
 
-  Mux__Type_MemAccessPacket_8_3_128__43d1e1e5bc923019__ninputs_2 mux
+  Mux__Type_MemAccessPacket_8_3_128__50b29b2dbc59831b__ninputs_2 mux
   (
     .clk( mux__clk ),
     .in_( mux__in_ ),
@@ -6539,13 +6548,13 @@ module BypassQueueDpathRTL__17cda4e17d5b636d
 
   logic [0:0] rf__clk;
   logic [0:0] rf__raddr [0:0];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 rf__rdata [0:0];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b rf__rdata [0:0];
   logic [0:0] rf__reset;
   logic [0:0] rf__waddr [0:0];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 rf__wdata [0:0];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b rf__wdata [0:0];
   logic [0:0] rf__wen [0:0];
 
-  RegisterFile__5ceab76422faed4c rf
+  RegisterFile__43f2ec9f79d7b224 rf
   (
     .clk( rf__clk ),
     .raddr( rf__raddr ),
@@ -6577,18 +6586,18 @@ endmodule
 
 
 // PyMTL Component BypassQueueRTL Definition
-// Full name: BypassQueueRTL__EntryType_MemAccessPacket_8_3_128__43d1e1e5bc923019__num_entries_2
+// Full name: BypassQueueRTL__EntryType_MemAccessPacket_8_3_128__50b29b2dbc59831b__num_entries_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module BypassQueueRTL__17cda4e17d5b636d
+module BypassQueueRTL__bdcc384fae3d96fe
 (
   input  logic [0:0] clk ,
   output logic [1:0] count ,
   input  logic [0:0] reset ,
-  input MemAccessPacket_8_3_128__43d1e1e5bc923019 recv__msg  ,
+  input MemAccessPacket_8_3_128__50b29b2dbc59831b recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output MemAccessPacket_8_3_128__43d1e1e5bc923019 send__msg  ,
+  output MemAccessPacket_8_3_128__50b29b2dbc59831b send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -6634,13 +6643,13 @@ module BypassQueueRTL__17cda4e17d5b636d
   logic [0:0] dpath__clk;
   logic [0:0] dpath__mux_sel;
   logic [0:0] dpath__raddr;
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 dpath__recv_msg;
+  MemAccessPacket_8_3_128__50b29b2dbc59831b dpath__recv_msg;
   logic [0:0] dpath__reset;
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 dpath__send_msg;
+  MemAccessPacket_8_3_128__50b29b2dbc59831b dpath__send_msg;
   logic [0:0] dpath__waddr;
   logic [0:0] dpath__wen;
 
-  BypassQueueDpathRTL__17cda4e17d5b636d dpath
+  BypassQueueDpathRTL__bdcc384fae3d96fe dpath
   (
     .clk( dpath__clk ),
     .mux_sel( dpath__mux_sel ),
@@ -6676,17 +6685,17 @@ endmodule
 
 
 // PyMTL Component InputUnitRTL Definition
-// Full name: InputUnitRTL__PacketType_MemAccessPacket_8_3_128__43d1e1e5bc923019__QueueType_BypassQueueRTL
+// Full name: InputUnitRTL__PacketType_MemAccessPacket_8_3_128__50b29b2dbc59831b__QueueType_BypassQueueRTL
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/router/InputUnitRTL.py
 
-module InputUnitRTL__2a3ff89ae3b470df
+module InputUnitRTL__ff7ee71bee28eaac
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input MemAccessPacket_8_3_128__43d1e1e5bc923019 recv__msg  ,
+  input MemAccessPacket_8_3_128__50b29b2dbc59831b recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output MemAccessPacket_8_3_128__43d1e1e5bc923019 send__msg  ,
+  output MemAccessPacket_8_3_128__50b29b2dbc59831b send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -6697,14 +6706,14 @@ module InputUnitRTL__2a3ff89ae3b470df
   logic [0:0] queue__clk;
   logic [1:0] queue__count;
   logic [0:0] queue__reset;
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 queue__recv__msg;
+  MemAccessPacket_8_3_128__50b29b2dbc59831b queue__recv__msg;
   logic [0:0] queue__recv__rdy;
   logic [0:0] queue__recv__val;
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 queue__send__msg;
+  MemAccessPacket_8_3_128__50b29b2dbc59831b queue__send__msg;
   logic [0:0] queue__send__rdy;
   logic [0:0] queue__send__val;
 
-  BypassQueueRTL__17cda4e17d5b636d queue
+  BypassQueueRTL__bdcc384fae3d96fe queue
   (
     .clk( queue__clk ),
     .count( queue__count ),
@@ -6734,17 +6743,17 @@ endmodule
 
 
 // PyMTL Component OutputUnitRTL Definition
-// Full name: OutputUnitRTL__PacketType_MemAccessPacket_8_3_128__43d1e1e5bc923019__QueueType_None
+// Full name: OutputUnitRTL__PacketType_MemAccessPacket_8_3_128__50b29b2dbc59831b__QueueType_None
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/router/OutputUnitRTL.py
 
-module OutputUnitRTL__9a9e3eaf6fdb639f
+module OutputUnitRTL__f930df6b4f28ffd2
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input MemAccessPacket_8_3_128__43d1e1e5bc923019 recv__msg  ,
+  input MemAccessPacket_8_3_128__50b29b2dbc59831b recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output MemAccessPacket_8_3_128__43d1e1e5bc923019 send__msg  ,
+  output MemAccessPacket_8_3_128__50b29b2dbc59831b send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -6757,17 +6766,17 @@ endmodule
 
 
 // PyMTL Component XbarRouteUnitRTL Definition
-// Full name: XbarRouteUnitRTL__PacketType_MemAccessPacket_8_3_128__43d1e1e5bc923019__num_outports_3
+// Full name: XbarRouteUnitRTL__PacketType_MemAccessPacket_8_3_128__50b29b2dbc59831b__num_outports_3
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/xbar/XbarRouteUnitRTL.py
 
-module XbarRouteUnitRTL__9d3ef94b34cf6b2c
+module XbarRouteUnitRTL__e8e1b5e563e2f891
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input MemAccessPacket_8_3_128__43d1e1e5bc923019 recv__msg  ,
+  input MemAccessPacket_8_3_128__50b29b2dbc59831b recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output MemAccessPacket_8_3_128__43d1e1e5bc923019 send__msg [0:2] ,
+  output MemAccessPacket_8_3_128__50b29b2dbc59831b send__msg [0:2] ,
   input logic [0:0] send__rdy [0:2] ,
   output logic [0:0] send__val [0:2] 
 );
@@ -7023,11 +7032,11 @@ endmodule
 // PyMTL Component Mux Definition
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/arithmetics.py
 
-module Mux__Type_MemAccessPacket_8_3_128__43d1e1e5bc923019__ninputs_8
+module Mux__Type_MemAccessPacket_8_3_128__50b29b2dbc59831b__ninputs_8
 (
   input  logic [0:0] clk ,
-  input  MemAccessPacket_8_3_128__43d1e1e5bc923019 in_ [0:7],
-  output MemAccessPacket_8_3_128__43d1e1e5bc923019 out ,
+  input  MemAccessPacket_8_3_128__50b29b2dbc59831b in_ [0:7],
+  output MemAccessPacket_8_3_128__50b29b2dbc59831b out ,
   input  logic [0:0] reset ,
   input  logic [2:0] sel 
 );
@@ -7046,17 +7055,17 @@ endmodule
 
 
 // PyMTL Component SwitchUnitRTL Definition
-// Full name: SwitchUnitRTL__PacketType_MemAccessPacket_8_3_128__43d1e1e5bc923019__num_inports_8
+// Full name: SwitchUnitRTL__PacketType_MemAccessPacket_8_3_128__50b29b2dbc59831b__num_inports_8
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/router/SwitchUnitRTL.py
 
-module SwitchUnitRTL__02df6d614ff4cdbf
+module SwitchUnitRTL__abb73938a1813a53
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input MemAccessPacket_8_3_128__43d1e1e5bc923019 recv__msg [0:7] ,
+  input MemAccessPacket_8_3_128__50b29b2dbc59831b recv__msg [0:7] ,
   output logic [0:0] recv__rdy [0:7] ,
   input logic [0:0] recv__val [0:7] ,
-  output MemAccessPacket_8_3_128__43d1e1e5bc923019 send__msg  ,
+  output MemAccessPacket_8_3_128__50b29b2dbc59831b send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -7110,12 +7119,12 @@ module SwitchUnitRTL__02df6d614ff4cdbf
   //-------------------------------------------------------------
 
   logic [0:0] mux__clk;
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 mux__in_ [0:7];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 mux__out;
+  MemAccessPacket_8_3_128__50b29b2dbc59831b mux__in_ [0:7];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b mux__out;
   logic [0:0] mux__reset;
   logic [2:0] mux__sel;
 
-  Mux__Type_MemAccessPacket_8_3_128__43d1e1e5bc923019__ninputs_8 mux
+  Mux__Type_MemAccessPacket_8_3_128__50b29b2dbc59831b__ninputs_8 mux
   (
     .clk( mux__clk ),
     .in_( mux__in_ ),
@@ -7181,17 +7190,17 @@ endmodule
 
 
 // PyMTL Component XbarBypassQueueRTL Definition
-// Full name: XbarBypassQueueRTL__PacketType_MemAccessPacket_8_3_128__43d1e1e5bc923019__num_inports_8__num_outports_3__InputUnitType_InputUnitRTL__RouteUnitType_XbarRouteUnitRTL__SwitchUnitType_SwitchUnitRTL__OutputUnitType_OutputUnitRTL
+// Full name: XbarBypassQueueRTL__PacketType_MemAccessPacket_8_3_128__50b29b2dbc59831b__num_inports_8__num_outports_3__InputUnitType_InputUnitRTL__RouteUnitType_XbarRouteUnitRTL__SwitchUnitType_SwitchUnitRTL__OutputUnitType_OutputUnitRTL
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/xbar/XbarBypassQueueRTL.py
 
-module XbarBypassQueueRTL__93c04758672ed742
+module XbarBypassQueueRTL__de0616c87e19962d
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input MemAccessPacket_8_3_128__43d1e1e5bc923019 recv__msg [0:7] ,
+  input MemAccessPacket_8_3_128__50b29b2dbc59831b recv__msg [0:7] ,
   output logic [0:0] recv__rdy [0:7] ,
   input logic [0:0] recv__val [0:7] ,
-  output MemAccessPacket_8_3_128__43d1e1e5bc923019 send__msg [0:2] ,
+  output MemAccessPacket_8_3_128__50b29b2dbc59831b send__msg [0:2] ,
   input logic [0:0] send__rdy [0:2] ,
   output logic [0:0] send__val [0:2] 
 );
@@ -7201,14 +7210,14 @@ module XbarBypassQueueRTL__93c04758672ed742
 
   logic [0:0] input_units__clk [0:7];
   logic [0:0] input_units__reset [0:7];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 input_units__recv__msg [0:7];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b input_units__recv__msg [0:7];
   logic [0:0] input_units__recv__rdy [0:7];
   logic [0:0] input_units__recv__val [0:7];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 input_units__send__msg [0:7];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b input_units__send__msg [0:7];
   logic [0:0] input_units__send__rdy [0:7];
   logic [0:0] input_units__send__val [0:7];
 
-  InputUnitRTL__2a3ff89ae3b470df input_units__0
+  InputUnitRTL__ff7ee71bee28eaac input_units__0
   (
     .clk( input_units__clk[0] ),
     .reset( input_units__reset[0] ),
@@ -7220,7 +7229,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( input_units__send__val[0] )
   );
 
-  InputUnitRTL__2a3ff89ae3b470df input_units__1
+  InputUnitRTL__ff7ee71bee28eaac input_units__1
   (
     .clk( input_units__clk[1] ),
     .reset( input_units__reset[1] ),
@@ -7232,7 +7241,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( input_units__send__val[1] )
   );
 
-  InputUnitRTL__2a3ff89ae3b470df input_units__2
+  InputUnitRTL__ff7ee71bee28eaac input_units__2
   (
     .clk( input_units__clk[2] ),
     .reset( input_units__reset[2] ),
@@ -7244,7 +7253,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( input_units__send__val[2] )
   );
 
-  InputUnitRTL__2a3ff89ae3b470df input_units__3
+  InputUnitRTL__ff7ee71bee28eaac input_units__3
   (
     .clk( input_units__clk[3] ),
     .reset( input_units__reset[3] ),
@@ -7256,7 +7265,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( input_units__send__val[3] )
   );
 
-  InputUnitRTL__2a3ff89ae3b470df input_units__4
+  InputUnitRTL__ff7ee71bee28eaac input_units__4
   (
     .clk( input_units__clk[4] ),
     .reset( input_units__reset[4] ),
@@ -7268,7 +7277,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( input_units__send__val[4] )
   );
 
-  InputUnitRTL__2a3ff89ae3b470df input_units__5
+  InputUnitRTL__ff7ee71bee28eaac input_units__5
   (
     .clk( input_units__clk[5] ),
     .reset( input_units__reset[5] ),
@@ -7280,7 +7289,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( input_units__send__val[5] )
   );
 
-  InputUnitRTL__2a3ff89ae3b470df input_units__6
+  InputUnitRTL__ff7ee71bee28eaac input_units__6
   (
     .clk( input_units__clk[6] ),
     .reset( input_units__reset[6] ),
@@ -7292,7 +7301,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( input_units__send__val[6] )
   );
 
-  InputUnitRTL__2a3ff89ae3b470df input_units__7
+  InputUnitRTL__ff7ee71bee28eaac input_units__7
   (
     .clk( input_units__clk[7] ),
     .reset( input_units__reset[7] ),
@@ -7314,14 +7323,14 @@ module XbarBypassQueueRTL__93c04758672ed742
 
   logic [0:0] output_units__clk [0:2];
   logic [0:0] output_units__reset [0:2];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 output_units__recv__msg [0:2];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b output_units__recv__msg [0:2];
   logic [0:0] output_units__recv__rdy [0:2];
   logic [0:0] output_units__recv__val [0:2];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 output_units__send__msg [0:2];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b output_units__send__msg [0:2];
   logic [0:0] output_units__send__rdy [0:2];
   logic [0:0] output_units__send__val [0:2];
 
-  OutputUnitRTL__9a9e3eaf6fdb639f output_units__0
+  OutputUnitRTL__f930df6b4f28ffd2 output_units__0
   (
     .clk( output_units__clk[0] ),
     .reset( output_units__reset[0] ),
@@ -7333,7 +7342,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( output_units__send__val[0] )
   );
 
-  OutputUnitRTL__9a9e3eaf6fdb639f output_units__1
+  OutputUnitRTL__f930df6b4f28ffd2 output_units__1
   (
     .clk( output_units__clk[1] ),
     .reset( output_units__reset[1] ),
@@ -7345,7 +7354,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( output_units__send__val[1] )
   );
 
-  OutputUnitRTL__9a9e3eaf6fdb639f output_units__2
+  OutputUnitRTL__f930df6b4f28ffd2 output_units__2
   (
     .clk( output_units__clk[2] ),
     .reset( output_units__reset[2] ),
@@ -7367,14 +7376,14 @@ module XbarBypassQueueRTL__93c04758672ed742
 
   logic [0:0] route_units__clk [0:7];
   logic [0:0] route_units__reset [0:7];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 route_units__recv__msg [0:7];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b route_units__recv__msg [0:7];
   logic [0:0] route_units__recv__rdy [0:7];
   logic [0:0] route_units__recv__val [0:7];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 route_units__send__msg [0:7][0:2];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b route_units__send__msg [0:7][0:2];
   logic [0:0] route_units__send__rdy [0:7][0:2];
   logic [0:0] route_units__send__val [0:7][0:2];
 
-  XbarRouteUnitRTL__9d3ef94b34cf6b2c route_units__0
+  XbarRouteUnitRTL__e8e1b5e563e2f891 route_units__0
   (
     .clk( route_units__clk[0] ),
     .reset( route_units__reset[0] ),
@@ -7386,7 +7395,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( route_units__send__val[0] )
   );
 
-  XbarRouteUnitRTL__9d3ef94b34cf6b2c route_units__1
+  XbarRouteUnitRTL__e8e1b5e563e2f891 route_units__1
   (
     .clk( route_units__clk[1] ),
     .reset( route_units__reset[1] ),
@@ -7398,7 +7407,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( route_units__send__val[1] )
   );
 
-  XbarRouteUnitRTL__9d3ef94b34cf6b2c route_units__2
+  XbarRouteUnitRTL__e8e1b5e563e2f891 route_units__2
   (
     .clk( route_units__clk[2] ),
     .reset( route_units__reset[2] ),
@@ -7410,7 +7419,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( route_units__send__val[2] )
   );
 
-  XbarRouteUnitRTL__9d3ef94b34cf6b2c route_units__3
+  XbarRouteUnitRTL__e8e1b5e563e2f891 route_units__3
   (
     .clk( route_units__clk[3] ),
     .reset( route_units__reset[3] ),
@@ -7422,7 +7431,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( route_units__send__val[3] )
   );
 
-  XbarRouteUnitRTL__9d3ef94b34cf6b2c route_units__4
+  XbarRouteUnitRTL__e8e1b5e563e2f891 route_units__4
   (
     .clk( route_units__clk[4] ),
     .reset( route_units__reset[4] ),
@@ -7434,7 +7443,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( route_units__send__val[4] )
   );
 
-  XbarRouteUnitRTL__9d3ef94b34cf6b2c route_units__5
+  XbarRouteUnitRTL__e8e1b5e563e2f891 route_units__5
   (
     .clk( route_units__clk[5] ),
     .reset( route_units__reset[5] ),
@@ -7446,7 +7455,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( route_units__send__val[5] )
   );
 
-  XbarRouteUnitRTL__9d3ef94b34cf6b2c route_units__6
+  XbarRouteUnitRTL__e8e1b5e563e2f891 route_units__6
   (
     .clk( route_units__clk[6] ),
     .reset( route_units__reset[6] ),
@@ -7458,7 +7467,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( route_units__send__val[6] )
   );
 
-  XbarRouteUnitRTL__9d3ef94b34cf6b2c route_units__7
+  XbarRouteUnitRTL__e8e1b5e563e2f891 route_units__7
   (
     .clk( route_units__clk[7] ),
     .reset( route_units__reset[7] ),
@@ -7480,14 +7489,14 @@ module XbarBypassQueueRTL__93c04758672ed742
 
   logic [0:0] switch_units__clk [0:2];
   logic [0:0] switch_units__reset [0:2];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 switch_units__recv__msg [0:2][0:7];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b switch_units__recv__msg [0:2][0:7];
   logic [0:0] switch_units__recv__rdy [0:2][0:7];
   logic [0:0] switch_units__recv__val [0:2][0:7];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 switch_units__send__msg [0:2];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b switch_units__send__msg [0:2];
   logic [0:0] switch_units__send__rdy [0:2];
   logic [0:0] switch_units__send__val [0:2];
 
-  SwitchUnitRTL__02df6d614ff4cdbf switch_units__0
+  SwitchUnitRTL__abb73938a1813a53 switch_units__0
   (
     .clk( switch_units__clk[0] ),
     .reset( switch_units__reset[0] ),
@@ -7499,7 +7508,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( switch_units__send__val[0] )
   );
 
-  SwitchUnitRTL__02df6d614ff4cdbf switch_units__1
+  SwitchUnitRTL__abb73938a1813a53 switch_units__1
   (
     .clk( switch_units__clk[1] ),
     .reset( switch_units__reset[1] ),
@@ -7511,7 +7520,7 @@ module XbarBypassQueueRTL__93c04758672ed742
     .send__val( switch_units__send__val[1] )
   );
 
-  SwitchUnitRTL__02df6d614ff4cdbf switch_units__2
+  SwitchUnitRTL__abb73938a1813a53 switch_units__2
   (
     .clk( switch_units__clk[2] ),
     .reset( switch_units__reset[2] ),
@@ -7716,11 +7725,11 @@ endmodule
 // PyMTL Component Mux Definition
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/arithmetics.py
 
-module Mux__Type_MemAccessPacket_3_8_128__46ca7671c0feb658__ninputs_2
+module Mux__Type_MemAccessPacket_3_8_128__fd2f0111edd219ae__ninputs_2
 (
   input  logic [0:0] clk ,
-  input  MemAccessPacket_3_8_128__46ca7671c0feb658 in_ [0:1],
-  output MemAccessPacket_3_8_128__46ca7671c0feb658 out ,
+  input  MemAccessPacket_3_8_128__fd2f0111edd219ae in_ [0:1],
+  output MemAccessPacket_3_8_128__fd2f0111edd219ae out ,
   input  logic [0:0] reset ,
   input  logic [0:0] sel 
 );
@@ -7739,22 +7748,22 @@ endmodule
 
 
 // PyMTL Component RegisterFile Definition
-// Full name: RegisterFile__Type_MemAccessPacket_3_8_128__46ca7671c0feb658__nregs_2__rd_ports_1__wr_ports_1__const_zero_False
+// Full name: RegisterFile__Type_MemAccessPacket_3_8_128__fd2f0111edd219ae__nregs_2__rd_ports_1__wr_ports_1__const_zero_False
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py
 
-module RegisterFile__e2102f75a7700847
+module RegisterFile__0e4bfece022f982b
 (
   input  logic [0:0] clk ,
   input  logic [0:0] raddr [0:0],
-  output MemAccessPacket_3_8_128__46ca7671c0feb658 rdata [0:0],
+  output MemAccessPacket_3_8_128__fd2f0111edd219ae rdata [0:0],
   input  logic [0:0] reset ,
   input  logic [0:0] waddr [0:0],
-  input  MemAccessPacket_3_8_128__46ca7671c0feb658 wdata [0:0],
+  input  MemAccessPacket_3_8_128__fd2f0111edd219ae wdata [0:0],
   input  logic [0:0] wen [0:0]
 );
   localparam logic [0:0] __const__rd_ports_at_up_rf_read  = 1'd1;
   localparam logic [0:0] __const__wr_ports_at_up_rf_write  = 1'd1;
-  MemAccessPacket_3_8_128__46ca7671c0feb658 regs [0:1];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae regs [0:1];
 
   // PyMTL Update Block Source
   // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py:20
@@ -7787,17 +7796,17 @@ endmodule
 
 
 // PyMTL Component BypassQueueDpathRTL Definition
-// Full name: BypassQueueDpathRTL__EntryType_MemAccessPacket_3_8_128__46ca7671c0feb658__num_entries_2
+// Full name: BypassQueueDpathRTL__EntryType_MemAccessPacket_3_8_128__fd2f0111edd219ae__num_entries_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module BypassQueueDpathRTL__725ce4ae1a69c610
+module BypassQueueDpathRTL__8ad2e582494d07e5
 (
   input  logic [0:0] clk ,
   input  logic [0:0] mux_sel ,
   input  logic [0:0] raddr ,
-  input  MemAccessPacket_3_8_128__46ca7671c0feb658 recv_msg ,
+  input  MemAccessPacket_3_8_128__fd2f0111edd219ae recv_msg ,
   input  logic [0:0] reset ,
-  output MemAccessPacket_3_8_128__46ca7671c0feb658 send_msg ,
+  output MemAccessPacket_3_8_128__fd2f0111edd219ae send_msg ,
   input  logic [0:0] waddr ,
   input  logic [0:0] wen 
 );
@@ -7806,12 +7815,12 @@ module BypassQueueDpathRTL__725ce4ae1a69c610
   //-------------------------------------------------------------
 
   logic [0:0] mux__clk;
-  MemAccessPacket_3_8_128__46ca7671c0feb658 mux__in_ [0:1];
-  MemAccessPacket_3_8_128__46ca7671c0feb658 mux__out;
+  MemAccessPacket_3_8_128__fd2f0111edd219ae mux__in_ [0:1];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae mux__out;
   logic [0:0] mux__reset;
   logic [0:0] mux__sel;
 
-  Mux__Type_MemAccessPacket_3_8_128__46ca7671c0feb658__ninputs_2 mux
+  Mux__Type_MemAccessPacket_3_8_128__fd2f0111edd219ae__ninputs_2 mux
   (
     .clk( mux__clk ),
     .in_( mux__in_ ),
@@ -7830,13 +7839,13 @@ module BypassQueueDpathRTL__725ce4ae1a69c610
 
   logic [0:0] rf__clk;
   logic [0:0] rf__raddr [0:0];
-  MemAccessPacket_3_8_128__46ca7671c0feb658 rf__rdata [0:0];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae rf__rdata [0:0];
   logic [0:0] rf__reset;
   logic [0:0] rf__waddr [0:0];
-  MemAccessPacket_3_8_128__46ca7671c0feb658 rf__wdata [0:0];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae rf__wdata [0:0];
   logic [0:0] rf__wen [0:0];
 
-  RegisterFile__e2102f75a7700847 rf
+  RegisterFile__0e4bfece022f982b rf
   (
     .clk( rf__clk ),
     .raddr( rf__raddr ),
@@ -7868,18 +7877,18 @@ endmodule
 
 
 // PyMTL Component BypassQueueRTL Definition
-// Full name: BypassQueueRTL__EntryType_MemAccessPacket_3_8_128__46ca7671c0feb658__num_entries_2
+// Full name: BypassQueueRTL__EntryType_MemAccessPacket_3_8_128__fd2f0111edd219ae__num_entries_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module BypassQueueRTL__725ce4ae1a69c610
+module BypassQueueRTL__8ad2e582494d07e5
 (
   input  logic [0:0] clk ,
   output logic [1:0] count ,
   input  logic [0:0] reset ,
-  input MemAccessPacket_3_8_128__46ca7671c0feb658 recv__msg  ,
+  input MemAccessPacket_3_8_128__fd2f0111edd219ae recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output MemAccessPacket_3_8_128__46ca7671c0feb658 send__msg  ,
+  output MemAccessPacket_3_8_128__fd2f0111edd219ae send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -7925,13 +7934,13 @@ module BypassQueueRTL__725ce4ae1a69c610
   logic [0:0] dpath__clk;
   logic [0:0] dpath__mux_sel;
   logic [0:0] dpath__raddr;
-  MemAccessPacket_3_8_128__46ca7671c0feb658 dpath__recv_msg;
+  MemAccessPacket_3_8_128__fd2f0111edd219ae dpath__recv_msg;
   logic [0:0] dpath__reset;
-  MemAccessPacket_3_8_128__46ca7671c0feb658 dpath__send_msg;
+  MemAccessPacket_3_8_128__fd2f0111edd219ae dpath__send_msg;
   logic [0:0] dpath__waddr;
   logic [0:0] dpath__wen;
 
-  BypassQueueDpathRTL__725ce4ae1a69c610 dpath
+  BypassQueueDpathRTL__8ad2e582494d07e5 dpath
   (
     .clk( dpath__clk ),
     .mux_sel( dpath__mux_sel ),
@@ -7967,17 +7976,17 @@ endmodule
 
 
 // PyMTL Component InputUnitRTL Definition
-// Full name: InputUnitRTL__PacketType_MemAccessPacket_3_8_128__46ca7671c0feb658__QueueType_BypassQueueRTL
+// Full name: InputUnitRTL__PacketType_MemAccessPacket_3_8_128__fd2f0111edd219ae__QueueType_BypassQueueRTL
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/router/InputUnitRTL.py
 
-module InputUnitRTL__58f8851e06cd68f0
+module InputUnitRTL__55de9487833ef491
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input MemAccessPacket_3_8_128__46ca7671c0feb658 recv__msg  ,
+  input MemAccessPacket_3_8_128__fd2f0111edd219ae recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output MemAccessPacket_3_8_128__46ca7671c0feb658 send__msg  ,
+  output MemAccessPacket_3_8_128__fd2f0111edd219ae send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -7988,14 +7997,14 @@ module InputUnitRTL__58f8851e06cd68f0
   logic [0:0] queue__clk;
   logic [1:0] queue__count;
   logic [0:0] queue__reset;
-  MemAccessPacket_3_8_128__46ca7671c0feb658 queue__recv__msg;
+  MemAccessPacket_3_8_128__fd2f0111edd219ae queue__recv__msg;
   logic [0:0] queue__recv__rdy;
   logic [0:0] queue__recv__val;
-  MemAccessPacket_3_8_128__46ca7671c0feb658 queue__send__msg;
+  MemAccessPacket_3_8_128__fd2f0111edd219ae queue__send__msg;
   logic [0:0] queue__send__rdy;
   logic [0:0] queue__send__val;
 
-  BypassQueueRTL__725ce4ae1a69c610 queue
+  BypassQueueRTL__8ad2e582494d07e5 queue
   (
     .clk( queue__clk ),
     .count( queue__count ),
@@ -8025,17 +8034,17 @@ endmodule
 
 
 // PyMTL Component OutputUnitRTL Definition
-// Full name: OutputUnitRTL__PacketType_MemAccessPacket_3_8_128__46ca7671c0feb658__QueueType_None
+// Full name: OutputUnitRTL__PacketType_MemAccessPacket_3_8_128__fd2f0111edd219ae__QueueType_None
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/router/OutputUnitRTL.py
 
-module OutputUnitRTL__3fcc996c3c8b9dc8
+module OutputUnitRTL__db48ce65aea57813
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input MemAccessPacket_3_8_128__46ca7671c0feb658 recv__msg  ,
+  input MemAccessPacket_3_8_128__fd2f0111edd219ae recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output MemAccessPacket_3_8_128__46ca7671c0feb658 send__msg  ,
+  output MemAccessPacket_3_8_128__fd2f0111edd219ae send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -8048,17 +8057,17 @@ endmodule
 
 
 // PyMTL Component XbarRouteUnitRTL Definition
-// Full name: XbarRouteUnitRTL__PacketType_MemAccessPacket_3_8_128__46ca7671c0feb658__num_outports_8
+// Full name: XbarRouteUnitRTL__PacketType_MemAccessPacket_3_8_128__fd2f0111edd219ae__num_outports_8
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/xbar/XbarRouteUnitRTL.py
 
-module XbarRouteUnitRTL__7f7e03c1462cd521
+module XbarRouteUnitRTL__4d19669edfdc845b
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input MemAccessPacket_3_8_128__46ca7671c0feb658 recv__msg  ,
+  input MemAccessPacket_3_8_128__fd2f0111edd219ae recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output MemAccessPacket_3_8_128__46ca7671c0feb658 send__msg [0:7] ,
+  output MemAccessPacket_3_8_128__fd2f0111edd219ae send__msg [0:7] ,
   input logic [0:0] send__rdy [0:7] ,
   output logic [0:0] send__val [0:7] 
 );
@@ -8324,11 +8333,11 @@ endmodule
 // PyMTL Component Mux Definition
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/arithmetics.py
 
-module Mux__Type_MemAccessPacket_3_8_128__46ca7671c0feb658__ninputs_3
+module Mux__Type_MemAccessPacket_3_8_128__fd2f0111edd219ae__ninputs_3
 (
   input  logic [0:0] clk ,
-  input  MemAccessPacket_3_8_128__46ca7671c0feb658 in_ [0:2],
-  output MemAccessPacket_3_8_128__46ca7671c0feb658 out ,
+  input  MemAccessPacket_3_8_128__fd2f0111edd219ae in_ [0:2],
+  output MemAccessPacket_3_8_128__fd2f0111edd219ae out ,
   input  logic [0:0] reset ,
   input  logic [1:0] sel 
 );
@@ -8347,17 +8356,17 @@ endmodule
 
 
 // PyMTL Component SwitchUnitRTL Definition
-// Full name: SwitchUnitRTL__PacketType_MemAccessPacket_3_8_128__46ca7671c0feb658__num_inports_3
+// Full name: SwitchUnitRTL__PacketType_MemAccessPacket_3_8_128__fd2f0111edd219ae__num_inports_3
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/router/SwitchUnitRTL.py
 
-module SwitchUnitRTL__251d18cef436823c
+module SwitchUnitRTL__0f275c3caadc86ab
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input MemAccessPacket_3_8_128__46ca7671c0feb658 recv__msg [0:2] ,
+  input MemAccessPacket_3_8_128__fd2f0111edd219ae recv__msg [0:2] ,
   output logic [0:0] recv__rdy [0:2] ,
   input logic [0:0] recv__val [0:2] ,
-  output MemAccessPacket_3_8_128__46ca7671c0feb658 send__msg  ,
+  output MemAccessPacket_3_8_128__fd2f0111edd219ae send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -8411,12 +8420,12 @@ module SwitchUnitRTL__251d18cef436823c
   //-------------------------------------------------------------
 
   logic [0:0] mux__clk;
-  MemAccessPacket_3_8_128__46ca7671c0feb658 mux__in_ [0:2];
-  MemAccessPacket_3_8_128__46ca7671c0feb658 mux__out;
+  MemAccessPacket_3_8_128__fd2f0111edd219ae mux__in_ [0:2];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae mux__out;
   logic [0:0] mux__reset;
   logic [1:0] mux__sel;
 
-  Mux__Type_MemAccessPacket_3_8_128__46ca7671c0feb658__ninputs_3 mux
+  Mux__Type_MemAccessPacket_3_8_128__fd2f0111edd219ae__ninputs_3 mux
   (
     .clk( mux__clk ),
     .in_( mux__in_ ),
@@ -8472,17 +8481,17 @@ endmodule
 
 
 // PyMTL Component XbarBypassQueueRTL Definition
-// Full name: XbarBypassQueueRTL__PacketType_MemAccessPacket_3_8_128__46ca7671c0feb658__num_inports_3__num_outports_8__InputUnitType_InputUnitRTL__RouteUnitType_XbarRouteUnitRTL__SwitchUnitType_SwitchUnitRTL__OutputUnitType_OutputUnitRTL
+// Full name: XbarBypassQueueRTL__PacketType_MemAccessPacket_3_8_128__fd2f0111edd219ae__num_inports_3__num_outports_8__InputUnitType_InputUnitRTL__RouteUnitType_XbarRouteUnitRTL__SwitchUnitType_SwitchUnitRTL__OutputUnitType_OutputUnitRTL
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/PyOCN/pymtl3_net/xbar/XbarBypassQueueRTL.py
 
-module XbarBypassQueueRTL__33dd43012f4a5941
+module XbarBypassQueueRTL__4959972cc0870a87
 (
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input MemAccessPacket_3_8_128__46ca7671c0feb658 recv__msg [0:2] ,
+  input MemAccessPacket_3_8_128__fd2f0111edd219ae recv__msg [0:2] ,
   output logic [0:0] recv__rdy [0:2] ,
   input logic [0:0] recv__val [0:2] ,
-  output MemAccessPacket_3_8_128__46ca7671c0feb658 send__msg [0:7] ,
+  output MemAccessPacket_3_8_128__fd2f0111edd219ae send__msg [0:7] ,
   input logic [0:0] send__rdy [0:7] ,
   output logic [0:0] send__val [0:7] 
 );
@@ -8492,14 +8501,14 @@ module XbarBypassQueueRTL__33dd43012f4a5941
 
   logic [0:0] input_units__clk [0:2];
   logic [0:0] input_units__reset [0:2];
-  MemAccessPacket_3_8_128__46ca7671c0feb658 input_units__recv__msg [0:2];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae input_units__recv__msg [0:2];
   logic [0:0] input_units__recv__rdy [0:2];
   logic [0:0] input_units__recv__val [0:2];
-  MemAccessPacket_3_8_128__46ca7671c0feb658 input_units__send__msg [0:2];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae input_units__send__msg [0:2];
   logic [0:0] input_units__send__rdy [0:2];
   logic [0:0] input_units__send__val [0:2];
 
-  InputUnitRTL__58f8851e06cd68f0 input_units__0
+  InputUnitRTL__55de9487833ef491 input_units__0
   (
     .clk( input_units__clk[0] ),
     .reset( input_units__reset[0] ),
@@ -8511,7 +8520,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( input_units__send__val[0] )
   );
 
-  InputUnitRTL__58f8851e06cd68f0 input_units__1
+  InputUnitRTL__55de9487833ef491 input_units__1
   (
     .clk( input_units__clk[1] ),
     .reset( input_units__reset[1] ),
@@ -8523,7 +8532,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( input_units__send__val[1] )
   );
 
-  InputUnitRTL__58f8851e06cd68f0 input_units__2
+  InputUnitRTL__55de9487833ef491 input_units__2
   (
     .clk( input_units__clk[2] ),
     .reset( input_units__reset[2] ),
@@ -8545,14 +8554,14 @@ module XbarBypassQueueRTL__33dd43012f4a5941
 
   logic [0:0] output_units__clk [0:7];
   logic [0:0] output_units__reset [0:7];
-  MemAccessPacket_3_8_128__46ca7671c0feb658 output_units__recv__msg [0:7];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae output_units__recv__msg [0:7];
   logic [0:0] output_units__recv__rdy [0:7];
   logic [0:0] output_units__recv__val [0:7];
-  MemAccessPacket_3_8_128__46ca7671c0feb658 output_units__send__msg [0:7];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae output_units__send__msg [0:7];
   logic [0:0] output_units__send__rdy [0:7];
   logic [0:0] output_units__send__val [0:7];
 
-  OutputUnitRTL__3fcc996c3c8b9dc8 output_units__0
+  OutputUnitRTL__db48ce65aea57813 output_units__0
   (
     .clk( output_units__clk[0] ),
     .reset( output_units__reset[0] ),
@@ -8564,7 +8573,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( output_units__send__val[0] )
   );
 
-  OutputUnitRTL__3fcc996c3c8b9dc8 output_units__1
+  OutputUnitRTL__db48ce65aea57813 output_units__1
   (
     .clk( output_units__clk[1] ),
     .reset( output_units__reset[1] ),
@@ -8576,7 +8585,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( output_units__send__val[1] )
   );
 
-  OutputUnitRTL__3fcc996c3c8b9dc8 output_units__2
+  OutputUnitRTL__db48ce65aea57813 output_units__2
   (
     .clk( output_units__clk[2] ),
     .reset( output_units__reset[2] ),
@@ -8588,7 +8597,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( output_units__send__val[2] )
   );
 
-  OutputUnitRTL__3fcc996c3c8b9dc8 output_units__3
+  OutputUnitRTL__db48ce65aea57813 output_units__3
   (
     .clk( output_units__clk[3] ),
     .reset( output_units__reset[3] ),
@@ -8600,7 +8609,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( output_units__send__val[3] )
   );
 
-  OutputUnitRTL__3fcc996c3c8b9dc8 output_units__4
+  OutputUnitRTL__db48ce65aea57813 output_units__4
   (
     .clk( output_units__clk[4] ),
     .reset( output_units__reset[4] ),
@@ -8612,7 +8621,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( output_units__send__val[4] )
   );
 
-  OutputUnitRTL__3fcc996c3c8b9dc8 output_units__5
+  OutputUnitRTL__db48ce65aea57813 output_units__5
   (
     .clk( output_units__clk[5] ),
     .reset( output_units__reset[5] ),
@@ -8624,7 +8633,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( output_units__send__val[5] )
   );
 
-  OutputUnitRTL__3fcc996c3c8b9dc8 output_units__6
+  OutputUnitRTL__db48ce65aea57813 output_units__6
   (
     .clk( output_units__clk[6] ),
     .reset( output_units__reset[6] ),
@@ -8636,7 +8645,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( output_units__send__val[6] )
   );
 
-  OutputUnitRTL__3fcc996c3c8b9dc8 output_units__7
+  OutputUnitRTL__db48ce65aea57813 output_units__7
   (
     .clk( output_units__clk[7] ),
     .reset( output_units__reset[7] ),
@@ -8658,14 +8667,14 @@ module XbarBypassQueueRTL__33dd43012f4a5941
 
   logic [0:0] route_units__clk [0:2];
   logic [0:0] route_units__reset [0:2];
-  MemAccessPacket_3_8_128__46ca7671c0feb658 route_units__recv__msg [0:2];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae route_units__recv__msg [0:2];
   logic [0:0] route_units__recv__rdy [0:2];
   logic [0:0] route_units__recv__val [0:2];
-  MemAccessPacket_3_8_128__46ca7671c0feb658 route_units__send__msg [0:2][0:7];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae route_units__send__msg [0:2][0:7];
   logic [0:0] route_units__send__rdy [0:2][0:7];
   logic [0:0] route_units__send__val [0:2][0:7];
 
-  XbarRouteUnitRTL__7f7e03c1462cd521 route_units__0
+  XbarRouteUnitRTL__4d19669edfdc845b route_units__0
   (
     .clk( route_units__clk[0] ),
     .reset( route_units__reset[0] ),
@@ -8677,7 +8686,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( route_units__send__val[0] )
   );
 
-  XbarRouteUnitRTL__7f7e03c1462cd521 route_units__1
+  XbarRouteUnitRTL__4d19669edfdc845b route_units__1
   (
     .clk( route_units__clk[1] ),
     .reset( route_units__reset[1] ),
@@ -8689,7 +8698,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( route_units__send__val[1] )
   );
 
-  XbarRouteUnitRTL__7f7e03c1462cd521 route_units__2
+  XbarRouteUnitRTL__4d19669edfdc845b route_units__2
   (
     .clk( route_units__clk[2] ),
     .reset( route_units__reset[2] ),
@@ -8711,14 +8720,14 @@ module XbarBypassQueueRTL__33dd43012f4a5941
 
   logic [0:0] switch_units__clk [0:7];
   logic [0:0] switch_units__reset [0:7];
-  MemAccessPacket_3_8_128__46ca7671c0feb658 switch_units__recv__msg [0:7][0:2];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae switch_units__recv__msg [0:7][0:2];
   logic [0:0] switch_units__recv__rdy [0:7][0:2];
   logic [0:0] switch_units__recv__val [0:7][0:2];
-  MemAccessPacket_3_8_128__46ca7671c0feb658 switch_units__send__msg [0:7];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae switch_units__send__msg [0:7];
   logic [0:0] switch_units__send__rdy [0:7];
   logic [0:0] switch_units__send__val [0:7];
 
-  SwitchUnitRTL__251d18cef436823c switch_units__0
+  SwitchUnitRTL__0f275c3caadc86ab switch_units__0
   (
     .clk( switch_units__clk[0] ),
     .reset( switch_units__reset[0] ),
@@ -8730,7 +8739,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( switch_units__send__val[0] )
   );
 
-  SwitchUnitRTL__251d18cef436823c switch_units__1
+  SwitchUnitRTL__0f275c3caadc86ab switch_units__1
   (
     .clk( switch_units__clk[1] ),
     .reset( switch_units__reset[1] ),
@@ -8742,7 +8751,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( switch_units__send__val[1] )
   );
 
-  SwitchUnitRTL__251d18cef436823c switch_units__2
+  SwitchUnitRTL__0f275c3caadc86ab switch_units__2
   (
     .clk( switch_units__clk[2] ),
     .reset( switch_units__reset[2] ),
@@ -8754,7 +8763,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( switch_units__send__val[2] )
   );
 
-  SwitchUnitRTL__251d18cef436823c switch_units__3
+  SwitchUnitRTL__0f275c3caadc86ab switch_units__3
   (
     .clk( switch_units__clk[3] ),
     .reset( switch_units__reset[3] ),
@@ -8766,7 +8775,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( switch_units__send__val[3] )
   );
 
-  SwitchUnitRTL__251d18cef436823c switch_units__4
+  SwitchUnitRTL__0f275c3caadc86ab switch_units__4
   (
     .clk( switch_units__clk[4] ),
     .reset( switch_units__reset[4] ),
@@ -8778,7 +8787,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( switch_units__send__val[4] )
   );
 
-  SwitchUnitRTL__251d18cef436823c switch_units__5
+  SwitchUnitRTL__0f275c3caadc86ab switch_units__5
   (
     .clk( switch_units__clk[5] ),
     .reset( switch_units__reset[5] ),
@@ -8790,7 +8799,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( switch_units__send__val[5] )
   );
 
-  SwitchUnitRTL__251d18cef436823c switch_units__6
+  SwitchUnitRTL__0f275c3caadc86ab switch_units__6
   (
     .clk( switch_units__clk[6] ),
     .reset( switch_units__reset[6] ),
@@ -8802,7 +8811,7 @@ module XbarBypassQueueRTL__33dd43012f4a5941
     .send__val( switch_units__send__val[6] )
   );
 
-  SwitchUnitRTL__251d18cef436823c switch_units__7
+  SwitchUnitRTL__0f275c3caadc86ab switch_units__7
   (
     .clk( switch_units__clk[7] ),
     .reset( switch_units__reset[7] ),
@@ -9005,23 +9014,23 @@ endmodule
 
 
 // PyMTL Component DataMemControllerRTL Definition
-// Full name: DataMemControllerRTL__NocPktType_InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d__data_mem_size_global_128__data_mem_size_per_bank_16__num_banks_per_cgra_2__num_rd_tiles_7__num_wr_tiles_7__multi_cgra_rows_1__multi_cgra_columns_1__num_tiles_16__mem_access_is_combinational_True__idTo2d_map_{0: (0, 0)}
+// Full name: DataMemControllerRTL__NocPktType_InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b__data_mem_size_global_128__data_mem_size_per_bank_16__num_banks_per_cgra_2__num_rd_tiles_7__num_wr_tiles_7__multi_cgra_rows_1__multi_cgra_columns_4__num_tiles_16__mem_access_is_combinational_True__idTo2d_map_{0: [0, 0], 1: [1, 0], 2: [2, 0], 3: [3, 0]}
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/data/DataMemControllerRTL.py
 
-module DataMemControllerRTL__0a18490583396d4e
+module DataMemControllerRTL__e101360e8b182a3a
 (
   input  logic [6:0] address_lower ,
   input  logic [6:0] address_upper ,
-  input  logic [0:0] cgra_id ,
+  input  logic [1:0] cgra_id ,
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_from_noc_load_request__msg  ,
+  input InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_from_noc_load_request__msg  ,
   output logic [0:0] recv_from_noc_load_request__rdy  ,
   input logic [0:0] recv_from_noc_load_request__val  ,
-  input InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_from_noc_load_response_pkt__msg  ,
+  input InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_from_noc_load_response_pkt__msg  ,
   output logic [0:0] recv_from_noc_load_response_pkt__rdy  ,
   input logic [0:0] recv_from_noc_load_response_pkt__val  ,
-  input InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_from_noc_store_request__msg  ,
+  input InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_from_noc_store_request__msg  ,
   output logic [0:0] recv_from_noc_store_request__rdy  ,
   input logic [0:0] recv_from_noc_store_request__val  ,
   input logic [6:0] recv_raddr__msg [0:6] ,
@@ -9036,13 +9045,13 @@ module DataMemControllerRTL__0a18490583396d4e
   output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_rdata__msg [0:6] ,
   input logic [0:0] send_rdata__rdy [0:6] ,
   output logic [0:0] send_rdata__val [0:6] ,
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_to_noc_load_request_pkt__msg  ,
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_to_noc_load_request_pkt__msg  ,
   input logic [0:0] send_to_noc_load_request_pkt__rdy  ,
   output logic [0:0] send_to_noc_load_request_pkt__val  ,
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_to_noc_load_response_pkt__msg  ,
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_to_noc_load_response_pkt__msg  ,
   input logic [0:0] send_to_noc_load_response_pkt__rdy  ,
   output logic [0:0] send_to_noc_load_response_pkt__val  ,
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_to_noc_store_pkt__msg  ,
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_to_noc_store_pkt__msg  ,
   input logic [0:0] send_to_noc_store_pkt__rdy  ,
   output logic [0:0] send_to_noc_store_pkt__val  
 );
@@ -9060,27 +9069,27 @@ module DataMemControllerRTL__0a18490583396d4e
   localparam logic [1:0] __const__num_banks_per_cgra_at_update_all  = 2'd2;
   localparam logic [3:0] __const__CMD_LOAD_REQUEST  = 4'd10;
   localparam logic [3:0] __const__CMD_STORE_REQUEST  = 4'd12;
-  logic [0:0] idTo2d_x_lut [0:0];
-  logic [0:0] idTo2d_y_lut [0:0];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 rd_pkt [0:7];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 wr_pkt [0:7];
+  logic [1:0] idTo2d_x_lut [0:3];
+  logic [0:0] idTo2d_y_lut [0:3];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b rd_pkt [0:7];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b wr_pkt [0:7];
   //-------------------------------------------------------------
   // Component memory_wrapper[0:1]
   //-------------------------------------------------------------
 
   logic [0:0] memory_wrapper__clk [0:1];
   logic [0:0] memory_wrapper__reset [0:1];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 memory_wrapper__recv_rd__msg [0:1];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b memory_wrapper__recv_rd__msg [0:1];
   logic [0:0] memory_wrapper__recv_rd__rdy [0:1];
   logic [0:0] memory_wrapper__recv_rd__val [0:1];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 memory_wrapper__recv_wr__msg [0:1];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b memory_wrapper__recv_wr__msg [0:1];
   logic [0:0] memory_wrapper__recv_wr__rdy [0:1];
   logic [0:0] memory_wrapper__recv_wr__val [0:1];
-  MemAccessPacket_3_8_128__46ca7671c0feb658 memory_wrapper__send__msg [0:1];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae memory_wrapper__send__msg [0:1];
   logic [0:0] memory_wrapper__send__rdy [0:1];
   logic [0:0] memory_wrapper__send__val [0:1];
 
-  DataMemWrapperRTL__e06d1f6e4fba725f memory_wrapper__0
+  DataMemWrapperRTL__4777c60d73176261 memory_wrapper__0
   (
     .clk( memory_wrapper__clk[0] ),
     .reset( memory_wrapper__reset[0] ),
@@ -9095,7 +9104,7 @@ module DataMemControllerRTL__0a18490583396d4e
     .send__val( memory_wrapper__send__val[0] )
   );
 
-  DataMemWrapperRTL__e06d1f6e4fba725f memory_wrapper__1
+  DataMemWrapperRTL__4777c60d73176261 memory_wrapper__1
   (
     .clk( memory_wrapper__clk[1] ),
     .reset( memory_wrapper__reset[1] ),
@@ -9120,14 +9129,14 @@ module DataMemControllerRTL__0a18490583396d4e
 
   logic [0:0] read_crossbar__clk;
   logic [0:0] read_crossbar__reset;
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 read_crossbar__recv__msg [0:7];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b read_crossbar__recv__msg [0:7];
   logic [0:0] read_crossbar__recv__rdy [0:7];
   logic [0:0] read_crossbar__recv__val [0:7];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 read_crossbar__send__msg [0:2];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b read_crossbar__send__msg [0:2];
   logic [0:0] read_crossbar__send__rdy [0:2];
   logic [0:0] read_crossbar__send__val [0:2];
 
-  XbarBypassQueueRTL__93c04758672ed742 read_crossbar
+  XbarBypassQueueRTL__de0616c87e19962d read_crossbar
   (
     .clk( read_crossbar__clk ),
     .reset( read_crossbar__reset ),
@@ -9149,14 +9158,14 @@ module DataMemControllerRTL__0a18490583396d4e
 
   logic [0:0] response_crossbar__clk;
   logic [0:0] response_crossbar__reset;
-  MemAccessPacket_3_8_128__46ca7671c0feb658 response_crossbar__recv__msg [0:2];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae response_crossbar__recv__msg [0:2];
   logic [0:0] response_crossbar__recv__rdy [0:2];
   logic [0:0] response_crossbar__recv__val [0:2];
-  MemAccessPacket_3_8_128__46ca7671c0feb658 response_crossbar__send__msg [0:7];
+  MemAccessPacket_3_8_128__fd2f0111edd219ae response_crossbar__send__msg [0:7];
   logic [0:0] response_crossbar__send__rdy [0:7];
   logic [0:0] response_crossbar__send__val [0:7];
 
-  XbarBypassQueueRTL__33dd43012f4a5941 response_crossbar
+  XbarBypassQueueRTL__4959972cc0870a87 response_crossbar
   (
     .clk( response_crossbar__clk ),
     .reset( response_crossbar__reset ),
@@ -9178,14 +9187,14 @@ module DataMemControllerRTL__0a18490583396d4e
 
   logic [0:0] write_crossbar__clk;
   logic [0:0] write_crossbar__reset;
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 write_crossbar__recv__msg [0:7];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b write_crossbar__recv__msg [0:7];
   logic [0:0] write_crossbar__recv__rdy [0:7];
   logic [0:0] write_crossbar__recv__val [0:7];
-  MemAccessPacket_8_3_128__43d1e1e5bc923019 write_crossbar__send__msg [0:2];
+  MemAccessPacket_8_3_128__50b29b2dbc59831b write_crossbar__send__msg [0:2];
   logic [0:0] write_crossbar__send__rdy [0:2];
   logic [0:0] write_crossbar__send__val [0:2];
 
-  XbarBypassQueueRTL__93c04758672ed742 write_crossbar
+  XbarBypassQueueRTL__de0616c87e19962d write_crossbar
   (
     .clk( write_crossbar__clk ),
     .reset( write_crossbar__reset ),
@@ -9209,7 +9218,7 @@ module DataMemControllerRTL__0a18490583396d4e
   logic [6:0] __tmpvar__assemble_xbar_pkt_recv_waddr_from_noc;
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 __tmpvar__assemble_xbar_pkt_recv_wdata_from_noc;
   logic [1:0] __tmpvar__assemble_xbar_pkt_bank_index_store_from_noc;
-  logic [0:0] __tmpvar__update_all_from_cgra_id;
+  logic [1:0] __tmpvar__update_all_from_cgra_id;
   logic [4:0] __tmpvar__update_all_from_tile_id;
 
   // PyMTL Update Block Source
@@ -9283,9 +9292,9 @@ module DataMemControllerRTL__0a18490583396d4e
   
   always_comb begin : assemble_xbar_pkt
     for ( int unsigned i = 1'd0; i < 4'( __const__num_xbar_in_rd_ports_at_assemble_xbar_pkt ); i += 1'd1 )
-      rd_pkt[3'(i)] = { 3'(i), 2'd0, 7'd0, { 32'd0, 1'd0, 1'd0, 1'd0 }, 1'd0, 5'd0, 3'(i) };
+      rd_pkt[3'(i)] = { 3'(i), 2'd0, 7'd0, { 32'd0, 1'd0, 1'd0, 1'd0 }, 2'd0, 5'd0, 3'(i) };
     for ( int unsigned i = 1'd0; i < 4'( __const__num_xbar_in_wr_ports_at_assemble_xbar_pkt ); i += 1'd1 )
-      wr_pkt[3'(i)] = { 3'(i), 2'd0, 7'd0, { 32'd0, 1'd0, 1'd0, 1'd0 }, 1'd0, 5'd0, 3'(i) };
+      wr_pkt[3'(i)] = { 3'(i), 2'd0, 7'd0, { 32'd0, 1'd0, 1'd0, 1'd0 }, 2'd0, 5'd0, 3'(i) };
     for ( int unsigned i = 1'd0; i < 3'( __const__num_rd_tiles_at_assemble_xbar_pkt ); i += 1'd1 ) begin
       __tmpvar__assemble_xbar_pkt_recv_raddr = recv_raddr__msg[3'(i)];
       if ( ( __tmpvar__assemble_xbar_pkt_recv_raddr >= address_lower ) & ( __tmpvar__assemble_xbar_pkt_recv_raddr <= address_upper ) ) begin
@@ -9309,7 +9318,7 @@ module DataMemControllerRTL__0a18490583396d4e
       end
       else
         __tmpvar__assemble_xbar_pkt_bank_index_store_local = 2'd2;
-      wr_pkt[3'(i)] = { 3'(i), __tmpvar__assemble_xbar_pkt_bank_index_store_local, __tmpvar__assemble_xbar_pkt_recv_waddr, recv_wdata__msg[3'(i)], 1'd0, 5'd0, 3'(i) };
+      wr_pkt[3'(i)] = { 3'(i), __tmpvar__assemble_xbar_pkt_bank_index_store_local, __tmpvar__assemble_xbar_pkt_recv_waddr, recv_wdata__msg[3'(i)], 2'd0, 5'd0, 3'(i) };
     end
     __tmpvar__assemble_xbar_pkt_recv_waddr_from_noc = recv_from_noc_store_request__msg.payload.data_addr;
     __tmpvar__assemble_xbar_pkt_recv_wdata_from_noc = recv_from_noc_store_request__msg.payload.data;
@@ -9318,7 +9327,7 @@ module DataMemControllerRTL__0a18490583396d4e
     end
     else
       __tmpvar__assemble_xbar_pkt_bank_index_store_from_noc = 2'd2;
-    wr_pkt[3'( __const__num_wr_tiles_at_assemble_xbar_pkt )] = { 3'( __const__num_wr_tiles_at_assemble_xbar_pkt ), __tmpvar__assemble_xbar_pkt_bank_index_store_from_noc, __tmpvar__assemble_xbar_pkt_recv_waddr_from_noc, __tmpvar__assemble_xbar_pkt_recv_wdata_from_noc, 1'd0, 5'd0, 3'( __const__num_wr_tiles_at_assemble_xbar_pkt ) };
+    wr_pkt[3'( __const__num_wr_tiles_at_assemble_xbar_pkt )] = { 3'( __const__num_wr_tiles_at_assemble_xbar_pkt ), __tmpvar__assemble_xbar_pkt_bank_index_store_from_noc, __tmpvar__assemble_xbar_pkt_recv_waddr_from_noc, __tmpvar__assemble_xbar_pkt_recv_wdata_from_noc, 2'd0, 5'd0, 3'( __const__num_wr_tiles_at_assemble_xbar_pkt ) };
   end
 
   // PyMTL Update Block Source
@@ -9521,21 +9530,21 @@ module DataMemControllerRTL__0a18490583396d4e
       send_rdata__msg[3'(i)] = { 32'd0, 1'd0, 1'd0, 1'd0 };
     end
     send_to_noc_load_response_pkt__val = 1'd0;
-    send_to_noc_load_response_pkt__msg = { 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, { 5'd0, 35'd0, 7'd0, 131'd0, 3'd0 } };
+    send_to_noc_load_response_pkt__msg = { 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 } };
     for ( int unsigned i = 1'd0; i < 3'( __const__num_wr_tiles_at_update_all ); i += 1'd1 )
       recv_wdata__rdy[3'(i)] = 1'd0;
-    send_to_noc_store_pkt__msg = { 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, { 5'd0, 35'd0, 7'd0, 131'd0, 3'd0 } };
+    send_to_noc_store_pkt__msg = { 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 } };
     send_to_noc_store_pkt__val = 1'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_xbar_in_rd_ports_at_update_all ); i += 1'd1 ) begin
       read_crossbar__recv__val[3'(i)] = 1'd0;
-      read_crossbar__recv__msg[3'(i)] = { 3'd0, 2'd0, 7'd0, { 32'd0, 1'd0, 1'd0, 1'd0 }, 1'd0, 5'd0, 3'd0 };
+      read_crossbar__recv__msg[3'(i)] = { 3'd0, 2'd0, 7'd0, { 32'd0, 1'd0, 1'd0, 1'd0 }, 2'd0, 5'd0, 3'd0 };
     end
     recv_from_noc_load_response_pkt__rdy = 1'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_xbar_in_wr_ports_at_update_all ); i += 1'd1 ) begin
       write_crossbar__recv__val[3'(i)] = 1'd0;
-      write_crossbar__recv__msg[3'(i)] = { 3'd0, 2'd0, 7'd0, { 32'd0, 1'd0, 1'd0, 1'd0 }, 1'd0, 5'd0, 3'd0 };
+      write_crossbar__recv__msg[3'(i)] = { 3'd0, 2'd0, 7'd0, { 32'd0, 1'd0, 1'd0, 1'd0 }, 2'd0, 5'd0, 3'd0 };
     end
-    send_to_noc_load_request_pkt__msg = { 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, { 5'd0, 35'd0, 7'd0, 131'd0, 3'd0 } };
+    send_to_noc_load_request_pkt__msg = { 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 5'd0, 5'd0, 3'd0, 8'd0, 2'd0, { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 } };
     send_to_noc_load_request_pkt__val = 1'd0;
     for ( int unsigned i = 1'd0; i < 3'( __const__num_rd_tiles_at_update_all ); i += 1'd1 ) begin
       read_crossbar__recv__val[3'(i)] = recv_raddr__val[3'(i)];
@@ -9563,17 +9572,17 @@ module DataMemControllerRTL__0a18490583396d4e
       else begin
         __tmpvar__update_all_from_cgra_id = response_crossbar__send__msg[3'(i)].src_cgra;
         __tmpvar__update_all_from_tile_id = response_crossbar__send__msg[3'(i)].src_tile;
-        send_to_noc_load_response_pkt__msg = { cgra_id, __tmpvar__update_all_from_cgra_id, idTo2d_x_lut[cgra_id], idTo2d_y_lut[cgra_id], idTo2d_x_lut[__tmpvar__update_all_from_cgra_id], idTo2d_y_lut[__tmpvar__update_all_from_cgra_id], 5'd0, __tmpvar__update_all_from_tile_id, response_crossbar__send__msg[3'(i)].remote_src_port, 8'd0, 2'd0, { 5'( __const__CMD_LOAD_RESPONSE ), response_crossbar__send__msg[3'(i)].data, response_crossbar__send__msg[3'(i)].addr, 131'd0, 3'd0 } };
+        send_to_noc_load_response_pkt__msg = { cgra_id, __tmpvar__update_all_from_cgra_id, idTo2d_x_lut[cgra_id], idTo2d_y_lut[cgra_id], idTo2d_x_lut[__tmpvar__update_all_from_cgra_id], idTo2d_y_lut[__tmpvar__update_all_from_cgra_id], 5'd0, __tmpvar__update_all_from_tile_id, response_crossbar__send__msg[3'(i)].remote_src_port, 8'd0, 2'd0, { 6'( __const__CMD_LOAD_RESPONSE ), response_crossbar__send__msg[3'(i)].data, response_crossbar__send__msg[3'(i)].addr, 111'd0, 3'd0 } };
         send_to_noc_load_response_pkt__val = response_crossbar__send__val[3'(i)];
         response_crossbar__send__rdy[3'(i)] = send_to_noc_load_response_pkt__rdy;
       end
-    send_to_noc_load_request_pkt__msg = { cgra_id, 1'd0, idTo2d_x_lut[cgra_id], idTo2d_y_lut[cgra_id], 1'd0, 1'd0, 5'd0, 5'd0, read_crossbar__send__msg[2'( __const__num_banks_per_cgra_at_update_all )].src, 8'd0, 2'd0, { 5'( __const__CMD_LOAD_REQUEST ), 35'd0, read_crossbar__send__msg[2'( __const__num_banks_per_cgra_at_update_all )].addr, 131'd0, 3'd0 } };
+    send_to_noc_load_request_pkt__msg = { cgra_id, 2'd0, idTo2d_x_lut[cgra_id], idTo2d_y_lut[cgra_id], 2'd0, 1'd0, 5'd0, 5'd0, read_crossbar__send__msg[2'( __const__num_banks_per_cgra_at_update_all )].src, 8'd0, 2'd0, { 6'( __const__CMD_LOAD_REQUEST ), 35'd0, read_crossbar__send__msg[2'( __const__num_banks_per_cgra_at_update_all )].addr, 111'd0, 3'd0 } };
     send_to_noc_load_request_pkt__val = read_crossbar__send__val[2'( __const__num_banks_per_cgra_at_update_all )];
     recv_from_noc_load_response_pkt__rdy = response_crossbar__recv__rdy[2'( __const__num_banks_per_cgra_at_update_all )];
     response_crossbar__recv__val[2'( __const__num_banks_per_cgra_at_update_all )] = recv_from_noc_load_response_pkt__val;
     response_crossbar__recv__msg[2'( __const__num_banks_per_cgra_at_update_all )] = { 2'( __const__num_banks_per_cgra_at_update_all ), recv_from_noc_load_response_pkt__msg.remote_src_port, recv_from_noc_load_response_pkt__msg.payload.data_addr, recv_from_noc_load_response_pkt__msg.payload.data, recv_from_noc_load_response_pkt__msg.src, recv_from_noc_load_response_pkt__msg.src_tile_id, 3'd0 };
     read_crossbar__send__rdy[2'( __const__num_banks_per_cgra_at_update_all )] = send_to_noc_load_request_pkt__rdy;
-    send_to_noc_store_pkt__msg = { cgra_id, 1'd0, idTo2d_x_lut[cgra_id], idTo2d_y_lut[cgra_id], 1'd0, 1'd0, 5'd0, 5'd0, write_crossbar__send__msg[2'( __const__num_banks_per_cgra_at_update_all )].src, 8'd0, 2'd0, { 5'( __const__CMD_STORE_REQUEST ), write_crossbar__send__msg[2'( __const__num_banks_per_cgra_at_update_all )].data, write_crossbar__send__msg[2'( __const__num_banks_per_cgra_at_update_all )].addr, 131'd0, 3'd0 } };
+    send_to_noc_store_pkt__msg = { cgra_id, 2'd0, idTo2d_x_lut[cgra_id], idTo2d_y_lut[cgra_id], 2'd0, 1'd0, 5'd0, 5'd0, write_crossbar__send__msg[2'( __const__num_banks_per_cgra_at_update_all )].src, 8'd0, 2'd0, { 6'( __const__CMD_STORE_REQUEST ), write_crossbar__send__msg[2'( __const__num_banks_per_cgra_at_update_all )].data, write_crossbar__send__msg[2'( __const__num_banks_per_cgra_at_update_all )].addr, 111'd0, 3'd0 } };
     send_to_noc_store_pkt__val = write_crossbar__send__val[2'( __const__num_banks_per_cgra_at_update_all )];
     write_crossbar__send__rdy[2'( __const__num_banks_per_cgra_at_update_all )] = send_to_noc_store_pkt__rdy;
   end
@@ -9588,8 +9597,14 @@ module DataMemControllerRTL__0a18490583396d4e
   assign write_crossbar__reset = reset;
   assign response_crossbar__clk = clk;
   assign response_crossbar__reset = reset;
-  assign idTo2d_x_lut[0] = 1'd0;
+  assign idTo2d_x_lut[0] = 2'd0;
   assign idTo2d_y_lut[0] = 1'd0;
+  assign idTo2d_x_lut[1] = 2'd1;
+  assign idTo2d_y_lut[1] = 1'd0;
+  assign idTo2d_x_lut[2] = 2'd2;
+  assign idTo2d_y_lut[2] = 1'd0;
+  assign idTo2d_x_lut[3] = 2'd3;
+  assign idTo2d_y_lut[3] = 1'd0;
   assign memory_wrapper__recv_rd__msg[0] = read_crossbar__send__msg[0];
   assign read_crossbar__send__rdy[0] = memory_wrapper__recv_rd__rdy[0];
   assign memory_wrapper__recv_rd__val[0] = read_crossbar__send__val[0];
@@ -9679,6 +9694,7 @@ module ConstQueueDynamicRTL__8f4d11f2dd80f063
 );
   localparam logic [2:0] __const__const_mem_size_at_load_const  = 3'd6;
   localparam logic [2:0] __const__const_mem_size_at_update_wr_cur  = 3'd6;
+  logic [0:0] consume_pending;
   logic [2:0] rd_cur;
   logic [2:0] wr_cur;
   //-------------------------------------------------------------
@@ -9709,9 +9725,11 @@ module ConstQueueDynamicRTL__8f4d11f2dd80f063
   //-------------------------------------------------------------
   logic [0:0] __tmpvar__load_const_not_full;
   logic [0:0] __tmpvar__update_wr_cur_not_full;
+  logic [0:0] __tmpvar__update_rd_cur_handshake_now;
+  logic [0:0] __tmpvar__update_rd_cur_consume_retire;
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/const/ConstQueueDynamicRTL.py:56
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/const/ConstQueueDynamicRTL.py:62
   // @update
   // def load_const():
   //   # Initializes signals.
@@ -9741,7 +9759,7 @@ module ConstQueueDynamicRTL__8f4d11f2dd80f063
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/const/ConstQueueDynamicRTL.py:83
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/const/ConstQueueDynamicRTL.py:89
   // @update
   // def update_send_val():
   //   # Checks if read cursor is in front of write cursor.
@@ -9759,35 +9777,55 @@ module ConstQueueDynamicRTL__8f4d11f2dd80f063
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/const/ConstQueueDynamicRTL.py:92
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/const/ConstQueueDynamicRTL.py:98
   // @update_ff
   // def update_rd_cur():
   //   if s.reset | s.clear:
   //     s.rd_cur <<= 0
+  //     s.consume_pending <<= 0
   //   else:
-  //     # Checks whether the "reader" successfully read the data at rd_cur,
-  //     # and proceed rd_cur accordingly.
-  //     if s.send_const.rdy & s.ctrl_proceed:
-  //       if zext((s.rd_cur), WrCurType) < (s.wr_cur - 1):
+  //     # A consumption is "owed" whenever the reader raises rdy, or one
+  //     # was already pending from an earlier cycle. It retires on the next
+  //     # ctrl_proceed pulse. (Matches the original advance condition when
+  //     # rdy and ctrl_proceed happen in the same cycle, but also covers the
+  //     # case where rdy was asserted one cycle and ctrl_proceed only pulses
+  //     # later — previously that handshake was silently lost.)
+  //     handshake_now = s.send_const.rdy
+  //     consume_retire = (s.consume_pending | handshake_now) & s.ctrl_proceed
+  //     if consume_retire:
+  //       if zext(s.rd_cur, WrCurType) < (s.wr_cur - 1):
   //         s.rd_cur <<= s.rd_cur + 1
   //       else:
   //         s.rd_cur <<= 0
+  //       s.consume_pending <<= 0
+  //     else:
+  //       # Remember an in-flight handshake whose ctrl_proceed has not yet
+  //       # pulsed, so a later ctrl_proceed still advances the queue.
+  //       s.consume_pending <<= s.consume_pending | handshake_now
   
   always_ff @(posedge clk) begin : update_rd_cur
     if ( reset | clear ) begin
       rd_cur <= 3'd0;
+      consume_pending <= 1'd0;
     end
-    else if ( send_const__rdy & ctrl_proceed ) begin
-      if ( rd_cur < ( wr_cur - 3'd1 ) ) begin
-        rd_cur <= rd_cur + 3'd1;
+    else begin
+      __tmpvar__update_rd_cur_handshake_now = send_const__rdy;
+      __tmpvar__update_rd_cur_consume_retire = ( consume_pending | __tmpvar__update_rd_cur_handshake_now ) & ctrl_proceed;
+      if ( __tmpvar__update_rd_cur_consume_retire ) begin
+        if ( rd_cur < ( wr_cur - 3'd1 ) ) begin
+          rd_cur <= rd_cur + 3'd1;
+        end
+        else
+          rd_cur <= 3'd0;
+        consume_pending <= 1'd0;
       end
       else
-        rd_cur <= 3'd0;
+        consume_pending <= consume_pending | __tmpvar__update_rd_cur_handshake_now;
     end
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/const/ConstQueueDynamicRTL.py:72
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/const/ConstQueueDynamicRTL.py:78
   // @update_ff
   // def update_wr_cur():
   //   not_full = (s.wr_cur < const_mem_size)
@@ -9817,22 +9855,22 @@ endmodule
 
 
 // PyMTL Component RegisterFile Definition
-// Full name: RegisterFile__Type_MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa__nregs_2__rd_ports_1__wr_ports_1__const_zero_False
+// Full name: RegisterFile__Type_MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077__nregs_2__rd_ports_1__wr_ports_1__const_zero_False
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py
 
-module RegisterFile__6c30c56a04530fb4
+module RegisterFile__3ff30419d60e1510
 (
   input  logic [0:0] clk ,
   input  logic [0:0] raddr [0:0],
-  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa rdata [0:0],
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 rdata [0:0],
   input  logic [0:0] reset ,
   input  logic [0:0] waddr [0:0],
-  input  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa wdata [0:0],
+  input  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 wdata [0:0],
   input  logic [0:0] wen [0:0]
 );
   localparam logic [0:0] __const__rd_ports_at_up_rf_read  = 1'd1;
   localparam logic [0:0] __const__wr_ports_at_up_rf_write  = 1'd1;
-  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa regs [0:1];
+  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 regs [0:1];
 
   // PyMTL Update Block Source
   // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py:20
@@ -9865,16 +9903,16 @@ endmodule
 
 
 // PyMTL Component NormalQueueDpathRTL Definition
-// Full name: NormalQueueDpathRTL__EntryType_MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa__num_entries_2
+// Full name: NormalQueueDpathRTL__EntryType_MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077__num_entries_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module NormalQueueDpathRTL__ff32a4736d57bf97
+module NormalQueueDpathRTL__d9fcaa5b2544d4a4
 (
   input  logic [0:0] clk ,
   input  logic [0:0] raddr ,
-  input  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa recv_msg ,
+  input  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_msg ,
   input  logic [0:0] reset ,
-  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa send_msg ,
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 send_msg ,
   input  logic [0:0] waddr ,
   input  logic [0:0] wen 
 );
@@ -9884,13 +9922,13 @@ module NormalQueueDpathRTL__ff32a4736d57bf97
 
   logic [0:0] rf__clk;
   logic [0:0] rf__raddr [0:0];
-  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa rf__rdata [0:0];
+  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 rf__rdata [0:0];
   logic [0:0] rf__reset;
   logic [0:0] rf__waddr [0:0];
-  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa rf__wdata [0:0];
+  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 rf__wdata [0:0];
   logic [0:0] rf__wen [0:0];
 
-  RegisterFile__6c30c56a04530fb4 rf
+  RegisterFile__3ff30419d60e1510 rf
   (
     .clk( rf__clk ),
     .raddr( rf__raddr ),
@@ -9917,18 +9955,18 @@ endmodule
 
 
 // PyMTL Component NormalQueueRTL Definition
-// Full name: NormalQueueRTL__EntryType_MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa__num_entries_2
+// Full name: NormalQueueRTL__EntryType_MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077__num_entries_2
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/lib/basic/val_rdy/queues.py
 
-module NormalQueueRTL__ff32a4736d57bf97
+module NormalQueueRTL__d9fcaa5b2544d4a4
 (
   input  logic [0:0] clk ,
   output logic [1:0] count ,
   input  logic [0:0] reset ,
-  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa recv__msg  ,
+  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv__msg  ,
   output logic [0:0] recv__rdy  ,
   input logic [0:0] recv__val  ,
-  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa send__msg  ,
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 send__msg  ,
   input logic [0:0] send__rdy  ,
   output logic [0:0] send__val  
 );
@@ -9971,13 +10009,13 @@ module NormalQueueRTL__ff32a4736d57bf97
 
   logic [0:0] dpath__clk;
   logic [0:0] dpath__raddr;
-  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa dpath__recv_msg;
+  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 dpath__recv_msg;
   logic [0:0] dpath__reset;
-  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa dpath__send_msg;
+  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 dpath__send_msg;
   logic [0:0] dpath__waddr;
   logic [0:0] dpath__wen;
 
-  NormalQueueDpathRTL__ff32a4736d57bf97 dpath
+  NormalQueueDpathRTL__d9fcaa5b2544d4a4 dpath
   (
     .clk( dpath__clk ),
     .raddr( dpath__raddr ),
@@ -10011,22 +10049,22 @@ endmodule
 
 
 // PyMTL Component RegisterFile Definition
-// Full name: RegisterFile__Type_CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247__nregs_6__rd_ports_1__wr_ports_1__const_zero_False
+// Full name: RegisterFile__Type_CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9__nregs_6__rd_ports_1__wr_ports_1__const_zero_False
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py
 
-module RegisterFile__48ad990fc04c47c1
+module RegisterFile__1d76994e7ba5a77e
 (
   input  logic [0:0] clk ,
   input  logic [2:0] raddr [0:0],
-  output CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 rdata [0:0],
+  output CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 rdata [0:0],
   input  logic [0:0] reset ,
   input  logic [2:0] waddr [0:0],
-  input  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 wdata [0:0],
+  input  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 wdata [0:0],
   input  logic [0:0] wen [0:0]
 );
   localparam logic [0:0] __const__rd_ports_at_up_rf_read  = 1'd1;
   localparam logic [0:0] __const__wr_ports_at_up_rf_write  = 1'd1;
-  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 regs [0:5];
+  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 regs [0:5];
 
   // PyMTL Update Block Source
   // At /mnt/public/sichuan_a/qjj/CGRA-SoC/.venv/lib/python3.12/site-packages/pymtl3/stdlib/primitive/register_files.py:20
@@ -10059,12 +10097,12 @@ endmodule
 
 
 // PyMTL Component CtrlMemDynamicRTL Definition
-// Full name: CtrlMemDynamicRTL__IntraCgraPktType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__ctrl_mem_size_6__num_fu_inports_4__num_fu_outports_2__num_tile_inports_8__num_tile_outports_8__num_cgras_1__num_tiles_16__ctrl_count_per_iter_4__total_ctrl_steps_42
+// Full name: CtrlMemDynamicRTL__IntraCgraPktType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__ctrl_mem_size_6__num_fu_inports_4__num_fu_outports_2__num_tile_inports_4__num_tile_outports_4__num_cgras_4__num_tiles_16__ctrl_count_per_iter_5__total_ctrl_steps_90
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py
 
-module CtrlMemDynamicRTL__f99828a3c83e61ad
+module CtrlMemDynamicRTL__d23b4de9ea9f6541
 (
-  input  logic [0:0] cgra_id ,
+  input  logic [1:0] cgra_id ,
   input  logic [0:0] clk ,
   output logic [2:0] ctrl_addr_outport ,
   output logic [2:0] prologue_count_outport_fu ,
@@ -10072,30 +10110,31 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   output logic [2:0] prologue_count_outport_routing_crossbar [0:5][0:7],
   input  logic [0:0] reset ,
   input  logic [4:0] tile_id ,
-  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa recv_from_element__msg  ,
+  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_from_element__msg  ,
   output logic [0:0] recv_from_element__rdy  ,
   input logic [0:0] recv_from_element__val  ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv_pkt_from_controller__msg  ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv_pkt_from_controller__msg  ,
   output logic [0:0] recv_pkt_from_controller__rdy  ,
   input logic [0:0] recv_pkt_from_controller__val  ,
-  output CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 send_ctrl__msg  ,
+  output CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 send_ctrl__msg  ,
   input logic [0:0] send_ctrl__rdy  ,
   output logic [0:0] send_ctrl__val  ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send_pkt_to_controller__msg  ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send_pkt_to_controller__msg  ,
   input logic [0:0] send_pkt_to_controller__rdy  ,
   output logic [0:0] send_pkt_to_controller__val  ,
-  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa send_to_element__msg  ,
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 send_to_element__msg  ,
   input logic [0:0] send_to_element__rdy  ,
   output logic [0:0] send_to_element__val  
 );
   localparam logic [2:0] __const__num_fu_inports_at_update_msg  = 3'd4;
-  localparam logic [3:0] __const__num_routing_outports_at_update_msg  = 4'd12;
+  localparam logic [3:0] __const__num_routing_outports_at_update_msg  = 4'd8;
   localparam logic [1:0] __const__CMD_CONFIG  = 2'd3;
   localparam logic [4:0] __const__CMD_GLOBAL_REDUCE_ADD_RESPONSE  = 5'd20;
   localparam logic [4:0] __const__CMD_GLOBAL_REDUCE_MUL_RESPONSE  = 5'd21;
   localparam logic [4:0] __const__CMD_CONFIG_LOOP_LOWER  = 5'd28;
   localparam logic [4:0] __const__CMD_CONFIG_LOOP_UPPER  = 5'd29;
   localparam logic [4:0] __const__CMD_CONFIG_LOOP_STEP  = 5'd30;
+  localparam logic [5:0] __const__CMD_CONFIG_GEP_STRIDE  = 6'd43;
   localparam logic [4:0] __const__CMD_UPDATE_COUNTER_SHADOW_VALUE  = 5'd26;
   localparam logic [4:0] __const__CMD_RESET_LEAF_COUNTER  = 5'd27;
   localparam logic [2:0] __const__CMD_CONFIG_PROLOGUE_FU  = 3'd4;
@@ -10118,13 +10157,13 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   localparam logic [6:0] __const__OPT_START  = 7'd0;
   localparam logic [2:0] __const__ctrl_mem_size_at_update_raddr_and_fu_prologue  = 3'd6;
   localparam logic [2:0] __const__ctrl_mem_size_at_update_prologue_outport  = 3'd6;
-  localparam logic [3:0] __const__num_tile_inports_at_update_prologue_outport  = 4'd8;
+  localparam logic [3:0] __const__num_routing_xbar_inports_at_update_prologue_outport  = 4'd8;
   localparam logic [1:0] __const__num_fu_outports_at_update_prologue_outport  = 2'd2;
   localparam logic [2:0] __const__ctrl_mem_size_at_update_prologue_reg  = 3'd6;
-  localparam logic [3:0] __const__num_tile_inports_at_update_prologue_reg  = 4'd8;
+  localparam logic [3:0] __const__num_routing_xbar_inports_at_update_prologue_reg  = 4'd8;
   localparam logic [1:0] __const__num_fu_outports_at_update_prologue_reg  = 2'd2;
-  localparam logic [2:0] __const__ctrl_count_per_iter_at_update_ctrl_count_per_iter  = 3'd4;
-  localparam logic [5:0] __const__total_ctrl_steps_at_update_total_ctrl_steps  = 6'd42;
+  localparam logic [2:0] __const__ctrl_count_per_iter_at_update_ctrl_count_per_iter  = 3'd5;
+  localparam logic [6:0] __const__total_ctrl_steps_at_update_total_ctrl_steps  = 7'd90;
   logic [2:0] ctrl_count_lower_bound;
   logic [2:0] ctrl_count_per_iter_val;
   logic [2:0] ctrl_count_upper_bound;
@@ -10142,14 +10181,14 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   logic [0:0] recv_from_element_queue__clk;
   logic [1:0] recv_from_element_queue__count;
   logic [0:0] recv_from_element_queue__reset;
-  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa recv_from_element_queue__recv__msg;
+  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_from_element_queue__recv__msg;
   logic [0:0] recv_from_element_queue__recv__rdy;
   logic [0:0] recv_from_element_queue__recv__val;
-  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa recv_from_element_queue__send__msg;
+  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_from_element_queue__send__msg;
   logic [0:0] recv_from_element_queue__send__rdy;
   logic [0:0] recv_from_element_queue__send__val;
 
-  NormalQueueRTL__ff32a4736d57bf97 recv_from_element_queue
+  NormalQueueRTL__d9fcaa5b2544d4a4 recv_from_element_queue
   (
     .clk( recv_from_element_queue__clk ),
     .count( recv_from_element_queue__count ),
@@ -10173,14 +10212,14 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   logic [0:0] recv_pkt_from_controller_queue__clk;
   logic [1:0] recv_pkt_from_controller_queue__count;
   logic [0:0] recv_pkt_from_controller_queue__reset;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv_pkt_from_controller_queue__recv__msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv_pkt_from_controller_queue__recv__msg;
   logic [0:0] recv_pkt_from_controller_queue__recv__rdy;
   logic [0:0] recv_pkt_from_controller_queue__recv__val;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv_pkt_from_controller_queue__send__msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv_pkt_from_controller_queue__send__msg;
   logic [0:0] recv_pkt_from_controller_queue__send__rdy;
   logic [0:0] recv_pkt_from_controller_queue__send__val;
 
-  NormalQueueRTL__5f45783c4055af06 recv_pkt_from_controller_queue
+  NormalQueueRTL__8bb43b4184ab4504 recv_pkt_from_controller_queue
   (
     .clk( recv_pkt_from_controller_queue__clk ),
     .count( recv_pkt_from_controller_queue__count ),
@@ -10203,13 +10242,13 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
 
   logic [0:0] reg_file__clk;
   logic [2:0] reg_file__raddr [0:0];
-  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 reg_file__rdata [0:0];
+  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 reg_file__rdata [0:0];
   logic [0:0] reg_file__reset;
   logic [2:0] reg_file__waddr [0:0];
-  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 reg_file__wdata [0:0];
+  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 reg_file__wdata [0:0];
   logic [0:0] reg_file__wen [0:0];
 
-  RegisterFile__48ad990fc04c47c1 reg_file
+  RegisterFile__1d76994e7ba5a77e reg_file
   (
     .clk( reg_file__clk ),
     .raddr( reg_file__raddr ),
@@ -10227,7 +10266,7 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   logic [1:0] __tmpvar__update_prologue_reg_temp_fu_crossbar_in;
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:170
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:173
   // @update
   // def update_ctrl_addr_outport():
   //   s.ctrl_addr_outport @= s.reg_file.raddr[0]
@@ -10237,7 +10276,7 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:94
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:95
   // @update
   // def update_msg():
   //   s.recv_pkt_from_controller_queue.send.rdy @= 0
@@ -10251,7 +10290,7 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   //     s.reg_file.wdata[0].fu_in[i] @= 0
   //     s.reg_file.wdata[0].write_reg_from[i] @= s.recv_pkt_from_controller_queue.send.msg.payload.ctrl.write_reg_from[i]
   //     s.reg_file.wdata[0].write_reg_idx[i] @= s.recv_pkt_from_controller_queue.send.msg.payload.ctrl.write_reg_idx[i]
-  //     s.reg_file.wdata[0].read_reg_from[i] @= s.recv_pkt_from_controller_queue.send.msg.payload.ctrl.read_reg_from[i]
+  //     s.reg_file.wdata[0].read_reg_towards[i] @= s.recv_pkt_from_controller_queue.send.msg.payload.ctrl.read_reg_towards[i]
   //     s.reg_file.wdata[0].read_reg_idx[i] @= s.recv_pkt_from_controller_queue.send.msg.payload.ctrl.read_reg_idx[i]
   //   for i in range(num_routing_outports):
   //     s.reg_file.wdata[0].routing_xbar_outport[i] @= 0
@@ -10268,7 +10307,7 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   //       s.reg_file.wdata[0].fu_in[i] @= s.recv_pkt_from_controller_queue.send.msg.payload.ctrl.fu_in[i]
   //       s.reg_file.wdata[0].write_reg_from[i] @= s.recv_pkt_from_controller_queue.send.msg.payload.ctrl.write_reg_from[i]
   //       s.reg_file.wdata[0].write_reg_idx[i] @= s.recv_pkt_from_controller_queue.send.msg.payload.ctrl.write_reg_idx[i]
-  //       s.reg_file.wdata[0].read_reg_from[i] @= s.recv_pkt_from_controller_queue.send.msg.payload.ctrl.read_reg_from[i]
+  //       s.reg_file.wdata[0].read_reg_towards[i] @= s.recv_pkt_from_controller_queue.send.msg.payload.ctrl.read_reg_towards[i]
   //       s.reg_file.wdata[0].read_reg_idx[i] @= s.recv_pkt_from_controller_queue.send.msg.payload.ctrl.read_reg_idx[i]
   //     for i in range(num_routing_outports):
   //       s.reg_file.wdata[0].routing_xbar_outport[i] @= s.recv_pkt_from_controller_queue.send.msg.payload.ctrl.routing_xbar_outport[i]
@@ -10281,6 +10320,7 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   //         (s.recv_pkt_from_controller_queue.send.msg.payload.cmd == CMD_CONFIG_LOOP_LOWER) | \
   //         (s.recv_pkt_from_controller_queue.send.msg.payload.cmd == CMD_CONFIG_LOOP_UPPER) | \
   //         (s.recv_pkt_from_controller_queue.send.msg.payload.cmd == CMD_CONFIG_LOOP_STEP) | \
+  //         (s.recv_pkt_from_controller_queue.send.msg.payload.cmd == CMD_CONFIG_GEP_STRIDE) | \
   //         (s.recv_pkt_from_controller_queue.send.msg.payload.cmd == CMD_UPDATE_COUNTER_SHADOW_VALUE) | \
   //         (s.recv_pkt_from_controller_queue.send.msg.payload.cmd == CMD_RESET_LEAF_COUNTER)):
   //     s.send_to_element.msg @= s.recv_pkt_from_controller_queue.send.msg.payload
@@ -10307,6 +10347,7 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   //      (s.recv_pkt_from_controller_queue.send.msg.payload.cmd == CMD_CONFIG_LOOP_LOWER) | \
   //      (s.recv_pkt_from_controller_queue.send.msg.payload.cmd == CMD_CONFIG_LOOP_UPPER) | \
   //      (s.recv_pkt_from_controller_queue.send.msg.payload.cmd == CMD_CONFIG_LOOP_STEP) | \
+  //      (s.recv_pkt_from_controller_queue.send.msg.payload.cmd == CMD_CONFIG_GEP_STRIDE) | \
   //      (s.recv_pkt_from_controller_queue.send.msg.payload.cmd == CMD_UPDATE_COUNTER_SHADOW_VALUE) | \
   //      (s.recv_pkt_from_controller_queue.send.msg.payload.cmd == CMD_RESET_LEAF_COUNTER):
   //     s.recv_pkt_from_controller_queue.send.rdy @= 1
@@ -10316,7 +10357,7 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   
   always_comb begin : update_msg
     recv_pkt_from_controller_queue__send__rdy = 1'd0;
-    send_to_element__msg = { 5'd0, 35'd0, 7'd0, 131'd0, 3'd0 };
+    send_to_element__msg = { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 };
     send_to_element__val = 1'd0;
     reg_file__wen[1'd0] = 1'd0;
     reg_file__waddr[1'd0] = recv_pkt_from_controller_queue__send__msg.payload.ctrl_addr;
@@ -10325,16 +10366,16 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
       reg_file__wdata[1'd0].fu_in[2'(i)] = 3'd0;
       reg_file__wdata[1'd0].write_reg_from[2'(i)] = recv_pkt_from_controller_queue__send__msg.payload.ctrl.write_reg_from[2'(i)];
       reg_file__wdata[1'd0].write_reg_idx[2'(i)] = recv_pkt_from_controller_queue__send__msg.payload.ctrl.write_reg_idx[2'(i)];
-      reg_file__wdata[1'd0].read_reg_from[2'(i)] = recv_pkt_from_controller_queue__send__msg.payload.ctrl.read_reg_from[2'(i)];
+      reg_file__wdata[1'd0].read_reg_towards[2'(i)] = recv_pkt_from_controller_queue__send__msg.payload.ctrl.read_reg_towards[2'(i)];
       reg_file__wdata[1'd0].read_reg_idx[2'(i)] = recv_pkt_from_controller_queue__send__msg.payload.ctrl.read_reg_idx[2'(i)];
     end
     for ( int unsigned i = 1'd0; i < 4'( __const__num_routing_outports_at_update_msg ); i += 1'd1 ) begin
-      reg_file__wdata[1'd0].routing_xbar_outport[4'(i)] = 4'd0;
-      reg_file__wdata[1'd0].fu_xbar_outport[4'(i)] = 2'd0;
+      reg_file__wdata[1'd0].routing_xbar_outport[3'(i)] = 4'd0;
+      reg_file__wdata[1'd0].fu_xbar_outport[3'(i)] = 2'd0;
     end
     reg_file__wdata[1'd0].vector_factor_power = recv_pkt_from_controller_queue__send__msg.payload.ctrl.vector_factor_power;
     reg_file__wdata[1'd0].is_last_ctrl = 1'd0;
-    if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG ) ) ) begin
+    if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG ) ) ) begin
       reg_file__wen[1'd0] = 1'd1;
       reg_file__waddr[1'd0] = recv_pkt_from_controller_queue__send__msg.payload.ctrl_addr;
       reg_file__wdata[1'd0].operation = recv_pkt_from_controller_queue__send__msg.payload.ctrl.operation;
@@ -10342,32 +10383,32 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
         reg_file__wdata[1'd0].fu_in[2'(i)] = recv_pkt_from_controller_queue__send__msg.payload.ctrl.fu_in[2'(i)];
         reg_file__wdata[1'd0].write_reg_from[2'(i)] = recv_pkt_from_controller_queue__send__msg.payload.ctrl.write_reg_from[2'(i)];
         reg_file__wdata[1'd0].write_reg_idx[2'(i)] = recv_pkt_from_controller_queue__send__msg.payload.ctrl.write_reg_idx[2'(i)];
-        reg_file__wdata[1'd0].read_reg_from[2'(i)] = recv_pkt_from_controller_queue__send__msg.payload.ctrl.read_reg_from[2'(i)];
+        reg_file__wdata[1'd0].read_reg_towards[2'(i)] = recv_pkt_from_controller_queue__send__msg.payload.ctrl.read_reg_towards[2'(i)];
         reg_file__wdata[1'd0].read_reg_idx[2'(i)] = recv_pkt_from_controller_queue__send__msg.payload.ctrl.read_reg_idx[2'(i)];
       end
       for ( int unsigned i = 1'd0; i < 4'( __const__num_routing_outports_at_update_msg ); i += 1'd1 ) begin
-        reg_file__wdata[1'd0].routing_xbar_outport[4'(i)] = recv_pkt_from_controller_queue__send__msg.payload.ctrl.routing_xbar_outport[4'(i)];
-        reg_file__wdata[1'd0].fu_xbar_outport[4'(i)] = recv_pkt_from_controller_queue__send__msg.payload.ctrl.fu_xbar_outport[4'(i)];
+        reg_file__wdata[1'd0].routing_xbar_outport[3'(i)] = recv_pkt_from_controller_queue__send__msg.payload.ctrl.routing_xbar_outport[3'(i)];
+        reg_file__wdata[1'd0].fu_xbar_outport[3'(i)] = recv_pkt_from_controller_queue__send__msg.payload.ctrl.fu_xbar_outport[3'(i)];
       end
       reg_file__wdata[1'd0].vector_factor_power = recv_pkt_from_controller_queue__send__msg.payload.ctrl.vector_factor_power;
       reg_file__wdata[1'd0].is_last_ctrl = recv_pkt_from_controller_queue__send__msg.payload.ctrl.is_last_ctrl;
     end
-    else if ( recv_pkt_from_controller_queue__send__val & ( ( ( ( ( ( ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_GLOBAL_REDUCE_ADD_RESPONSE ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_GLOBAL_REDUCE_MUL_RESPONSE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_LOOP_LOWER ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_LOOP_UPPER ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_LOOP_STEP ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_UPDATE_COUNTER_SHADOW_VALUE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_RESET_LEAF_COUNTER ) ) ) ) begin
+    else if ( recv_pkt_from_controller_queue__send__val & ( ( ( ( ( ( ( ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_GLOBAL_REDUCE_ADD_RESPONSE ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_GLOBAL_REDUCE_MUL_RESPONSE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_LOOP_LOWER ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_LOOP_UPPER ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_LOOP_STEP ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_GEP_STRIDE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_UPDATE_COUNTER_SHADOW_VALUE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_RESET_LEAF_COUNTER ) ) ) ) begin
       send_to_element__msg = recv_pkt_from_controller_queue__send__msg.payload;
       send_to_element__val = 1'd1;
     end
-    if ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_PROLOGUE_FU ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_PROLOGUE_FU_CROSSBAR ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_PROLOGUE_ROUTING_CROSSBAR ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_LAUNCH ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_TERMINATE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_PAUSE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_PRESERVE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_RESUME ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_TOTAL_CTRL_COUNT ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_COUNT_PER_ITER ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_CTRL_LOWER_BOUND ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_RECORD_PHI_ADDR ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_GLOBAL_REDUCE_ADD_RESPONSE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_STREAMING_LD_START_ADDR ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_STREAMING_LD_STRIDE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_STREAMING_LD_END_ADDR ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_GLOBAL_REDUCE_MUL_RESPONSE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_LOOP_LOWER ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_LOOP_UPPER ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_LOOP_STEP ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_UPDATE_COUNTER_SHADOW_VALUE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_RESET_LEAF_COUNTER ) ) ) begin
+    if ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_PROLOGUE_FU ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_PROLOGUE_FU_CROSSBAR ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_PROLOGUE_ROUTING_CROSSBAR ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_LAUNCH ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_TERMINATE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_PAUSE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_PRESERVE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_RESUME ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_TOTAL_CTRL_COUNT ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_COUNT_PER_ITER ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_CTRL_LOWER_BOUND ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_RECORD_PHI_ADDR ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_GLOBAL_REDUCE_ADD_RESPONSE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_STREAMING_LD_START_ADDR ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_STREAMING_LD_STRIDE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_STREAMING_LD_END_ADDR ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_GLOBAL_REDUCE_MUL_RESPONSE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_LOOP_LOWER ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_LOOP_UPPER ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_LOOP_STEP ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_GEP_STRIDE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_UPDATE_COUNTER_SHADOW_VALUE ) ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_RESET_LEAF_COUNTER ) ) ) begin
       recv_pkt_from_controller_queue__send__rdy = 1'd1;
     end
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:268
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:271
   // @update
   // def update_prologue_outport():
   //   s.prologue_count_outport_fu @= s.prologue_count_reg_fu[s.reg_file.raddr[0]]
   //   for addr in range(ctrl_mem_size):
-  //     for i in range(num_tile_inports):
+  //     for i in range(num_routing_xbar_inports):
   //       s.prologue_count_outport_routing_crossbar[addr][i] @= \
   //           s.prologue_count_reg_routing_crossbar[addr][i]
   //     for i in range(num_fu_outports):
@@ -10377,7 +10418,7 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   always_comb begin : update_prologue_outport
     prologue_count_outport_fu = prologue_count_reg_fu[reg_file__raddr[1'd0]];
     for ( int unsigned addr = 1'd0; addr < 3'( __const__ctrl_mem_size_at_update_prologue_outport ); addr += 1'd1 ) begin
-      for ( int unsigned i = 1'd0; i < 4'( __const__num_tile_inports_at_update_prologue_outport ); i += 1'd1 )
+      for ( int unsigned i = 1'd0; i < 4'( __const__num_routing_xbar_inports_at_update_prologue_outport ); i += 1'd1 )
         prologue_count_outport_routing_crossbar[3'(addr)][3'(i)] = prologue_count_reg_routing_crossbar[3'(addr)][3'(i)];
       for ( int unsigned i = 1'd0; i < 2'( __const__num_fu_outports_at_update_prologue_outport ); i += 1'd1 )
         prologue_count_outport_fu_crossbar[3'(addr)][1'(i)] = prologue_count_reg_fu_crossbar[3'(addr)][1'(i)];
@@ -10385,7 +10426,7 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:194
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:197
   // @update
   // def update_send_ctrl():
   //   s.send_ctrl.val @= 0
@@ -10413,13 +10454,13 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
       else
         send_ctrl__val = 1'd1;
     end
-    if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_TERMINATE ) ) ) begin
+    if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_TERMINATE ) ) ) begin
       send_ctrl__val = 1'd0;
     end
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:174
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:177
   // @update
   // def update_send_pkt_to_controller():
   //   s.send_pkt_to_controller.val @= 0
@@ -10442,17 +10483,17 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   
   always_comb begin : update_send_pkt_to_controller
     send_pkt_to_controller__val = 1'd0;
-    send_pkt_to_controller__msg = { 5'd0, 5'( __const__num_tiles_at_update_send_pkt_to_controller ), 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 8'd0, 1'd0, { 5'( __const__CMD_COMPLETE ), 35'd0, 7'd0, 131'd0, 3'd0 } };
+    send_pkt_to_controller__msg = { 5'd0, 5'( __const__num_tiles_at_update_send_pkt_to_controller ), 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 8'd0, 1'd0, { 6'( __const__CMD_COMPLETE ), 35'd0, 7'd0, 111'd0, 3'd0 } };
     recv_from_element_queue__send__rdy = 1'd0;
     if ( start_iterate_ctrl == 1'd1 ) begin
       if ( recv_from_element_queue__send__val & ( ~sent_complete ) ) begin
-        send_pkt_to_controller__msg = { tile_id, 5'( __const__num_tiles_at_update_send_pkt_to_controller ), 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 8'd0, 1'd0, recv_from_element_queue__send__msg };
+        send_pkt_to_controller__msg = { tile_id, 5'( __const__num_tiles_at_update_send_pkt_to_controller ), 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 8'd0, 1'd0, recv_from_element_queue__send__msg };
         send_pkt_to_controller__val = 1'd1;
         recv_from_element_queue__send__rdy = send_pkt_to_controller__rdy;
       end
       else if ( ( ( total_ctrl_steps_val > 11'd0 ) & ( times == total_ctrl_steps_val ) ) | ( reg_file__rdata[1'd0].operation == 7'( __const__OPT_START ) ) ) begin
         if ( ( ( ( ~sent_complete ) & ( total_ctrl_steps_val > 11'd0 ) ) & ( times == total_ctrl_steps_val ) ) & start_iterate_ctrl ) begin
-          send_pkt_to_controller__msg = { tile_id, 5'( __const__num_tiles_at_update_send_pkt_to_controller ), 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 8'd0, 1'd0, { 5'( __const__CMD_COMPLETE ), 35'd0, 7'd0, 131'd0, 3'd0 } };
+          send_pkt_to_controller__msg = { tile_id, 5'( __const__num_tiles_at_update_send_pkt_to_controller ), 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 8'd0, 1'd0, { 6'( __const__CMD_COMPLETE ), 35'd0, 7'd0, 111'd0, 3'd0 } };
           send_pkt_to_controller__val = 1'd1;
         end
       end
@@ -10460,7 +10501,7 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:313
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:316
   // @update
   // def update_upper_bound():
   //   s.ctrl_count_upper_bound @= zext(s.ctrl_count_lower_bound, UpperBoundType) + zext(s.ctrl_count_per_iter_val, UpperBoundType)
@@ -10470,7 +10511,7 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:223
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:226
   // @update_ff
   // def issue_complete():
   //   if s.reset:
@@ -10488,16 +10529,16 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
     if ( reset ) begin
       sent_complete <= 1'd0;
     end
-    else if ( ( send_pkt_to_controller__val & send_pkt_to_controller__rdy ) & ( send_pkt_to_controller__msg.payload.cmd == 5'( __const__CMD_COMPLETE ) ) ) begin
+    else if ( ( send_pkt_to_controller__val & send_pkt_to_controller__rdy ) & ( send_pkt_to_controller__msg.payload.cmd == 6'( __const__CMD_COMPLETE ) ) ) begin
       sent_complete <= 1'd1;
     end
-    else if ( recv_pkt_from_controller_queue__send__val & ( ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_LAUNCH ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_RESUME ) ) ) ) begin
+    else if ( recv_pkt_from_controller_queue__send__val & ( ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_LAUNCH ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_RESUME ) ) ) ) begin
       sent_complete <= 1'd0;
     end
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:299
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:302
   // @update_ff
   // def update_ctrl_count_per_iter():
   //   if s.reset:
@@ -10507,15 +10548,15 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   
   always_ff @(posedge clk) begin : update_ctrl_count_per_iter
     if ( reset ) begin
-      ctrl_count_per_iter_val <= 3'd4;
+      ctrl_count_per_iter_val <= 3'd5;
     end
-    else if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_COUNT_PER_ITER ) ) ) begin
+    else if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_COUNT_PER_ITER ) ) ) begin
       ctrl_count_per_iter_val <= 3'(recv_pkt_from_controller_queue__send__msg.payload.data.payload);
     end
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:306
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:309
   // @update_ff
   // def update_lower_bound():
   //   if s.reset:
@@ -10527,18 +10568,18 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
     if ( reset ) begin
       ctrl_count_lower_bound <= 3'd0;
     end
-    else if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_CTRL_LOWER_BOUND ) ) ) begin
+    else if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_CTRL_LOWER_BOUND ) ) ) begin
       ctrl_count_lower_bound <= 3'(recv_pkt_from_controller_queue__send__msg.payload.data.payload);
     end
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:279
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:282
   // @update_ff
   // def update_prologue_reg():
   //   if s.reset:
   //     for addr in range(ctrl_mem_size):
-  //       for i in range(num_tile_inports):
+  //       for i in range(num_routing_xbar_inports):
   //         s.prologue_count_reg_routing_crossbar[addr][i] <<= 0
   //       for i in range(num_fu_outports):
   //         s.prologue_count_reg_fu_crossbar[addr][i] <<= 0
@@ -10557,26 +10598,26 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   always_ff @(posedge clk) begin : update_prologue_reg
     if ( reset ) begin
       for ( int unsigned addr = 1'd0; addr < 3'( __const__ctrl_mem_size_at_update_prologue_reg ); addr += 1'd1 ) begin
-        for ( int unsigned i = 1'd0; i < 4'( __const__num_tile_inports_at_update_prologue_reg ); i += 1'd1 )
+        for ( int unsigned i = 1'd0; i < 4'( __const__num_routing_xbar_inports_at_update_prologue_reg ); i += 1'd1 )
           prologue_count_reg_routing_crossbar[3'(addr)][3'(i)] <= 3'd0;
         for ( int unsigned i = 1'd0; i < 2'( __const__num_fu_outports_at_update_prologue_reg ); i += 1'd1 )
           prologue_count_reg_fu_crossbar[3'(addr)][1'(i)] <= 3'd0;
       end
     end
-    else if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_PROLOGUE_ROUTING_CROSSBAR ) ) ) begin
-      __tmpvar__update_prologue_reg_temp_routing_crossbar_in = recv_pkt_from_controller_queue__send__msg.payload.ctrl.routing_xbar_outport[4'd0];
+    else if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_PROLOGUE_ROUTING_CROSSBAR ) ) ) begin
+      __tmpvar__update_prologue_reg_temp_routing_crossbar_in = recv_pkt_from_controller_queue__send__msg.payload.ctrl.routing_xbar_outport[3'd0];
       if ( __tmpvar__update_prologue_reg_temp_routing_crossbar_in > 4'd0 ) begin
         prologue_count_reg_routing_crossbar[recv_pkt_from_controller_queue__send__msg.payload.ctrl_addr][3'(__tmpvar__update_prologue_reg_temp_routing_crossbar_in - 4'd1)] <= 3'(recv_pkt_from_controller_queue__send__msg.payload.data.payload);
       end
     end
-    else if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_PROLOGUE_FU_CROSSBAR ) ) ) begin
-      __tmpvar__update_prologue_reg_temp_fu_crossbar_in = recv_pkt_from_controller_queue__send__msg.payload.ctrl.fu_xbar_outport[4'd0];
+    else if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_PROLOGUE_FU_CROSSBAR ) ) ) begin
+      __tmpvar__update_prologue_reg_temp_fu_crossbar_in = recv_pkt_from_controller_queue__send__msg.payload.ctrl.fu_xbar_outport[3'd0];
       prologue_count_reg_fu_crossbar[recv_pkt_from_controller_queue__send__msg.payload.ctrl_addr][1'(__tmpvar__update_prologue_reg_temp_fu_crossbar_in)] <= 3'(recv_pkt_from_controller_queue__send__msg.payload.data.payload);
     end
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:236
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:239
   // @update_ff
   // def update_raddr_and_fu_prologue():
   //   if s.reset:
@@ -10616,14 +10657,14 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
       for ( int unsigned i = 1'd0; i < 3'( __const__ctrl_mem_size_at_update_raddr_and_fu_prologue ); i += 1'd1 )
         prologue_count_reg_fu[3'(i)] <= 3'd0;
     end
-    else if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_CTRL_LOWER_BOUND ) ) ) begin
+    else if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_CTRL_LOWER_BOUND ) ) ) begin
       reg_file__raddr[1'd0] <= 3'(recv_pkt_from_controller_queue__send__msg.payload.data.payload);
     end
-    else if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_TERMINATE ) ) ) begin
+    else if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_TERMINATE ) ) ) begin
       times <= 11'd0;
     end
     else begin
-      if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_PROLOGUE_FU ) ) ) begin
+      if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_PROLOGUE_FU ) ) ) begin
         prologue_count_reg_fu[recv_pkt_from_controller_queue__send__msg.payload.ctrl_addr] <= 3'(recv_pkt_from_controller_queue__send__msg.payload.data.payload);
       end
       if ( start_iterate_ctrl == 1'd1 ) begin
@@ -10645,7 +10686,7 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:317
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:320
   // @update_ff
   // def update_total_ctrl_steps():
   //   if s.reset:
@@ -10655,15 +10696,15 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
   
   always_ff @(posedge clk) begin : update_total_ctrl_steps
     if ( reset ) begin
-      total_ctrl_steps_val <= 11'd42;
+      total_ctrl_steps_val <= 11'd90;
     end
-    else if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_CONFIG_TOTAL_CTRL_COUNT ) ) ) begin
+    else if ( recv_pkt_from_controller_queue__send__val & ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_CONFIG_TOTAL_CTRL_COUNT ) ) ) begin
       total_ctrl_steps_val <= 11'(recv_pkt_from_controller_queue__send__msg.payload.data.payload);
     end
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:209
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/ctrl/CtrlMemDynamicRTL.py:212
   // @update_ff
   // def update_whether_we_can_iterate_ctrl():
   //   if s.reset:
@@ -10683,10 +10724,10 @@ module CtrlMemDynamicRTL__f99828a3c83e61ad
       start_iterate_ctrl <= 1'd0;
     end
     else if ( recv_pkt_from_controller_queue__send__val ) begin
-      if ( ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_LAUNCH ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_RESUME ) ) ) begin
+      if ( ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_LAUNCH ) ) | ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_RESUME ) ) ) begin
         start_iterate_ctrl <= 1'd1;
       end
-      else if ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 5'( __const__CMD_TERMINATE ) ) begin
+      else if ( recv_pkt_from_controller_queue__send__msg.payload.cmd == 6'( __const__CMD_TERMINATE ) ) begin
         start_iterate_ctrl <= 1'd0;
       end
     end
@@ -10710,10 +10751,10 @@ endmodule
 
 
 // PyMTL Component AdderRTL Definition
-// Full name: AdderRTL__CtrlPktType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__num_inports_4__num_outports_2__vector_factor_power_0
+// Full name: AdderRTL__CtrlPktType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_inports_4__num_outports_2__vector_factor_power_0
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/AdderRTL.py
 
-module AdderRTL__15576116170e90c9
+module AdderRTL__53f68ca63f4009b7
 (
   input  logic [0:0] clear ,
   input  logic [0:0] clk ,
@@ -10725,19 +10766,19 @@ module AdderRTL__15576116170e90c9
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_const__msg  ,
   output logic [0:0] recv_const__rdy  ,
   input logic [0:0] recv_const__val  ,
-  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa recv_from_ctrl_mem__msg  ,
+  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_from_ctrl_mem__msg  ,
   output logic [0:0] recv_from_ctrl_mem__rdy  ,
   input logic [0:0] recv_from_ctrl_mem__val  ,
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_in__msg [0:3] ,
   output logic [0:0] recv_in__rdy [0:3] ,
   input logic [0:0] recv_in__val [0:3] ,
-  input CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 recv_opt__msg  ,
+  input CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 recv_opt__msg  ,
   output logic [0:0] recv_opt__rdy  ,
   input logic [0:0] recv_opt__val  ,
   output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_out__msg [0:1] ,
   input logic [0:0] send_out__rdy [0:1] ,
   output logic [0:0] send_out__val [0:1] ,
-  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa send_to_ctrl_mem__msg  ,
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 send_to_ctrl_mem__msg  ,
   input logic [0:0] send_to_ctrl_mem__rdy  ,
   output logic [0:0] send_to_ctrl_mem__val  ,
   output logic [6:0] to_mem_raddr__msg  ,
@@ -10886,7 +10927,7 @@ module AdderRTL__15576116170e90c9
     recv_const__rdy = 1'd0;
     recv_opt__rdy = 1'd0;
     send_to_ctrl_mem__val = 1'd0;
-    send_to_ctrl_mem__msg = { 5'd0, 35'd0, 7'd0, 131'd0, 3'd0 };
+    send_to_ctrl_mem__msg = { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 };
     recv_from_ctrl_mem__rdy = 1'd0;
     if ( recv_opt__val ) begin
       if ( recv_opt__msg.fu_in[2'd0] != 3'd0 ) begin
@@ -11060,11 +11101,11 @@ module AdderRTL__15576116170e90c9
 endmodule
 
 
-// PyMTL Component MulRTL Definition
-// Full name: MulRTL__CtrlPktType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__num_inports_4__num_outports_2__vector_factor_power_0
-// At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/MulRTL.py
+// PyMTL Component NahRTL Definition
+// Full name: NahRTL__CtrlPktType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_inports_4__num_outports_2__vector_factor_power_0
+// At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/NahRTL.py
 
-module MulRTL__15576116170e90c9
+module NahRTL__53f68ca63f4009b7
 (
   input  logic [0:0] clear ,
   input  logic [0:0] clk ,
@@ -11076,19 +11117,218 @@ module MulRTL__15576116170e90c9
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_const__msg  ,
   output logic [0:0] recv_const__rdy  ,
   input logic [0:0] recv_const__val  ,
-  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa recv_from_ctrl_mem__msg  ,
+  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_from_ctrl_mem__msg  ,
   output logic [0:0] recv_from_ctrl_mem__rdy  ,
   input logic [0:0] recv_from_ctrl_mem__val  ,
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_in__msg [0:3] ,
   output logic [0:0] recv_in__rdy [0:3] ,
   input logic [0:0] recv_in__val [0:3] ,
-  input CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 recv_opt__msg  ,
+  input CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 recv_opt__msg  ,
   output logic [0:0] recv_opt__rdy  ,
   input logic [0:0] recv_opt__val  ,
   output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_out__msg [0:1] ,
   input logic [0:0] send_out__rdy [0:1] ,
   output logic [0:0] send_out__val [0:1] ,
-  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa send_to_ctrl_mem__msg  ,
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 send_to_ctrl_mem__msg  ,
+  input logic [0:0] send_to_ctrl_mem__rdy  ,
+  output logic [0:0] send_to_ctrl_mem__val  ,
+  output logic [6:0] to_mem_raddr__msg  ,
+  input logic [0:0] to_mem_raddr__rdy  ,
+  output logic [0:0] to_mem_raddr__val  ,
+  output logic [6:0] to_mem_waddr__msg  ,
+  input logic [0:0] to_mem_waddr__rdy  ,
+  output logic [0:0] to_mem_waddr__val  ,
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 to_mem_wdata__msg  ,
+  input logic [0:0] to_mem_wdata__rdy  ,
+  output logic [0:0] to_mem_wdata__val  
+);
+  localparam CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 const_zero  = { 32'd0, 1'd0, 1'd0, 1'd0 };
+  localparam logic [6:0] __const__OPT_START  = 7'd0;
+  localparam logic [0:0] __const__latency_at_proceed_latency  = 1'd1;
+  localparam logic [2:0] __const__num_inports_at_comb_logic  = 3'd4;
+  localparam logic [1:0] __const__num_outports_at_comb_logic  = 2'd2;
+  localparam logic [6:0] __const__OPT_NAH  = 7'd1;
+  logic [0:0] latency;
+  logic [0:0] reached_vector_factor;
+  logic [7:0] vector_factor_counter;
+  logic [2:0] vector_factor_power;
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/NahRTL.py:21
+  // @update
+  // def comb_logic():
+  // 
+  //   s.recv_const.rdy @= 0
+  //   s.recv_opt.rdy @= 0
+  //   # For pick input register
+  //   for i in range(num_inports):
+  //     s.recv_in[i].rdy @= b1(0)
+  // 
+  //   for i in range( num_outports ):
+  //     # s.send_out[i].val @= s.recv_opt.val
+  //     s.send_out[i].val @= 0
+  //     s.send_out[i].msg @= s.DataType()
+  // 
+  //   s.send_to_ctrl_mem.val @= 0
+  //   s.send_to_ctrl_mem.msg @= s.CgraPayloadType(0, 0, 0, 0, 0)
+  //   s.recv_from_ctrl_mem.rdy @= 0
+  // 
+  //   if s.recv_opt.val & (s.recv_opt.msg.operation == OPT_NAH):
+  //     s.recv_opt.rdy @= 1
+  //   else:
+  //     for j in range(num_outports):
+  //       s.send_out[j].val @= b1(0)
+  //     s.recv_opt.rdy @= 0
+  
+  always_comb begin : comb_logic
+    recv_const__rdy = 1'd0;
+    recv_opt__rdy = 1'd0;
+    for ( int unsigned i = 1'd0; i < 3'( __const__num_inports_at_comb_logic ); i += 1'd1 )
+      recv_in__rdy[2'(i)] = 1'd0;
+    for ( int unsigned i = 1'd0; i < 2'( __const__num_outports_at_comb_logic ); i += 1'd1 ) begin
+      send_out__val[1'(i)] = 1'd0;
+      send_out__msg[1'(i)] = { 32'd0, 1'd0, 1'd0, 1'd0 };
+    end
+    send_to_ctrl_mem__val = 1'd0;
+    send_to_ctrl_mem__msg = { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 };
+    recv_from_ctrl_mem__rdy = 1'd0;
+    if ( recv_opt__val & ( recv_opt__msg.operation == 7'( __const__OPT_NAH ) ) ) begin
+      recv_opt__rdy = 1'd1;
+    end
+    else begin
+      for ( int unsigned j = 1'd0; j < 2'( __const__num_outports_at_comb_logic ); j += 1'd1 )
+        send_out__val[1'(j)] = 1'd0;
+      recv_opt__rdy = 1'd0;
+    end
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:68
+  // @update
+  // def update_mem():
+  //   s.to_mem_waddr.val @= b1(0)
+  //   s.to_mem_wdata.val @= b1(0)
+  //   s.to_mem_wdata.msg @= s.const_zero
+  //   s.to_mem_waddr.msg @= s.DataAddrType(0)
+  //   s.to_mem_raddr.msg @= s.DataAddrType(0)
+  //   s.to_mem_raddr.val @= b1(0)
+  //   s.from_mem_rdata.rdy @= b1(0)
+  
+  always_comb begin : update_mem
+    to_mem_waddr__val = 1'd0;
+    to_mem_wdata__val = 1'd0;
+    to_mem_wdata__msg = const_zero;
+    to_mem_waddr__msg = 7'd0;
+    to_mem_raddr__msg = 7'd0;
+    to_mem_raddr__val = 1'd0;
+    from_mem_rdata__rdy = 1'd0;
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:87
+  // @update
+  // def update_reached_vector_factor():
+  //   s.reached_vector_factor @= 0
+  //   if s.recv_opt.val & (s.vector_factor_counter + \
+  //                        (VectorFactorType(1) << zext(s.vector_factor_power, VectorFactorType)) >= \
+  //                        (VectorFactorType(1) << zext(s.recv_opt.msg.vector_factor_power, VectorFactorType))):
+  //     s.reached_vector_factor @= 1
+  
+  always_comb begin : update_reached_vector_factor
+    reached_vector_factor = 1'd0;
+    if ( recv_opt__val & ( ( vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } ) ) >= ( 8'd1 << { { 5 { 1'b0 } }, recv_opt__msg.vector_factor_power } ) ) ) begin
+      reached_vector_factor = 1'd1;
+    end
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:78
+  // @update_ff
+  // def proceed_latency():
+  //   if s.recv_opt.msg.operation == OPT_START:
+  //     s.latency <<= LatencyType(0)
+  //   elif s.latency == latency - 1:
+  //     s.latency <<= LatencyType(0)
+  //   else:
+  //     s.latency <<= s.latency + LatencyType(1)
+  
+  always_ff @(posedge clk) begin : proceed_latency
+    if ( recv_opt__msg.operation == 7'( __const__OPT_START ) ) begin
+      latency <= 1'd0;
+    end
+    else if ( latency == ( 1'( __const__latency_at_proceed_latency ) - 1'd1 ) ) begin
+      latency <= 1'd0;
+    end
+    else
+      latency <= latency + 1'd1;
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:95
+  // @update_ff
+  // def update_vector_factor_counter():
+  //   if s.reset:
+  //     s.vector_factor_counter <<= 0
+  //   else:
+  //     if s.recv_opt.val:
+  //       if s.recv_opt.msg.is_last_ctrl & \
+  //          (s.vector_factor_counter + \
+  //           (VectorFactorType(1) << zext(s.vector_factor_power, VectorFactorType)) < \
+  //           (VectorFactorType(1) << zext(s.recv_opt.msg.vector_factor_power, VectorFactorType))):
+  //         s.vector_factor_counter <<= s.vector_factor_counter + \
+  //                                     (VectorFactorType(1) << zext(s.vector_factor_power, \
+  //                                                                  VectorFactorType))
+  //       elif s.recv_opt.msg.is_last_ctrl & s.reached_vector_factor:
+  //         s.vector_factor_counter <<= 0
+  
+  always_ff @(posedge clk) begin : update_vector_factor_counter
+    if ( reset ) begin
+      vector_factor_counter <= 8'd0;
+    end
+    else if ( recv_opt__val ) begin
+      if ( recv_opt__msg.is_last_ctrl & ( ( vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } ) ) < ( 8'd1 << { { 5 { 1'b0 } }, recv_opt__msg.vector_factor_power } ) ) ) begin
+        vector_factor_counter <= vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } );
+      end
+      else if ( recv_opt__msg.is_last_ctrl & reached_vector_factor ) begin
+        vector_factor_counter <= 8'd0;
+      end
+    end
+  end
+
+  assign vector_factor_power = 3'd0;
+
+endmodule
+
+
+// PyMTL Component MulRTL Definition
+// Full name: MulRTL__CtrlPktType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_inports_4__num_outports_2__vector_factor_power_0
+// At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/MulRTL.py
+
+module MulRTL__53f68ca63f4009b7
+(
+  input  logic [0:0] clear ,
+  input  logic [0:0] clk ,
+  input  logic [2:0] ctrl_addr_inport ,
+  input  logic [0:0] reset ,
+  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 from_mem_rdata__msg  ,
+  output logic [0:0] from_mem_rdata__rdy  ,
+  input logic [0:0] from_mem_rdata__val  ,
+  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_const__msg  ,
+  output logic [0:0] recv_const__rdy  ,
+  input logic [0:0] recv_const__val  ,
+  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_from_ctrl_mem__msg  ,
+  output logic [0:0] recv_from_ctrl_mem__rdy  ,
+  input logic [0:0] recv_from_ctrl_mem__val  ,
+  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_in__msg [0:3] ,
+  output logic [0:0] recv_in__rdy [0:3] ,
+  input logic [0:0] recv_in__val [0:3] ,
+  input CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 recv_opt__msg  ,
+  output logic [0:0] recv_opt__rdy  ,
+  input logic [0:0] recv_opt__val  ,
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_out__msg [0:1] ,
+  input logic [0:0] send_out__rdy [0:1] ,
+  output logic [0:0] send_out__val [0:1] ,
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 send_to_ctrl_mem__msg  ,
   input logic [0:0] send_to_ctrl_mem__rdy  ,
   output logic [0:0] send_to_ctrl_mem__val  ,
   output logic [6:0] to_mem_raddr__msg  ,
@@ -11188,7 +11428,7 @@ module MulRTL__15576116170e90c9
     recv_const__rdy = 1'd0;
     recv_opt__rdy = 1'd0;
     send_to_ctrl_mem__val = 1'd0;
-    send_to_ctrl_mem__msg = { 5'd0, 35'd0, 7'd0, 131'd0, 3'd0 };
+    send_to_ctrl_mem__msg = { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 };
     recv_from_ctrl_mem__rdy = 1'd0;
     if ( recv_opt__val ) begin
       if ( recv_opt__msg.fu_in[2'd0] != 3'd0 ) begin
@@ -11328,10 +11568,10 @@ endmodule
 
 
 // PyMTL Component LogicRTL Definition
-// Full name: LogicRTL__CtrlPktType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__num_inports_4__num_outports_2__vector_factor_power_0
+// Full name: LogicRTL__CtrlPktType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_inports_4__num_outports_2__vector_factor_power_0
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/LogicRTL.py
 
-module LogicRTL__15576116170e90c9
+module LogicRTL__53f68ca63f4009b7
 (
   input  logic [0:0] clear ,
   input  logic [0:0] clk ,
@@ -11343,19 +11583,19 @@ module LogicRTL__15576116170e90c9
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_const__msg  ,
   output logic [0:0] recv_const__rdy  ,
   input logic [0:0] recv_const__val  ,
-  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa recv_from_ctrl_mem__msg  ,
+  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_from_ctrl_mem__msg  ,
   output logic [0:0] recv_from_ctrl_mem__rdy  ,
   input logic [0:0] recv_from_ctrl_mem__val  ,
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_in__msg [0:3] ,
   output logic [0:0] recv_in__rdy [0:3] ,
   input logic [0:0] recv_in__val [0:3] ,
-  input CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 recv_opt__msg  ,
+  input CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 recv_opt__msg  ,
   output logic [0:0] recv_opt__rdy  ,
   input logic [0:0] recv_opt__val  ,
   output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_out__msg [0:1] ,
   input logic [0:0] send_out__rdy [0:1] ,
   output logic [0:0] send_out__val [0:1] ,
-  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa send_to_ctrl_mem__msg  ,
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 send_to_ctrl_mem__msg  ,
   input logic [0:0] send_to_ctrl_mem__rdy  ,
   output logic [0:0] send_to_ctrl_mem__val  ,
   output logic [6:0] to_mem_raddr__msg  ,
@@ -11490,7 +11730,7 @@ module LogicRTL__15576116170e90c9
     recv_const__rdy = 1'd0;
     recv_opt__rdy = 1'd0;
     send_to_ctrl_mem__val = 1'd0;
-    send_to_ctrl_mem__msg = { 5'd0, 35'd0, 7'd0, 131'd0, 3'd0 };
+    send_to_ctrl_mem__msg = { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 };
     recv_from_ctrl_mem__rdy = 1'd0;
     if ( recv_opt__val ) begin
       if ( recv_opt__msg.fu_in[2'd0] != 3'd0 ) begin
@@ -11658,11 +11898,11 @@ module LogicRTL__15576116170e90c9
 endmodule
 
 
-// PyMTL Component CompRTL Definition
-// Full name: CompRTL__CtrlPktType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__num_inports_4__num_outports_2__vector_factor_power_0
-// At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/CompRTL.py
+// PyMTL Component ShifterRTL Definition
+// Full name: ShifterRTL__CtrlPktType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_inports_4__num_outports_2__vector_factor_power_0
+// At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/ShifterRTL.py
 
-module CompRTL__15576116170e90c9
+module ShifterRTL__53f68ca63f4009b7
 (
   input  logic [0:0] clear ,
   input  logic [0:0] clk ,
@@ -11674,19 +11914,698 @@ module CompRTL__15576116170e90c9
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_const__msg  ,
   output logic [0:0] recv_const__rdy  ,
   input logic [0:0] recv_const__val  ,
-  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa recv_from_ctrl_mem__msg  ,
+  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_from_ctrl_mem__msg  ,
   output logic [0:0] recv_from_ctrl_mem__rdy  ,
   input logic [0:0] recv_from_ctrl_mem__val  ,
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_in__msg [0:3] ,
   output logic [0:0] recv_in__rdy [0:3] ,
   input logic [0:0] recv_in__val [0:3] ,
-  input CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 recv_opt__msg  ,
+  input CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 recv_opt__msg  ,
   output logic [0:0] recv_opt__rdy  ,
   input logic [0:0] recv_opt__val  ,
   output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_out__msg [0:1] ,
   input logic [0:0] send_out__rdy [0:1] ,
   output logic [0:0] send_out__val [0:1] ,
-  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa send_to_ctrl_mem__msg  ,
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 send_to_ctrl_mem__msg  ,
+  input logic [0:0] send_to_ctrl_mem__rdy  ,
+  output logic [0:0] send_to_ctrl_mem__val  ,
+  output logic [6:0] to_mem_raddr__msg  ,
+  input logic [0:0] to_mem_raddr__rdy  ,
+  output logic [0:0] to_mem_raddr__val  ,
+  output logic [6:0] to_mem_waddr__msg  ,
+  input logic [0:0] to_mem_waddr__rdy  ,
+  output logic [0:0] to_mem_waddr__val  ,
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 to_mem_wdata__msg  ,
+  input logic [0:0] to_mem_wdata__rdy  ,
+  output logic [0:0] to_mem_wdata__val  
+);
+  localparam CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 const_zero  = { 32'd0, 1'd0, 1'd0, 1'd0 };
+  localparam logic [6:0] __const__OPT_START  = 7'd0;
+  localparam logic [0:0] __const__latency_at_proceed_latency  = 1'd1;
+  localparam logic [2:0] __const__num_inports_at_comb_logic  = 3'd4;
+  localparam logic [1:0] __const__num_outports_at_comb_logic  = 2'd2;
+  localparam logic [6:0] __const__OPT_LLS  = 7'd5;
+  localparam logic [6:0] __const__OPT_LLS_CONST  = 7'd96;
+  localparam logic [6:0] __const__OPT_LRS  = 7'd6;
+  logic [2:0] in0;
+  logic [1:0] in0_idx;
+  logic [2:0] in1;
+  logic [1:0] in1_idx;
+  logic [0:0] latency;
+  logic [0:0] reached_vector_factor;
+  logic [0:0] recv_all_val;
+  logic [7:0] vector_factor_counter;
+  logic [2:0] vector_factor_power;
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/ShifterRTL.py:37
+  // @update
+  // def comb_logic():
+  // 
+  //   s.recv_all_val @= 0
+  //   # For pick input register
+  //   s.in0 @= FuInType(0)
+  //   s.in1 @= FuInType(0)
+  //   for i in range(num_inports):
+  //     s.recv_in[i].rdy @= b1(0)
+  //   for i in range(num_outports):
+  //     s.send_out[i].val @= 0
+  //     s.send_out[i].msg @= s.DataType()
+  // 
+  //   s.recv_const.rdy @= 0
+  //   s.recv_opt.rdy @= 0
+  // 
+  //   s.send_to_ctrl_mem.val @= 0
+  //   s.send_to_ctrl_mem.msg @= s.CgraPayloadType(0, 0, 0, 0, 0)
+  //   s.recv_from_ctrl_mem.rdy @= 0
+  // 
+  //   if s.recv_opt.val:
+  //     if s.recv_opt.msg.fu_in[0] != FuInType(0):
+  //       s.in0 @= s.recv_opt.msg.fu_in[0] - FuInType(1)
+  //     if s.recv_opt.msg.fu_in[1] != FuInType(0):
+  //       s.in1 @= s.recv_opt.msg.fu_in[1] - FuInType(1)
+  // 
+  //   if s.recv_opt.val:
+  //     if s.recv_opt.msg.operation == OPT_LLS:
+  //       s.send_out[0].msg.payload @= s.recv_in[s.in0_idx].msg.payload << s.recv_in[s.in1_idx].msg.payload
+  //       s.send_out[0].msg.predicate @= s.recv_in[s.in0_idx].msg.predicate & \
+  //                                      s.recv_in[s.in1_idx].msg.predicate & \
+  //                                      s.reached_vector_factor
+  //       s.recv_all_val @= s.recv_in[s.in0_idx].val & s.recv_in[s.in1_idx].val
+  //       s.send_out[0].val @= s.recv_all_val
+  //       s.recv_in[s.in0_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_in[s.in1_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
+  // 
+  //     elif s.recv_opt.msg.operation == OPT_LLS_CONST:
+  //       s.send_out[0].msg.payload @= s.recv_in[s.in0_idx].msg.payload << s.recv_const.msg.payload
+  //       s.send_out[0].msg.predicate @= s.recv_in[s.in0_idx].msg.predicate & \
+  //                                      s.recv_const.msg.predicate & \
+  //                                      s.reached_vector_factor
+  //       s.recv_all_val @= s.recv_in[s.in0_idx].val & s.recv_const.val
+  //       s.send_out[0].val @= s.recv_all_val
+  //       s.recv_in[s.in0_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_const.rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
+  // 
+  //     elif s.recv_opt.msg.operation == OPT_LRS:
+  //       s.send_out[0].msg.payload @= s.recv_in[s.in0_idx].msg.payload >> s.recv_in[s.in1_idx].msg.payload
+  //       s.send_out[0].msg.predicate @= s.recv_in[s.in0_idx].msg.predicate & \
+  //                                      s.recv_in[s.in1_idx].msg.predicate & \
+  //                                      s.reached_vector_factor
+  //       s.recv_all_val @= s.recv_in[s.in0_idx].val & s.recv_in[s.in1_idx].val
+  //       s.send_out[0].val @= s.recv_all_val
+  //       s.recv_in[s.in0_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_in[s.in1_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
+  // 
+  //     else:
+  //       for j in range(num_outports):
+  //         s.send_out[j].val @= b1(0)
+  //       s.recv_opt.rdy @= 0
+  //       s.recv_in[s.in0_idx].rdy @= 0
+  //       s.recv_in[s.in1_idx].rdy @= 0
+  
+  always_comb begin : comb_logic
+    recv_all_val = 1'd0;
+    in0 = 3'd0;
+    in1 = 3'd0;
+    for ( int unsigned i = 1'd0; i < 3'( __const__num_inports_at_comb_logic ); i += 1'd1 )
+      recv_in__rdy[2'(i)] = 1'd0;
+    for ( int unsigned i = 1'd0; i < 2'( __const__num_outports_at_comb_logic ); i += 1'd1 ) begin
+      send_out__val[1'(i)] = 1'd0;
+      send_out__msg[1'(i)] = { 32'd0, 1'd0, 1'd0, 1'd0 };
+    end
+    recv_const__rdy = 1'd0;
+    recv_opt__rdy = 1'd0;
+    send_to_ctrl_mem__val = 1'd0;
+    send_to_ctrl_mem__msg = { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 };
+    recv_from_ctrl_mem__rdy = 1'd0;
+    if ( recv_opt__val ) begin
+      if ( recv_opt__msg.fu_in[2'd0] != 3'd0 ) begin
+        in0 = recv_opt__msg.fu_in[2'd0] - 3'd1;
+      end
+      if ( recv_opt__msg.fu_in[2'd1] != 3'd0 ) begin
+        in1 = recv_opt__msg.fu_in[2'd1] - 3'd1;
+      end
+    end
+    if ( recv_opt__val ) begin
+      if ( recv_opt__msg.operation == 7'( __const__OPT_LLS ) ) begin
+        send_out__msg[1'd0].payload = recv_in__msg[in0_idx].payload << recv_in__msg[in1_idx].payload;
+        send_out__msg[1'd0].predicate = ( recv_in__msg[in0_idx].predicate & recv_in__msg[in1_idx].predicate ) & reached_vector_factor;
+        recv_all_val = recv_in__val[in0_idx] & recv_in__val[in1_idx];
+        send_out__val[1'd0] = recv_all_val;
+        recv_in__rdy[in0_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_in__rdy[in1_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
+      end
+      else if ( recv_opt__msg.operation == 7'( __const__OPT_LLS_CONST ) ) begin
+        send_out__msg[1'd0].payload = recv_in__msg[in0_idx].payload << recv_const__msg.payload;
+        send_out__msg[1'd0].predicate = ( recv_in__msg[in0_idx].predicate & recv_const__msg.predicate ) & reached_vector_factor;
+        recv_all_val = recv_in__val[in0_idx] & recv_const__val;
+        send_out__val[1'd0] = recv_all_val;
+        recv_in__rdy[in0_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_const__rdy = recv_all_val & send_out__rdy[1'd0];
+        recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
+      end
+      else if ( recv_opt__msg.operation == 7'( __const__OPT_LRS ) ) begin
+        send_out__msg[1'd0].payload = recv_in__msg[in0_idx].payload >> recv_in__msg[in1_idx].payload;
+        send_out__msg[1'd0].predicate = ( recv_in__msg[in0_idx].predicate & recv_in__msg[in1_idx].predicate ) & reached_vector_factor;
+        recv_all_val = recv_in__val[in0_idx] & recv_in__val[in1_idx];
+        send_out__val[1'd0] = recv_all_val;
+        recv_in__rdy[in0_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_in__rdy[in1_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
+      end
+      else begin
+        for ( int unsigned j = 1'd0; j < 2'( __const__num_outports_at_comb_logic ); j += 1'd1 )
+          send_out__val[1'(j)] = 1'd0;
+        recv_opt__rdy = 1'd0;
+        recv_in__rdy[in0_idx] = 1'd0;
+        recv_in__rdy[in1_idx] = 1'd0;
+      end
+    end
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:68
+  // @update
+  // def update_mem():
+  //   s.to_mem_waddr.val @= b1(0)
+  //   s.to_mem_wdata.val @= b1(0)
+  //   s.to_mem_wdata.msg @= s.const_zero
+  //   s.to_mem_waddr.msg @= s.DataAddrType(0)
+  //   s.to_mem_raddr.msg @= s.DataAddrType(0)
+  //   s.to_mem_raddr.val @= b1(0)
+  //   s.from_mem_rdata.rdy @= b1(0)
+  
+  always_comb begin : update_mem
+    to_mem_waddr__val = 1'd0;
+    to_mem_wdata__val = 1'd0;
+    to_mem_wdata__msg = const_zero;
+    to_mem_waddr__msg = 7'd0;
+    to_mem_raddr__msg = 7'd0;
+    to_mem_raddr__val = 1'd0;
+    from_mem_rdata__rdy = 1'd0;
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:87
+  // @update
+  // def update_reached_vector_factor():
+  //   s.reached_vector_factor @= 0
+  //   if s.recv_opt.val & (s.vector_factor_counter + \
+  //                        (VectorFactorType(1) << zext(s.vector_factor_power, VectorFactorType)) >= \
+  //                        (VectorFactorType(1) << zext(s.recv_opt.msg.vector_factor_power, VectorFactorType))):
+  //     s.reached_vector_factor @= 1
+  
+  always_comb begin : update_reached_vector_factor
+    reached_vector_factor = 1'd0;
+    if ( recv_opt__val & ( ( vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } ) ) >= ( 8'd1 << { { 5 { 1'b0 } }, recv_opt__msg.vector_factor_power } ) ) ) begin
+      reached_vector_factor = 1'd1;
+    end
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:78
+  // @update_ff
+  // def proceed_latency():
+  //   if s.recv_opt.msg.operation == OPT_START:
+  //     s.latency <<= LatencyType(0)
+  //   elif s.latency == latency - 1:
+  //     s.latency <<= LatencyType(0)
+  //   else:
+  //     s.latency <<= s.latency + LatencyType(1)
+  
+  always_ff @(posedge clk) begin : proceed_latency
+    if ( recv_opt__msg.operation == 7'( __const__OPT_START ) ) begin
+      latency <= 1'd0;
+    end
+    else if ( latency == ( 1'( __const__latency_at_proceed_latency ) - 1'd1 ) ) begin
+      latency <= 1'd0;
+    end
+    else
+      latency <= latency + 1'd1;
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:95
+  // @update_ff
+  // def update_vector_factor_counter():
+  //   if s.reset:
+  //     s.vector_factor_counter <<= 0
+  //   else:
+  //     if s.recv_opt.val:
+  //       if s.recv_opt.msg.is_last_ctrl & \
+  //          (s.vector_factor_counter + \
+  //           (VectorFactorType(1) << zext(s.vector_factor_power, VectorFactorType)) < \
+  //           (VectorFactorType(1) << zext(s.recv_opt.msg.vector_factor_power, VectorFactorType))):
+  //         s.vector_factor_counter <<= s.vector_factor_counter + \
+  //                                     (VectorFactorType(1) << zext(s.vector_factor_power, \
+  //                                                                  VectorFactorType))
+  //       elif s.recv_opt.msg.is_last_ctrl & s.reached_vector_factor:
+  //         s.vector_factor_counter <<= 0
+  
+  always_ff @(posedge clk) begin : update_vector_factor_counter
+    if ( reset ) begin
+      vector_factor_counter <= 8'd0;
+    end
+    else if ( recv_opt__val ) begin
+      if ( recv_opt__msg.is_last_ctrl & ( ( vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } ) ) < ( 8'd1 << { { 5 { 1'b0 } }, recv_opt__msg.vector_factor_power } ) ) ) begin
+        vector_factor_counter <= vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } );
+      end
+      else if ( recv_opt__msg.is_last_ctrl & reached_vector_factor ) begin
+        vector_factor_counter <= 8'd0;
+      end
+    end
+  end
+
+  assign vector_factor_power = 3'd0;
+  assign in0_idx = in0[1:0];
+  assign in1_idx = in1[1:0];
+
+endmodule
+
+
+// PyMTL Component PhiRTL Definition
+// Full name: PhiRTL__CtrlPktType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_inports_4__num_outports_2__vector_factor_power_0
+// At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/PhiRTL.py
+
+module PhiRTL__53f68ca63f4009b7
+(
+  input  logic [0:0] clear ,
+  input  logic [0:0] clk ,
+  input  logic [2:0] ctrl_addr_inport ,
+  input  logic [0:0] reset ,
+  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 from_mem_rdata__msg  ,
+  output logic [0:0] from_mem_rdata__rdy  ,
+  input logic [0:0] from_mem_rdata__val  ,
+  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_const__msg  ,
+  output logic [0:0] recv_const__rdy  ,
+  input logic [0:0] recv_const__val  ,
+  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_from_ctrl_mem__msg  ,
+  output logic [0:0] recv_from_ctrl_mem__rdy  ,
+  input logic [0:0] recv_from_ctrl_mem__val  ,
+  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_in__msg [0:3] ,
+  output logic [0:0] recv_in__rdy [0:3] ,
+  input logic [0:0] recv_in__val [0:3] ,
+  input CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 recv_opt__msg  ,
+  output logic [0:0] recv_opt__rdy  ,
+  input logic [0:0] recv_opt__val  ,
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_out__msg [0:1] ,
+  input logic [0:0] send_out__rdy [0:1] ,
+  output logic [0:0] send_out__val [0:1] ,
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 send_to_ctrl_mem__msg  ,
+  input logic [0:0] send_to_ctrl_mem__rdy  ,
+  output logic [0:0] send_to_ctrl_mem__val  ,
+  output logic [6:0] to_mem_raddr__msg  ,
+  input logic [0:0] to_mem_raddr__rdy  ,
+  output logic [0:0] to_mem_raddr__val  ,
+  output logic [6:0] to_mem_waddr__msg  ,
+  input logic [0:0] to_mem_waddr__rdy  ,
+  output logic [0:0] to_mem_waddr__val  ,
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 to_mem_wdata__msg  ,
+  input logic [0:0] to_mem_wdata__rdy  ,
+  output logic [0:0] to_mem_wdata__val  
+);
+  localparam CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 const_zero  = { 32'd0, 1'd0, 1'd0, 1'd0 };
+  localparam logic [6:0] __const__OPT_START  = 7'd0;
+  localparam logic [0:0] __const__latency_at_proceed_latency  = 1'd1;
+  localparam logic [2:0] __const__num_inports_at_comb_logic  = 3'd4;
+  localparam logic [1:0] __const__num_outports_at_comb_logic  = 2'd2;
+  localparam logic [6:0] __const__OPT_PHI  = 7'd17;
+  localparam logic [6:0] __const__OPT_PHI_START  = 7'd84;
+  localparam logic [6:0] __const__OPT_PHI_CONST  = 7'd32;
+  localparam logic [6:0] __const__OPT_CONST  = 7'd80;
+  logic [0:0] first;
+  logic [2:0] in0;
+  logic [1:0] in0_idx;
+  logic [2:0] in1;
+  logic [1:0] in1_idx;
+  logic [0:0] latency;
+  logic [2:0] prev_ctrl_addr;
+  logic [0:0] reached_vector_factor;
+  logic [0:0] recv_all_val;
+  logic [7:0] vector_factor_counter;
+  logic [2:0] vector_factor_power;
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/PhiRTL.py:44
+  //    @update
+  //    def comb_logic():
+  //      s.recv_all_val @= 0
+  //      # For pick input register
+  //      s.in0 @= 0
+  //      s.in1 @= 0
+  //      for i in range(num_inports):
+  //        s.recv_in[i].rdy @= b1(0)
+  //      for i in range(num_outports):
+  //        s.send_out[i].val @= 0
+  //        s.send_out[i].msg @= s.DataType()
+  // 
+  //      s.recv_const.rdy @= 0
+  //      s.recv_opt.rdy @= 0
+  // 
+  //      s.send_to_ctrl_mem.val @= 0
+  //      s.send_to_ctrl_mem.msg @= s.CgraPayloadType(0, 0, 0, 0, 0)
+  //      s.recv_from_ctrl_mem.rdy @= 0
+  // 
+  //      if s.recv_opt.val:
+  //        if s.recv_opt.msg.fu_in[0] != FuInType(0):
+  //          s.in0 @= s.recv_opt.msg.fu_in[0] - FuInType(1)
+  //        if s.recv_opt.msg.fu_in[1] != FuInType(0):
+  //          s.in1 @= s.recv_opt.msg.fu_in[1] - FuInType(1)
+  // 
+  //      # TODO: decision needs to be made. Adder could be in FU vector width. Or only effective once on the boundary.
+  //      # if s.recv_opt.val:
+  //      if s.recv_opt.val:
+  //        if s.recv_opt.msg.operation == OPT_PHI:
+  //          if s.recv_in[s.in0_idx].msg.predicate == Bits1(1):
+  //            s.send_out[0].msg.payload @= s.recv_in[s.in0_idx].msg.payload
+  //            s.send_out[0].msg.predicate @= s.reached_vector_factor
+  //          elif s.recv_in[s.in1_idx].msg.predicate == Bits1(1):
+  //            s.send_out[0].msg.payload @= s.recv_in[s.in1_idx].msg.payload
+  //            s.send_out[0].msg.predicate @= s.reached_vector_factor
+  //          else: # No predecessor is active.
+  //            s.send_out[0].msg.payload @= s.recv_in[s.in0_idx].msg.payload
+  //            s.send_out[0].msg.predicate @= 0
+  //          s.recv_all_val @= s.recv_in[s.in0_idx].val & s.recv_in[s.in1_idx].val
+  //          s.send_out[0].val @= s.recv_all_val
+  //          s.recv_in[s.in0_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //          s.recv_in[s.in1_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //          s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
+  // 
+  //        elif s.recv_opt.msg.operation == OPT_PHI_START:
+  //          if s.first:
+  //            s.send_out[0].msg.payload @= s.recv_in[s.in0_idx].msg.payload
+  //            s.send_out[0].msg.predicate @= s.reached_vector_factor
+  //          elif s.recv_in[s.in0_idx].msg.predicate == Bits1(1):
+  //            s.send_out[0].msg.payload @= s.recv_in[s.in0_idx].msg.payload
+  //            s.send_out[0].msg.predicate @= s.reached_vector_factor
+  //          elif s.recv_in[s.in1_idx].msg.predicate == Bits1(1):
+  //            s.send_out[0].msg.payload @= s.recv_in[s.in1_idx].msg.payload
+  //            s.send_out[0].msg.predicate @= s.reached_vector_factor
+  //          else: # No predecessor is active.
+  //            s.send_out[0].msg.payload @= s.recv_in[s.in0_idx].msg.payload
+  //            s.send_out[0].msg.predicate @= 0
+  //          s.recv_all_val @= ((s.first & s.recv_in[s.in0_idx].val) | \
+  //                             (~s.first & s.recv_in[s.in0_idx].val & s.recv_in[s.in1_idx].val))
+  //          s.send_out[0].val @= s.recv_all_val
+  //          s.recv_in[s.in0_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //          s.recv_in[s.in1_idx].rdy @= ~s.first & s.recv_all_val & s.send_out[0].rdy
+  //          s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
+  // 
+  //        elif s.recv_opt.msg.operation == OPT_PHI_CONST:
+  //          if s.first:
+  //            s.send_out[0].msg.payload @= s.recv_const.msg.payload
+  //          else:
+  //            s.send_out[0].msg.payload @= s.recv_in[s.in0_idx].msg.payload
+  // 
+  //          s.recv_all_val @= ((s.first & s.recv_const.val) | \
+  //                             (~s.first & s.recv_in[s.in0_idx].val))
+  //          s.send_out[0].val @= s.recv_all_val
+  //          s.recv_in[s.in0_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //          s.recv_const.rdy @= s.recv_all_val & s.send_out[0].rdy
+  //          s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
+  // 
+  //          if s.first:
+  //            s.send_out[0].msg.predicate @= s.recv_const.msg.predicate & \
+  //                                           s.reached_vector_factor
+  //          else:
+  //            s.send_out[0].msg.predicate @= s.recv_in[s.in0_idx].msg.predicate & \
+  //                                           s.reached_vector_factor
+  // 
+  //        elif s.recv_opt.msg.operation == OPT_CONST:
+  //          s.send_out[0].msg.payload @= s.recv_const.msg.payload
+  //          s.send_out[0].msg.predicate @= s.recv_const.msg.predicate & \
+  //                                         s.reached_vector_factor
+  //          s.recv_all_val @= s.recv_const.val
+  //          s.send_out[0].val @= s.recv_all_val
+  //          s.recv_const.rdy @= s.recv_all_val & s.send_out[0].rdy
+  //          s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
+  // 
+  //        else:
+  //          for j in range(num_outports):
+  //            s.send_out[j].val @= b1(0)
+  //          s.recv_opt.rdy @= 0
+  //          s.recv_in[s.in0_idx].rdy @= 0
+  //          s.recv_in[s.in1_idx].rdy @= 0
+  
+  always_comb begin : comb_logic
+    recv_all_val = 1'd0;
+    in0 = 3'd0;
+    in1 = 3'd0;
+    for ( int unsigned i = 1'd0; i < 3'( __const__num_inports_at_comb_logic ); i += 1'd1 )
+      recv_in__rdy[2'(i)] = 1'd0;
+    for ( int unsigned i = 1'd0; i < 2'( __const__num_outports_at_comb_logic ); i += 1'd1 ) begin
+      send_out__val[1'(i)] = 1'd0;
+      send_out__msg[1'(i)] = { 32'd0, 1'd0, 1'd0, 1'd0 };
+    end
+    recv_const__rdy = 1'd0;
+    recv_opt__rdy = 1'd0;
+    send_to_ctrl_mem__val = 1'd0;
+    send_to_ctrl_mem__msg = { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 };
+    recv_from_ctrl_mem__rdy = 1'd0;
+    if ( recv_opt__val ) begin
+      if ( recv_opt__msg.fu_in[2'd0] != 3'd0 ) begin
+        in0 = recv_opt__msg.fu_in[2'd0] - 3'd1;
+      end
+      if ( recv_opt__msg.fu_in[2'd1] != 3'd0 ) begin
+        in1 = recv_opt__msg.fu_in[2'd1] - 3'd1;
+      end
+    end
+    if ( recv_opt__val ) begin
+      if ( recv_opt__msg.operation == 7'( __const__OPT_PHI ) ) begin
+        if ( recv_in__msg[in0_idx].predicate == 1'd1 ) begin
+          send_out__msg[1'd0].payload = recv_in__msg[in0_idx].payload;
+          send_out__msg[1'd0].predicate = reached_vector_factor;
+        end
+        else if ( recv_in__msg[in1_idx].predicate == 1'd1 ) begin
+          send_out__msg[1'd0].payload = recv_in__msg[in1_idx].payload;
+          send_out__msg[1'd0].predicate = reached_vector_factor;
+        end
+        else begin
+          send_out__msg[1'd0].payload = recv_in__msg[in0_idx].payload;
+          send_out__msg[1'd0].predicate = 1'd0;
+        end
+        recv_all_val = recv_in__val[in0_idx] & recv_in__val[in1_idx];
+        send_out__val[1'd0] = recv_all_val;
+        recv_in__rdy[in0_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_in__rdy[in1_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
+      end
+      else if ( recv_opt__msg.operation == 7'( __const__OPT_PHI_START ) ) begin
+        if ( first ) begin
+          send_out__msg[1'd0].payload = recv_in__msg[in0_idx].payload;
+          send_out__msg[1'd0].predicate = reached_vector_factor;
+        end
+        else if ( recv_in__msg[in0_idx].predicate == 1'd1 ) begin
+          send_out__msg[1'd0].payload = recv_in__msg[in0_idx].payload;
+          send_out__msg[1'd0].predicate = reached_vector_factor;
+        end
+        else if ( recv_in__msg[in1_idx].predicate == 1'd1 ) begin
+          send_out__msg[1'd0].payload = recv_in__msg[in1_idx].payload;
+          send_out__msg[1'd0].predicate = reached_vector_factor;
+        end
+        else begin
+          send_out__msg[1'd0].payload = recv_in__msg[in0_idx].payload;
+          send_out__msg[1'd0].predicate = 1'd0;
+        end
+        recv_all_val = ( first & recv_in__val[in0_idx] ) | ( ( ( ~first ) & recv_in__val[in0_idx] ) & recv_in__val[in1_idx] );
+        send_out__val[1'd0] = recv_all_val;
+        recv_in__rdy[in0_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_in__rdy[in1_idx] = ( ( ~first ) & recv_all_val ) & send_out__rdy[1'd0];
+        recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
+      end
+      else if ( recv_opt__msg.operation == 7'( __const__OPT_PHI_CONST ) ) begin
+        if ( first ) begin
+          send_out__msg[1'd0].payload = recv_const__msg.payload;
+        end
+        else
+          send_out__msg[1'd0].payload = recv_in__msg[in0_idx].payload;
+        recv_all_val = ( first & recv_const__val ) | ( ( ~first ) & recv_in__val[in0_idx] );
+        send_out__val[1'd0] = recv_all_val;
+        recv_in__rdy[in0_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_const__rdy = recv_all_val & send_out__rdy[1'd0];
+        recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
+        if ( first ) begin
+          send_out__msg[1'd0].predicate = recv_const__msg.predicate & reached_vector_factor;
+        end
+        else
+          send_out__msg[1'd0].predicate = recv_in__msg[in0_idx].predicate & reached_vector_factor;
+      end
+      else if ( recv_opt__msg.operation == 7'( __const__OPT_CONST ) ) begin
+        send_out__msg[1'd0].payload = recv_const__msg.payload;
+        send_out__msg[1'd0].predicate = recv_const__msg.predicate & reached_vector_factor;
+        recv_all_val = recv_const__val;
+        send_out__val[1'd0] = recv_all_val;
+        recv_const__rdy = recv_all_val & send_out__rdy[1'd0];
+        recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
+      end
+      else begin
+        for ( int unsigned j = 1'd0; j < 2'( __const__num_outports_at_comb_logic ); j += 1'd1 )
+          send_out__val[1'(j)] = 1'd0;
+        recv_opt__rdy = 1'd0;
+        recv_in__rdy[in0_idx] = 1'd0;
+        recv_in__rdy[in1_idx] = 1'd0;
+      end
+    end
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:68
+  // @update
+  // def update_mem():
+  //   s.to_mem_waddr.val @= b1(0)
+  //   s.to_mem_wdata.val @= b1(0)
+  //   s.to_mem_wdata.msg @= s.const_zero
+  //   s.to_mem_waddr.msg @= s.DataAddrType(0)
+  //   s.to_mem_raddr.msg @= s.DataAddrType(0)
+  //   s.to_mem_raddr.val @= b1(0)
+  //   s.from_mem_rdata.rdy @= b1(0)
+  
+  always_comb begin : update_mem
+    to_mem_waddr__val = 1'd0;
+    to_mem_wdata__val = 1'd0;
+    to_mem_wdata__msg = const_zero;
+    to_mem_waddr__msg = 7'd0;
+    to_mem_raddr__msg = 7'd0;
+    to_mem_raddr__val = 1'd0;
+    from_mem_rdata__rdy = 1'd0;
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:87
+  // @update
+  // def update_reached_vector_factor():
+  //   s.reached_vector_factor @= 0
+  //   if s.recv_opt.val & (s.vector_factor_counter + \
+  //                        (VectorFactorType(1) << zext(s.vector_factor_power, VectorFactorType)) >= \
+  //                        (VectorFactorType(1) << zext(s.recv_opt.msg.vector_factor_power, VectorFactorType))):
+  //     s.reached_vector_factor @= 1
+  
+  always_comb begin : update_reached_vector_factor
+    reached_vector_factor = 1'd0;
+    if ( recv_opt__val & ( ( vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } ) ) >= ( 8'd1 << { { 5 { 1'b0 } }, recv_opt__msg.vector_factor_power } ) ) ) begin
+      reached_vector_factor = 1'd1;
+    end
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/PhiRTL.py:150
+  // @update_ff
+  // def br_start_once():
+  //   if s.reset | s.clear:
+  //     s.first <<= b1(1)
+  //     s.prev_ctrl_addr <<= s.CtrlAddrType(0)
+  //   else:
+  //     s.prev_ctrl_addr <<= s.ctrl_addr_inport
+  //     if s.first & (s.ctrl_addr_inport < s.prev_ctrl_addr):
+  //       s.first <<= b1(0)
+  
+  always_ff @(posedge clk) begin : br_start_once
+    if ( reset | clear ) begin
+      first <= 1'd1;
+      prev_ctrl_addr <= 3'd0;
+    end
+    else begin
+      prev_ctrl_addr <= ctrl_addr_inport;
+      if ( first & ( ctrl_addr_inport < prev_ctrl_addr ) ) begin
+        first <= 1'd0;
+      end
+    end
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:78
+  // @update_ff
+  // def proceed_latency():
+  //   if s.recv_opt.msg.operation == OPT_START:
+  //     s.latency <<= LatencyType(0)
+  //   elif s.latency == latency - 1:
+  //     s.latency <<= LatencyType(0)
+  //   else:
+  //     s.latency <<= s.latency + LatencyType(1)
+  
+  always_ff @(posedge clk) begin : proceed_latency
+    if ( recv_opt__msg.operation == 7'( __const__OPT_START ) ) begin
+      latency <= 1'd0;
+    end
+    else if ( latency == ( 1'( __const__latency_at_proceed_latency ) - 1'd1 ) ) begin
+      latency <= 1'd0;
+    end
+    else
+      latency <= latency + 1'd1;
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:95
+  // @update_ff
+  // def update_vector_factor_counter():
+  //   if s.reset:
+  //     s.vector_factor_counter <<= 0
+  //   else:
+  //     if s.recv_opt.val:
+  //       if s.recv_opt.msg.is_last_ctrl & \
+  //          (s.vector_factor_counter + \
+  //           (VectorFactorType(1) << zext(s.vector_factor_power, VectorFactorType)) < \
+  //           (VectorFactorType(1) << zext(s.recv_opt.msg.vector_factor_power, VectorFactorType))):
+  //         s.vector_factor_counter <<= s.vector_factor_counter + \
+  //                                     (VectorFactorType(1) << zext(s.vector_factor_power, \
+  //                                                                  VectorFactorType))
+  //       elif s.recv_opt.msg.is_last_ctrl & s.reached_vector_factor:
+  //         s.vector_factor_counter <<= 0
+  
+  always_ff @(posedge clk) begin : update_vector_factor_counter
+    if ( reset ) begin
+      vector_factor_counter <= 8'd0;
+    end
+    else if ( recv_opt__val ) begin
+      if ( recv_opt__msg.is_last_ctrl & ( ( vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } ) ) < ( 8'd1 << { { 5 { 1'b0 } }, recv_opt__msg.vector_factor_power } ) ) ) begin
+        vector_factor_counter <= vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } );
+      end
+      else if ( recv_opt__msg.is_last_ctrl & reached_vector_factor ) begin
+        vector_factor_counter <= 8'd0;
+      end
+    end
+  end
+
+  assign vector_factor_power = 3'd0;
+  assign in0_idx = in0[1:0];
+  assign in1_idx = in1[1:0];
+
+endmodule
+
+
+// PyMTL Component CompRTL Definition
+// Full name: CompRTL__CtrlPktType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_inports_4__num_outports_2__vector_factor_power_0
+// At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/CompRTL.py
+
+module CompRTL__53f68ca63f4009b7
+(
+  input  logic [0:0] clear ,
+  input  logic [0:0] clk ,
+  input  logic [2:0] ctrl_addr_inport ,
+  input  logic [0:0] reset ,
+  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 from_mem_rdata__msg  ,
+  output logic [0:0] from_mem_rdata__rdy  ,
+  input logic [0:0] from_mem_rdata__val  ,
+  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_const__msg  ,
+  output logic [0:0] recv_const__rdy  ,
+  input logic [0:0] recv_const__val  ,
+  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_from_ctrl_mem__msg  ,
+  output logic [0:0] recv_from_ctrl_mem__rdy  ,
+  input logic [0:0] recv_from_ctrl_mem__val  ,
+  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_in__msg [0:3] ,
+  output logic [0:0] recv_in__rdy [0:3] ,
+  input logic [0:0] recv_in__val [0:3] ,
+  input CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 recv_opt__msg  ,
+  output logic [0:0] recv_opt__rdy  ,
+  input logic [0:0] recv_opt__val  ,
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_out__msg [0:1] ,
+  input logic [0:0] send_out__rdy [0:1] ,
+  output logic [0:0] send_out__val [0:1] ,
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 send_to_ctrl_mem__msg  ,
   input logic [0:0] send_to_ctrl_mem__rdy  ,
   output logic [0:0] send_to_ctrl_mem__val  ,
   output logic [6:0] to_mem_raddr__msg  ,
@@ -11710,6 +12629,10 @@ module CompRTL__15576116170e90c9
   localparam logic [6:0] __const__OPT_EQ_CONST  = 7'd33;
   localparam logic [6:0] __const__OPT_NE_CONST  = 7'd46;
   localparam logic [6:0] __const__OPT_LT  = 7'd60;
+  localparam logic [31:0] __const__sign_flip_at_read_reg  = 32'd2147483648;
+  localparam logic [6:0] __const__OPT_GTE_CONST  = 7'd90;
+  localparam logic [6:0] __const__OPT_GT_CONST  = 7'd97;
+  localparam logic [6:0] __const__OPT_LT_CONST  = 7'd98;
   logic [2:0] in0;
   logic [1:0] in0_idx;
   logic [2:0] in1;
@@ -11721,7 +12644,7 @@ module CompRTL__15576116170e90c9
   logic [2:0] vector_factor_power;
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/CompRTL.py:41
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/CompRTL.py:46
   // @update
   // def read_reg():
   // 
@@ -11785,7 +12708,7 @@ module CompRTL__15576116170e90c9
   //       s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
   // 
   //     elif s.recv_opt.msg.operation == OPT_LT:
-  //       if s.recv_in[s.in0_idx].msg.payload < s.recv_in[s.in1_idx].msg.payload:
+  //       if (s.recv_in[s.in0_idx].msg.payload ^ sign_flip) < (s.recv_in[s.in1_idx].msg.payload ^ sign_flip):
   //         s.send_out[0].msg @= s.const_one
   //       else:
   //         s.send_out[0].msg @= s.const_zero
@@ -11796,6 +12719,46 @@ module CompRTL__15576116170e90c9
   //       s.send_out[0].val @= s.recv_all_val
   //       s.recv_in[s.in0_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
   //       s.recv_in[s.in1_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
+  // 
+  //     elif s.recv_opt.msg.operation == OPT_GTE_CONST:
+  //       if (s.recv_in[s.in0_idx].msg.payload ^ sign_flip) >= (s.recv_const.msg.payload ^ sign_flip):
+  //         s.send_out[0].msg @= s.const_one
+  //       else:
+  //         s.send_out[0].msg @= s.const_zero
+  //       s.send_out[0].msg.predicate @= s.recv_in[s.in0_idx].msg.predicate & \
+  //                                      s.reached_vector_factor
+  //       s.recv_all_val @= s.recv_in[s.in0_idx].val & s.recv_const.val
+  //       s.send_out[0].val @= s.recv_all_val
+  //       s.recv_in[s.in0_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_const.rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
+  // 
+  //     elif s.recv_opt.msg.operation == OPT_GT_CONST:
+  //       if (s.recv_in[s.in0_idx].msg.payload ^ sign_flip) > (s.recv_const.msg.payload ^ sign_flip):
+  //         s.send_out[0].msg @= s.const_one
+  //       else:
+  //         s.send_out[0].msg @= s.const_zero
+  //       s.send_out[0].msg.predicate @= s.recv_in[s.in0_idx].msg.predicate & \
+  //                                      s.reached_vector_factor
+  //       s.recv_all_val @= s.recv_in[s.in0_idx].val & s.recv_const.val
+  //       s.send_out[0].val @= s.recv_all_val
+  //       s.recv_in[s.in0_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_const.rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
+  // 
+  //     elif s.recv_opt.msg.operation == OPT_LT_CONST:
+  //       # Signed less-than: XOR MSB converts signed order to unsigned order
+  //       if (s.recv_in[s.in0_idx].msg.payload ^ sign_flip) < (s.recv_const.msg.payload ^ sign_flip):
+  //         s.send_out[0].msg @= s.const_one
+  //       else:
+  //         s.send_out[0].msg @= s.const_zero
+  //       s.send_out[0].msg.predicate @= s.recv_in[s.in0_idx].msg.predicate & \
+  //                                      s.reached_vector_factor
+  //       s.recv_all_val @= s.recv_in[s.in0_idx].val & s.recv_const.val
+  //       s.send_out[0].val @= s.recv_all_val
+  //       s.recv_in[s.in0_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_const.rdy @= s.recv_all_val & s.send_out[0].rdy
   //       s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
   // 
   //     else:
@@ -11818,7 +12781,7 @@ module CompRTL__15576116170e90c9
     recv_const__rdy = 1'd0;
     recv_opt__rdy = 1'd0;
     send_to_ctrl_mem__val = 1'd0;
-    send_to_ctrl_mem__msg = { 5'd0, 35'd0, 7'd0, 131'd0, 3'd0 };
+    send_to_ctrl_mem__msg = { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 };
     recv_from_ctrl_mem__rdy = 1'd0;
     if ( recv_opt__val ) begin
       if ( recv_opt__msg.fu_in[2'd0] != 3'd0 ) begin
@@ -11862,7 +12825,7 @@ module CompRTL__15576116170e90c9
         recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
       end
       else if ( recv_opt__msg.operation == 7'( __const__OPT_LT ) ) begin
-        if ( recv_in__msg[in0_idx].payload < recv_in__msg[in1_idx].payload ) begin
+        if ( ( recv_in__msg[in0_idx].payload ^ 32'( __const__sign_flip_at_read_reg ) ) < ( recv_in__msg[in1_idx].payload ^ 32'( __const__sign_flip_at_read_reg ) ) ) begin
           send_out__msg[1'd0] = const_one;
         end
         else
@@ -11872,6 +12835,45 @@ module CompRTL__15576116170e90c9
         send_out__val[1'd0] = recv_all_val;
         recv_in__rdy[in0_idx] = recv_all_val & send_out__rdy[1'd0];
         recv_in__rdy[in1_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
+      end
+      else if ( recv_opt__msg.operation == 7'( __const__OPT_GTE_CONST ) ) begin
+        if ( ( recv_in__msg[in0_idx].payload ^ 32'( __const__sign_flip_at_read_reg ) ) >= ( recv_const__msg.payload ^ 32'( __const__sign_flip_at_read_reg ) ) ) begin
+          send_out__msg[1'd0] = const_one;
+        end
+        else
+          send_out__msg[1'd0] = const_zero;
+        send_out__msg[1'd0].predicate = recv_in__msg[in0_idx].predicate & reached_vector_factor;
+        recv_all_val = recv_in__val[in0_idx] & recv_const__val;
+        send_out__val[1'd0] = recv_all_val;
+        recv_in__rdy[in0_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_const__rdy = recv_all_val & send_out__rdy[1'd0];
+        recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
+      end
+      else if ( recv_opt__msg.operation == 7'( __const__OPT_GT_CONST ) ) begin
+        if ( ( recv_in__msg[in0_idx].payload ^ 32'( __const__sign_flip_at_read_reg ) ) > ( recv_const__msg.payload ^ 32'( __const__sign_flip_at_read_reg ) ) ) begin
+          send_out__msg[1'd0] = const_one;
+        end
+        else
+          send_out__msg[1'd0] = const_zero;
+        send_out__msg[1'd0].predicate = recv_in__msg[in0_idx].predicate & reached_vector_factor;
+        recv_all_val = recv_in__val[in0_idx] & recv_const__val;
+        send_out__val[1'd0] = recv_all_val;
+        recv_in__rdy[in0_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_const__rdy = recv_all_val & send_out__rdy[1'd0];
+        recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
+      end
+      else if ( recv_opt__msg.operation == 7'( __const__OPT_LT_CONST ) ) begin
+        if ( ( recv_in__msg[in0_idx].payload ^ 32'( __const__sign_flip_at_read_reg ) ) < ( recv_const__msg.payload ^ 32'( __const__sign_flip_at_read_reg ) ) ) begin
+          send_out__msg[1'd0] = const_one;
+        end
+        else
+          send_out__msg[1'd0] = const_zero;
+        send_out__msg[1'd0].predicate = recv_in__msg[in0_idx].predicate & reached_vector_factor;
+        recv_all_val = recv_in__val[in0_idx] & recv_const__val;
+        send_out__val[1'd0] = recv_all_val;
+        recv_in__rdy[in0_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_const__rdy = recv_all_val & send_out__rdy[1'd0];
         recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
       end
       else begin
@@ -11985,10 +12987,10 @@ endmodule
 
 
 // PyMTL Component GrantRTL Definition
-// Full name: GrantRTL__CtrlPktType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__num_inports_4__num_outports_2__vector_factor_power_0
+// Full name: GrantRTL__CtrlPktType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_inports_4__num_outports_2__vector_factor_power_0
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/GrantRTL.py
 
-module GrantRTL__15576116170e90c9
+module GrantRTL__53f68ca63f4009b7
 (
   input  logic [0:0] clear ,
   input  logic [0:0] clk ,
@@ -12000,19 +13002,19 @@ module GrantRTL__15576116170e90c9
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_const__msg  ,
   output logic [0:0] recv_const__rdy  ,
   input logic [0:0] recv_const__val  ,
-  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa recv_from_ctrl_mem__msg  ,
+  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_from_ctrl_mem__msg  ,
   output logic [0:0] recv_from_ctrl_mem__rdy  ,
   input logic [0:0] recv_from_ctrl_mem__val  ,
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_in__msg [0:3] ,
   output logic [0:0] recv_in__rdy [0:3] ,
   input logic [0:0] recv_in__val [0:3] ,
-  input CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 recv_opt__msg  ,
+  input CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 recv_opt__msg  ,
   output logic [0:0] recv_opt__rdy  ,
   input logic [0:0] recv_opt__val  ,
   output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_out__msg [0:1] ,
   input logic [0:0] send_out__rdy [0:1] ,
   output logic [0:0] send_out__val [0:1] ,
-  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa send_to_ctrl_mem__msg  ,
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 send_to_ctrl_mem__msg  ,
   input logic [0:0] send_to_ctrl_mem__rdy  ,
   output logic [0:0] send_to_ctrl_mem__val  ,
   output logic [6:0] to_mem_raddr__msg  ,
@@ -12033,7 +13035,10 @@ module GrantRTL__15576116170e90c9
   localparam logic [6:0] __const__OPT_GRT_PRED  = 7'd16;
   localparam logic [6:0] __const__OPT_GRT_ALWAYS  = 7'd34;
   localparam logic [6:0] __const__OPT_GRT_ONCE  = 7'd47;
-  logic [0:0] already_grt_once;
+  localparam logic [6:0] __const__OPT_GRT_ONCE_CONST  = 7'd88;
+  localparam logic [3:0] __const__num_slots_at_record_grt_once  = 4'd8;
+  logic [0:0] already_grt_once [0:7];
+  logic [0:0] cur_already_grt_once;
   logic [2:0] in0;
   logic [1:0] in0_idx;
   logic [2:0] in1;
@@ -12045,7 +13050,7 @@ module GrantRTL__15576116170e90c9
   logic [2:0] vector_factor_power;
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/GrantRTL.py:39
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/GrantRTL.py:43
   // @update
   // def comb_logic():
   // 
@@ -12065,6 +13070,9 @@ module GrantRTL__15576116170e90c9
   //   s.send_to_ctrl_mem.val @= 0
   //   s.send_to_ctrl_mem.msg @= s.CgraPayloadType(0, 0, 0, 0, 0)
   //   s.recv_from_ctrl_mem.rdy @= 0
+  // 
+  //   # Select the per-slot "already granted" bit for the current ctrl_addr.
+  //   s.cur_already_grt_once @= s.already_grt_once[s.ctrl_addr_inport]
   // 
   //   if s.recv_opt.val:
   //     if s.recv_opt.msg.fu_in[0] != FuInType(0):
@@ -12110,12 +13118,24 @@ module GrantRTL__15576116170e90c9
   //       # GRANT_ONCE is used to apply `true` predicate onto a value only once. This
   //       # is usually used for the constant declared in the entry block of a function.
   //       s.send_out[0].msg @= s.recv_in[s.in0_idx].msg
-  //       # Only updates predicate as true for the first time.
-  //       s.send_out[0].msg.predicate @= s.reached_vector_factor & ~s.already_grt_once
+  //       # Only updates predicate as true for the first time at this ctrl_addr.
+  //       s.send_out[0].msg.predicate @= s.reached_vector_factor & ~s.cur_already_grt_once
   // 
   //       s.recv_all_val @= s.recv_in[s.in0_idx].val
   //       s.send_out[0].val @= s.recv_all_val
   //       s.recv_in[s.in0_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
+  //     elif s.recv_opt.msg.operation == OPT_GRT_ONCE_CONST:
+  //       # GRANT_ONCE_CONST: every non-prologue execution consumes one entry from
+  //       # the const queue, but predicate=1 is emitted only on the first such
+  //       # execution for this ctrl_addr; subsequent executions emit predicate=0.
+  //       # (Prologue cycles see OPT_NAH via FlexibleFuRTL and do not reach here.)
+  //       s.send_out[0].msg @= s.recv_const.msg
+  //       s.send_out[0].msg.predicate @= s.reached_vector_factor & ~s.cur_already_grt_once
+  // 
+  //       s.recv_all_val @= s.recv_const.val
+  //       s.send_out[0].val @= s.recv_all_val
+  //       s.recv_const.rdy @= s.recv_all_val & s.send_out[0].rdy
   //       s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
   // 
   //     else:
@@ -12138,8 +13158,9 @@ module GrantRTL__15576116170e90c9
     recv_const__rdy = 1'd0;
     recv_opt__rdy = 1'd0;
     send_to_ctrl_mem__val = 1'd0;
-    send_to_ctrl_mem__msg = { 5'd0, 35'd0, 7'd0, 131'd0, 3'd0 };
+    send_to_ctrl_mem__msg = { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 };
     recv_from_ctrl_mem__rdy = 1'd0;
+    cur_already_grt_once = already_grt_once[ctrl_addr_inport];
     if ( recv_opt__val ) begin
       if ( recv_opt__msg.fu_in[2'd0] != 3'd0 ) begin
         in0 = recv_opt__msg.fu_in[2'd0] - 3'd1;
@@ -12172,380 +13193,19 @@ module GrantRTL__15576116170e90c9
       end
       else if ( recv_opt__msg.operation == 7'( __const__OPT_GRT_ONCE ) ) begin
         send_out__msg[1'd0] = recv_in__msg[in0_idx];
-        send_out__msg[1'd0].predicate = reached_vector_factor & ( ~already_grt_once );
+        send_out__msg[1'd0].predicate = reached_vector_factor & ( ~cur_already_grt_once );
         recv_all_val = recv_in__val[in0_idx];
         send_out__val[1'd0] = recv_all_val;
         recv_in__rdy[in0_idx] = recv_all_val & send_out__rdy[1'd0];
         recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
       end
-      else begin
-        for ( int unsigned j = 1'd0; j < 2'( __const__num_outports_at_comb_logic ); j += 1'd1 )
-          send_out__val[1'(j)] = 1'd0;
-        recv_opt__rdy = 1'd0;
-        recv_in__rdy[in0_idx] = 1'd0;
-        recv_in__rdy[in1_idx] = 1'd0;
-      end
-    end
-  end
-
-  // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:68
-  // @update
-  // def update_mem():
-  //   s.to_mem_waddr.val @= b1(0)
-  //   s.to_mem_wdata.val @= b1(0)
-  //   s.to_mem_wdata.msg @= s.const_zero
-  //   s.to_mem_waddr.msg @= s.DataAddrType(0)
-  //   s.to_mem_raddr.msg @= s.DataAddrType(0)
-  //   s.to_mem_raddr.val @= b1(0)
-  //   s.from_mem_rdata.rdy @= b1(0)
-  
-  always_comb begin : update_mem
-    to_mem_waddr__val = 1'd0;
-    to_mem_wdata__val = 1'd0;
-    to_mem_wdata__msg = const_zero;
-    to_mem_waddr__msg = 7'd0;
-    to_mem_raddr__msg = 7'd0;
-    to_mem_raddr__val = 1'd0;
-    from_mem_rdata__rdy = 1'd0;
-  end
-
-  // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:87
-  // @update
-  // def update_reached_vector_factor():
-  //   s.reached_vector_factor @= 0
-  //   if s.recv_opt.val & (s.vector_factor_counter + \
-  //                        (VectorFactorType(1) << zext(s.vector_factor_power, VectorFactorType)) >= \
-  //                        (VectorFactorType(1) << zext(s.recv_opt.msg.vector_factor_power, VectorFactorType))):
-  //     s.reached_vector_factor @= 1
-  
-  always_comb begin : update_reached_vector_factor
-    reached_vector_factor = 1'd0;
-    if ( recv_opt__val & ( ( vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } ) ) >= ( 8'd1 << { { 5 { 1'b0 } }, recv_opt__msg.vector_factor_power } ) ) ) begin
-      reached_vector_factor = 1'd1;
-    end
-  end
-
-  // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:78
-  // @update_ff
-  // def proceed_latency():
-  //   if s.recv_opt.msg.operation == OPT_START:
-  //     s.latency <<= LatencyType(0)
-  //   elif s.latency == latency - 1:
-  //     s.latency <<= LatencyType(0)
-  //   else:
-  //     s.latency <<= s.latency + LatencyType(1)
-  
-  always_ff @(posedge clk) begin : proceed_latency
-    if ( recv_opt__msg.operation == 7'( __const__OPT_START ) ) begin
-      latency <= 1'd0;
-    end
-    else if ( latency == ( 1'( __const__latency_at_proceed_latency ) - 1'd1 ) ) begin
-      latency <= 1'd0;
-    end
-    else
-      latency <= latency + 1'd1;
-  end
-
-  // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/GrantRTL.py:118
-  // @update_ff
-  // def record_grt_once():
-  //   if s.reset | s.clear:
-  //     s.already_grt_once <<= 0
-  //   else:
-  //     if ~s.already_grt_once & s.send_out[0].val & s.send_out[0].rdy & (s.recv_opt.msg.operation == OPT_GRT_ONCE):
-  //       s.already_grt_once <<= 1
-  //     else:
-  //       s.already_grt_once <<= s.already_grt_once
-  
-  always_ff @(posedge clk) begin : record_grt_once
-    if ( reset | clear ) begin
-      already_grt_once <= 1'd0;
-    end
-    else if ( ( ( ( ~already_grt_once ) & send_out__val[1'd0] ) & send_out__rdy[1'd0] ) & ( recv_opt__msg.operation == 7'( __const__OPT_GRT_ONCE ) ) ) begin
-      already_grt_once <= 1'd1;
-    end
-    else
-      already_grt_once <= already_grt_once;
-  end
-
-  // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:95
-  // @update_ff
-  // def update_vector_factor_counter():
-  //   if s.reset:
-  //     s.vector_factor_counter <<= 0
-  //   else:
-  //     if s.recv_opt.val:
-  //       if s.recv_opt.msg.is_last_ctrl & \
-  //          (s.vector_factor_counter + \
-  //           (VectorFactorType(1) << zext(s.vector_factor_power, VectorFactorType)) < \
-  //           (VectorFactorType(1) << zext(s.recv_opt.msg.vector_factor_power, VectorFactorType))):
-  //         s.vector_factor_counter <<= s.vector_factor_counter + \
-  //                                     (VectorFactorType(1) << zext(s.vector_factor_power, \
-  //                                                                  VectorFactorType))
-  //       elif s.recv_opt.msg.is_last_ctrl & s.reached_vector_factor:
-  //         s.vector_factor_counter <<= 0
-  
-  always_ff @(posedge clk) begin : update_vector_factor_counter
-    if ( reset ) begin
-      vector_factor_counter <= 8'd0;
-    end
-    else if ( recv_opt__val ) begin
-      if ( recv_opt__msg.is_last_ctrl & ( ( vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } ) ) < ( 8'd1 << { { 5 { 1'b0 } }, recv_opt__msg.vector_factor_power } ) ) ) begin
-        vector_factor_counter <= vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } );
-      end
-      else if ( recv_opt__msg.is_last_ctrl & reached_vector_factor ) begin
-        vector_factor_counter <= 8'd0;
-      end
-    end
-  end
-
-  assign vector_factor_power = 3'd0;
-  assign in0_idx = in0[1:0];
-  assign in1_idx = in1[1:0];
-
-endmodule
-
-
-// PyMTL Component PhiRTL Definition
-// Full name: PhiRTL__CtrlPktType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__num_inports_4__num_outports_2__vector_factor_power_0
-// At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/PhiRTL.py
-
-module PhiRTL__15576116170e90c9
-(
-  input  logic [0:0] clear ,
-  input  logic [0:0] clk ,
-  input  logic [2:0] ctrl_addr_inport ,
-  input  logic [0:0] reset ,
-  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 from_mem_rdata__msg  ,
-  output logic [0:0] from_mem_rdata__rdy  ,
-  input logic [0:0] from_mem_rdata__val  ,
-  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_const__msg  ,
-  output logic [0:0] recv_const__rdy  ,
-  input logic [0:0] recv_const__val  ,
-  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa recv_from_ctrl_mem__msg  ,
-  output logic [0:0] recv_from_ctrl_mem__rdy  ,
-  input logic [0:0] recv_from_ctrl_mem__val  ,
-  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_in__msg [0:3] ,
-  output logic [0:0] recv_in__rdy [0:3] ,
-  input logic [0:0] recv_in__val [0:3] ,
-  input CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 recv_opt__msg  ,
-  output logic [0:0] recv_opt__rdy  ,
-  input logic [0:0] recv_opt__val  ,
-  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_out__msg [0:1] ,
-  input logic [0:0] send_out__rdy [0:1] ,
-  output logic [0:0] send_out__val [0:1] ,
-  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa send_to_ctrl_mem__msg  ,
-  input logic [0:0] send_to_ctrl_mem__rdy  ,
-  output logic [0:0] send_to_ctrl_mem__val  ,
-  output logic [6:0] to_mem_raddr__msg  ,
-  input logic [0:0] to_mem_raddr__rdy  ,
-  output logic [0:0] to_mem_raddr__val  ,
-  output logic [6:0] to_mem_waddr__msg  ,
-  input logic [0:0] to_mem_waddr__rdy  ,
-  output logic [0:0] to_mem_waddr__val  ,
-  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 to_mem_wdata__msg  ,
-  input logic [0:0] to_mem_wdata__rdy  ,
-  output logic [0:0] to_mem_wdata__val  
-);
-  localparam CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 const_zero  = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  localparam logic [6:0] __const__OPT_START  = 7'd0;
-  localparam logic [0:0] __const__latency_at_proceed_latency  = 1'd1;
-  localparam logic [2:0] __const__num_inports_at_comb_logic  = 3'd4;
-  localparam logic [1:0] __const__num_outports_at_comb_logic  = 2'd2;
-  localparam logic [6:0] __const__OPT_PHI  = 7'd17;
-  localparam logic [6:0] __const__OPT_PHI_START  = 7'd84;
-  localparam logic [6:0] __const__OPT_PHI_CONST  = 7'd32;
-  logic [0:0] first;
-  logic [2:0] in0;
-  logic [1:0] in0_idx;
-  logic [2:0] in1;
-  logic [1:0] in1_idx;
-  logic [0:0] latency;
-  logic [0:0] reached_vector_factor;
-  logic [0:0] recv_all_val;
-  logic [7:0] vector_factor_counter;
-  logic [2:0] vector_factor_power;
-
-  // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/PhiRTL.py:41
-  //    @update
-  //    def comb_logic():
-  //      s.recv_all_val @= 0
-  //      # For pick input register
-  //      s.in0 @= 0
-  //      s.in1 @= 0
-  //      for i in range(num_inports):
-  //        s.recv_in[i].rdy @= b1(0)
-  //      for i in range(num_outports):
-  //        s.send_out[i].val @= 0
-  //        s.send_out[i].msg @= s.DataType()
-  // 
-  //      s.recv_const.rdy @= 0
-  //      s.recv_opt.rdy @= 0
-  // 
-  //      s.send_to_ctrl_mem.val @= 0
-  //      s.send_to_ctrl_mem.msg @= s.CgraPayloadType(0, 0, 0, 0, 0)
-  //      s.recv_from_ctrl_mem.rdy @= 0
-  // 
-  //      if s.recv_opt.val:
-  //        if s.recv_opt.msg.fu_in[0] != FuInType(0):
-  //          s.in0 @= s.recv_opt.msg.fu_in[0] - FuInType(1)
-  //        if s.recv_opt.msg.fu_in[1] != FuInType(0):
-  //          s.in1 @= s.recv_opt.msg.fu_in[1] - FuInType(1)
-  // 
-  //      # TODO: decision needs to be made. Adder could be in FU vector width. Or only effective once on the boundary.
-  //      # if s.recv_opt.val:
-  //      if s.recv_opt.val:
-  //        if s.recv_opt.msg.operation == OPT_PHI:
-  //          if s.recv_in[s.in0_idx].msg.predicate == Bits1(1):
-  //            s.send_out[0].msg.payload @= s.recv_in[s.in0_idx].msg.payload
-  //            s.send_out[0].msg.predicate @= s.reached_vector_factor
-  //          elif s.recv_in[s.in1_idx].msg.predicate == Bits1(1):
-  //            s.send_out[0].msg.payload @= s.recv_in[s.in1_idx].msg.payload
-  //            s.send_out[0].msg.predicate @= s.reached_vector_factor
-  //          else: # No predecessor is active.
-  //            s.send_out[0].msg.payload @= s.recv_in[s.in0_idx].msg.payload
-  //            s.send_out[0].msg.predicate @= 0
-  //          s.recv_all_val @= s.recv_in[s.in0_idx].val & s.recv_in[s.in1_idx].val
-  //          s.send_out[0].val @= s.recv_all_val
-  //          s.recv_in[s.in0_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
-  //          s.recv_in[s.in1_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
-  //          s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
-  // 
-  //        elif s.recv_opt.msg.operation == OPT_PHI_START:
-  //          if s.first:
-  //            s.send_out[0].msg.payload @= s.recv_in[s.in0_idx].msg.payload
-  //            s.send_out[0].msg.predicate @= s.reached_vector_factor
-  //          elif s.recv_in[s.in0_idx].msg.predicate == Bits1(1):
-  //            s.send_out[0].msg.payload @= s.recv_in[s.in0_idx].msg.payload
-  //            s.send_out[0].msg.predicate @= s.reached_vector_factor
-  //          elif s.recv_in[s.in1_idx].msg.predicate == Bits1(1):
-  //            s.send_out[0].msg.payload @= s.recv_in[s.in1_idx].msg.payload
-  //            s.send_out[0].msg.predicate @= s.reached_vector_factor
-  //          else: # No predecessor is active.
-  //            s.send_out[0].msg.payload @= s.recv_in[s.in0_idx].msg.payload
-  //            s.send_out[0].msg.predicate @= 0
-  //          s.recv_all_val @= ((s.first & s.recv_in[s.in0_idx].val) | \
-  //                             (~s.first & s.recv_in[s.in0_idx].val & s.recv_in[s.in1_idx].val))
-  //          s.send_out[0].val @= s.recv_all_val
-  //          s.recv_in[s.in0_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
-  //          s.recv_in[s.in1_idx].rdy @= ~s.first & s.recv_all_val & s.send_out[0].rdy
-  //          s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
-  // 
-  //        elif s.recv_opt.msg.operation == OPT_PHI_CONST:
-  //          if s.first:
-  //            s.send_out[0].msg.payload @= s.recv_const.msg.payload
-  //          else:
-  //            s.send_out[0].msg.payload @= s.recv_in[s.in0_idx].msg.payload
-  // 
-  //          s.recv_all_val @= ((s.first & s.recv_const.val) | \
-  //                             (~s.first & s.recv_in[s.in0_idx].val))
-  //          s.send_out[0].val @= s.recv_all_val
-  //          s.recv_in[s.in0_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
-  //          s.recv_const.rdy @= s.recv_all_val & s.send_out[0].rdy
-  //          s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
-  // 
-  //          if s.first:
-  //            s.send_out[0].msg.predicate @= s.recv_const.msg.predicate & \
-  //                                           s.reached_vector_factor
-  //          else:
-  //            s.send_out[0].msg.predicate @= s.recv_in[s.in0_idx].msg.predicate & \
-  //                                           s.reached_vector_factor
-  // 
-  //        else:
-  //          for j in range(num_outports):
-  //            s.send_out[j].val @= b1(0)
-  //          s.recv_opt.rdy @= 0
-  //          s.recv_in[s.in0_idx].rdy @= 0
-  //          s.recv_in[s.in1_idx].rdy @= 0
-  
-  always_comb begin : comb_logic
-    recv_all_val = 1'd0;
-    in0 = 3'd0;
-    in1 = 3'd0;
-    for ( int unsigned i = 1'd0; i < 3'( __const__num_inports_at_comb_logic ); i += 1'd1 )
-      recv_in__rdy[2'(i)] = 1'd0;
-    for ( int unsigned i = 1'd0; i < 2'( __const__num_outports_at_comb_logic ); i += 1'd1 ) begin
-      send_out__val[1'(i)] = 1'd0;
-      send_out__msg[1'(i)] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-    end
-    recv_const__rdy = 1'd0;
-    recv_opt__rdy = 1'd0;
-    send_to_ctrl_mem__val = 1'd0;
-    send_to_ctrl_mem__msg = { 5'd0, 35'd0, 7'd0, 131'd0, 3'd0 };
-    recv_from_ctrl_mem__rdy = 1'd0;
-    if ( recv_opt__val ) begin
-      if ( recv_opt__msg.fu_in[2'd0] != 3'd0 ) begin
-        in0 = recv_opt__msg.fu_in[2'd0] - 3'd1;
-      end
-      if ( recv_opt__msg.fu_in[2'd1] != 3'd0 ) begin
-        in1 = recv_opt__msg.fu_in[2'd1] - 3'd1;
-      end
-    end
-    if ( recv_opt__val ) begin
-      if ( recv_opt__msg.operation == 7'( __const__OPT_PHI ) ) begin
-        if ( recv_in__msg[in0_idx].predicate == 1'd1 ) begin
-          send_out__msg[1'd0].payload = recv_in__msg[in0_idx].payload;
-          send_out__msg[1'd0].predicate = reached_vector_factor;
-        end
-        else if ( recv_in__msg[in1_idx].predicate == 1'd1 ) begin
-          send_out__msg[1'd0].payload = recv_in__msg[in1_idx].payload;
-          send_out__msg[1'd0].predicate = reached_vector_factor;
-        end
-        else begin
-          send_out__msg[1'd0].payload = recv_in__msg[in0_idx].payload;
-          send_out__msg[1'd0].predicate = 1'd0;
-        end
-        recv_all_val = recv_in__val[in0_idx] & recv_in__val[in1_idx];
+      else if ( recv_opt__msg.operation == 7'( __const__OPT_GRT_ONCE_CONST ) ) begin
+        send_out__msg[1'd0] = recv_const__msg;
+        send_out__msg[1'd0].predicate = reached_vector_factor & ( ~cur_already_grt_once );
+        recv_all_val = recv_const__val;
         send_out__val[1'd0] = recv_all_val;
-        recv_in__rdy[in0_idx] = recv_all_val & send_out__rdy[1'd0];
-        recv_in__rdy[in1_idx] = recv_all_val & send_out__rdy[1'd0];
-        recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
-      end
-      else if ( recv_opt__msg.operation == 7'( __const__OPT_PHI_START ) ) begin
-        if ( first ) begin
-          send_out__msg[1'd0].payload = recv_in__msg[in0_idx].payload;
-          send_out__msg[1'd0].predicate = reached_vector_factor;
-        end
-        else if ( recv_in__msg[in0_idx].predicate == 1'd1 ) begin
-          send_out__msg[1'd0].payload = recv_in__msg[in0_idx].payload;
-          send_out__msg[1'd0].predicate = reached_vector_factor;
-        end
-        else if ( recv_in__msg[in1_idx].predicate == 1'd1 ) begin
-          send_out__msg[1'd0].payload = recv_in__msg[in1_idx].payload;
-          send_out__msg[1'd0].predicate = reached_vector_factor;
-        end
-        else begin
-          send_out__msg[1'd0].payload = recv_in__msg[in0_idx].payload;
-          send_out__msg[1'd0].predicate = 1'd0;
-        end
-        recv_all_val = ( first & recv_in__val[in0_idx] ) | ( ( ( ~first ) & recv_in__val[in0_idx] ) & recv_in__val[in1_idx] );
-        send_out__val[1'd0] = recv_all_val;
-        recv_in__rdy[in0_idx] = recv_all_val & send_out__rdy[1'd0];
-        recv_in__rdy[in1_idx] = ( ( ~first ) & recv_all_val ) & send_out__rdy[1'd0];
-        recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
-      end
-      else if ( recv_opt__msg.operation == 7'( __const__OPT_PHI_CONST ) ) begin
-        if ( first ) begin
-          send_out__msg[1'd0].payload = recv_const__msg.payload;
-        end
-        else
-          send_out__msg[1'd0].payload = recv_in__msg[in0_idx].payload;
-        recv_all_val = ( first & recv_const__val ) | ( ( ~first ) & recv_in__val[in0_idx] );
-        send_out__val[1'd0] = recv_all_val;
-        recv_in__rdy[in0_idx] = recv_all_val & send_out__rdy[1'd0];
         recv_const__rdy = recv_all_val & send_out__rdy[1'd0];
         recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
-        if ( first ) begin
-          send_out__msg[1'd0].predicate = recv_const__msg.predicate & reached_vector_factor;
-        end
-        else
-          send_out__msg[1'd0].predicate = recv_in__msg[in0_idx].predicate & reached_vector_factor;
       end
       else begin
         for ( int unsigned j = 1'd0; j < 2'( __const__num_outports_at_comb_logic ); j += 1'd1 )
@@ -12597,24 +13257,6 @@ module PhiRTL__15576116170e90c9
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/PhiRTL.py:134
-  // @update_ff
-  // def br_start_once():
-  //   if s.reset | s.clear:
-  //     s.first <<= b1(1)
-  //   if ((s.recv_opt.msg.operation == OPT_PHI_CONST) | (s.recv_opt.msg.operation == OPT_PHI_START)) & s.reached_vector_factor:
-  //     s.first <<= b1(0)
-  
-  always_ff @(posedge clk) begin : br_start_once
-    if ( reset | clear ) begin
-      first <= 1'd1;
-    end
-    if ( ( ( recv_opt__msg.operation == 7'( __const__OPT_PHI_CONST ) ) | ( recv_opt__msg.operation == 7'( __const__OPT_PHI_START ) ) ) & reached_vector_factor ) begin
-      first <= 1'd0;
-    end
-  end
-
-  // PyMTL Update Block Source
   // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:78
   // @update_ff
   // def proceed_latency():
@@ -12634,6 +13276,39 @@ module PhiRTL__15576116170e90c9
     end
     else
       latency <= latency + 1'd1;
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/GrantRTL.py:137
+  // @update_ff
+  // def record_grt_once():
+  //   for k in range(num_slots):
+  //     if s.reset | s.clear:
+  //       s.already_grt_once[k] <<= 0
+  //     else:
+  //       # Latch only the slot that just fired a successful GRANT_ONCE /
+  //       # GRANT_ONCE_CONST; all other slots hold their state. This gives
+  //       # each ctrl_addr an independent "already granted" flag so multiple
+  //       # GRANT_ONCE ops in the same tile do not share state.
+  //       if (s.ctrl_addr_inport == s.CtrlAddrType(k)) & \
+  //          ~s.already_grt_once[k] & \
+  //          s.send_out[0].val & s.send_out[0].rdy & \
+  //          ((s.recv_opt.msg.operation == OPT_GRT_ONCE) | \
+  //           (s.recv_opt.msg.operation == OPT_GRT_ONCE_CONST)):
+  //         s.already_grt_once[k] <<= 1
+  //       else:
+  //         s.already_grt_once[k] <<= s.already_grt_once[k]
+  
+  always_ff @(posedge clk) begin : record_grt_once
+    for ( int unsigned k = 1'd0; k < 4'( __const__num_slots_at_record_grt_once ); k += 1'd1 )
+      if ( reset | clear ) begin
+        already_grt_once[3'(k)] <= 1'd0;
+      end
+      else if ( ( ( ( ( ctrl_addr_inport == 3'( 3'(k) ) ) & ( ~already_grt_once[3'(k)] ) ) & send_out__val[1'd0] ) & send_out__rdy[1'd0] ) & ( ( recv_opt__msg.operation == 7'( __const__OPT_GRT_ONCE ) ) | ( recv_opt__msg.operation == 7'( __const__OPT_GRT_ONCE_CONST ) ) ) ) begin
+        already_grt_once[3'(k)] <= 1'd1;
+      end
+      else
+        already_grt_once[3'(k)] <= already_grt_once[3'(k)];
   end
 
   // PyMTL Update Block Source
@@ -12676,10 +13351,10 @@ endmodule
 
 
 // PyMTL Component MemUnitRTL Definition
-// Full name: MemUnitRTL__CtrlPktType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__num_inports_4__num_outports_2__vector_factor_power_0
+// Full name: MemUnitRTL__CtrlPktType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_inports_4__num_outports_2__vector_factor_power_0
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/MemUnitRTL.py
 
-module MemUnitRTL__15576116170e90c9
+module MemUnitRTL__53f68ca63f4009b7
 (
   input  logic [0:0] clear ,
   input  logic [0:0] clk ,
@@ -12691,19 +13366,19 @@ module MemUnitRTL__15576116170e90c9
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_const__msg  ,
   output logic [0:0] recv_const__rdy  ,
   input logic [0:0] recv_const__val  ,
-  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa recv_from_ctrl_mem__msg  ,
+  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_from_ctrl_mem__msg  ,
   output logic [0:0] recv_from_ctrl_mem__rdy  ,
   input logic [0:0] recv_from_ctrl_mem__val  ,
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_in__msg [0:3] ,
   output logic [0:0] recv_in__rdy [0:3] ,
   input logic [0:0] recv_in__val [0:3] ,
-  input CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 recv_opt__msg  ,
+  input CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 recv_opt__msg  ,
   output logic [0:0] recv_opt__rdy  ,
   input logic [0:0] recv_opt__val  ,
   output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_out__msg [0:1] ,
   input logic [0:0] send_out__rdy [0:1] ,
   output logic [0:0] send_out__val [0:1] ,
-  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa send_to_ctrl_mem__msg  ,
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 send_to_ctrl_mem__msg  ,
   input logic [0:0] send_to_ctrl_mem__rdy  ,
   output logic [0:0] send_to_ctrl_mem__val  ,
   output logic [6:0] to_mem_raddr__msg  ,
@@ -12913,7 +13588,7 @@ module MemUnitRTL__15576116170e90c9
     recv_const__rdy = 1'd0;
     recv_opt__rdy = 1'd0;
     send_to_ctrl_mem__val = 1'd0;
-    send_to_ctrl_mem__msg = { 5'd0, 35'd0, 7'd0, 131'd0, 3'd0 };
+    send_to_ctrl_mem__msg = { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 };
     recv_from_ctrl_mem__rdy = 1'd0;
     if ( recv_opt__val ) begin
       if ( recv_opt__msg.fu_in[2'd0] != 3'd0 ) begin
@@ -13114,11 +13789,11 @@ module MemUnitRTL__15576116170e90c9
 endmodule
 
 
-// PyMTL Component RetRTL Definition
-// Full name: RetRTL__CtrlPktType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__num_inports_4__num_outports_2__vector_factor_power_0
-// At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/RetRTL.py
+// PyMTL Component SelRTL Definition
+// Full name: SelRTL__CtrlPktType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_inports_4__num_outports_2__vector_factor_power_0
+// At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/SelRTL.py
 
-module RetRTL__15576116170e90c9
+module SelRTL__53f68ca63f4009b7
 (
   input  logic [0:0] clear ,
   input  logic [0:0] clk ,
@@ -13130,19 +13805,265 @@ module RetRTL__15576116170e90c9
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_const__msg  ,
   output logic [0:0] recv_const__rdy  ,
   input logic [0:0] recv_const__val  ,
-  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa recv_from_ctrl_mem__msg  ,
+  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_from_ctrl_mem__msg  ,
   output logic [0:0] recv_from_ctrl_mem__rdy  ,
   input logic [0:0] recv_from_ctrl_mem__val  ,
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_in__msg [0:3] ,
   output logic [0:0] recv_in__rdy [0:3] ,
   input logic [0:0] recv_in__val [0:3] ,
-  input CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 recv_opt__msg  ,
+  input CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 recv_opt__msg  ,
   output logic [0:0] recv_opt__rdy  ,
   input logic [0:0] recv_opt__val  ,
   output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_out__msg [0:1] ,
   input logic [0:0] send_out__rdy [0:1] ,
   output logic [0:0] send_out__val [0:1] ,
-  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa send_to_ctrl_mem__msg  ,
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 send_to_ctrl_mem__msg  ,
+  input logic [0:0] send_to_ctrl_mem__rdy  ,
+  output logic [0:0] send_to_ctrl_mem__val  ,
+  output logic [6:0] to_mem_raddr__msg  ,
+  input logic [0:0] to_mem_raddr__rdy  ,
+  output logic [0:0] to_mem_raddr__val  ,
+  output logic [6:0] to_mem_waddr__msg  ,
+  input logic [0:0] to_mem_waddr__rdy  ,
+  output logic [0:0] to_mem_waddr__val  ,
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 to_mem_wdata__msg  ,
+  input logic [0:0] to_mem_wdata__rdy  ,
+  output logic [0:0] to_mem_wdata__val  
+);
+  localparam CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 const_zero  = { 32'd0, 1'd0, 1'd0, 1'd0 };
+  localparam logic [2:0] __const__num_inports_at_comb_logic  = 3'd4;
+  localparam logic [1:0] __const__num_outports_at_comb_logic  = 2'd2;
+  localparam logic [6:0] __const__OPT_SEL  = 7'd27;
+  logic [2:0] in0;
+  logic [1:0] in0_idx;
+  logic [2:0] in1;
+  logic [1:0] in1_idx;
+  logic [2:0] in2;
+  logic [1:0] in2_idx;
+  logic [0:0] reached_vector_factor;
+  logic [0:0] recv_all_val;
+  logic [7:0] vector_factor_counter;
+  logic [2:0] vector_factor_power;
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/SelRTL.py:89
+  // @update
+  // def comb_logic():
+  // 
+  //   s.recv_all_val @= 0
+  //   # For pick input register, Selector needs at least 3 inputs
+  //   s.in0 @= FuInType(0)
+  //   s.in1 @= FuInType(0)
+  //   s.in2 @= FuInType(0)
+  //   for i in range(num_inports):
+  //     s.recv_in[i].rdy @= b1(0)
+  // 
+  //   s.recv_const.rdy @= 0
+  //   s.recv_opt.rdy @= s.send_out[0].rdy
+  // 
+  //   for i in range(num_outports):
+  //     s.send_out[i].val @= 0
+  //     s.send_out[i].msg @= DataType()
+  // 
+  //   s.send_to_ctrl_mem.val @= 0
+  //   s.send_to_ctrl_mem.msg @= s.CgraPayloadType(0, 0, 0, 0, 0)
+  //   s.recv_from_ctrl_mem.rdy @= 0
+  // 
+  //   if s.recv_opt.val:
+  //     if s.recv_opt.msg.fu_in[0] != FuInType(0):
+  //       s.in0 @= s.recv_opt.msg.fu_in[0] - FuInType(1)
+  //     if s.recv_opt.msg.fu_in[1] != FuInType(0):
+  //       s.in1 @= s.recv_opt.msg.fu_in[1] - FuInType(1)
+  //     if s.recv_opt.msg.fu_in[2] != FuInType(0):
+  //       s.in2 @= s.recv_opt.msg.fu_in[2] - FuInType(1)
+  // 
+  //   if s.recv_opt.val:
+  //     if s.recv_opt.msg.operation == OPT_SEL:
+  //       if s.recv_in[s.in0_idx].msg.payload == s.true.payload:
+  //         s.send_out[0].msg @= s.recv_in[s.in1_idx].msg
+  //       else:
+  //         s.send_out[0].msg @= s.recv_in[s.in2_idx].msg
+  //       s.send_out[0].msg.predicate @= s.recv_in[s.in0_idx].msg.predicate & \
+  //                                      s.recv_in[s.in1_idx].msg.predicate & \
+  //                                      s.recv_in[s.in2_idx].msg.predicate & \
+  //                                      s.reached_vector_factor
+  //       s.recv_all_val @= s.recv_in[s.in0_idx].val & \
+  //                         s.recv_in[s.in1_idx].val & \
+  //                         s.recv_in[s.in2_idx].val
+  //       s.send_out[0].val @= s.recv_all_val
+  //       s.recv_in[s.in0_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_in[s.in1_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_in[s.in2_idx].rdy @= s.recv_all_val & s.send_out[0].rdy
+  //       s.recv_opt.rdy @= s.recv_all_val & s.send_out[0].rdy
+  //     else:
+  //       for j in range(num_outports):
+  //         s.send_out[j].val @= b1(0)
+  //       s.recv_opt.rdy @= 0
+  //       s.recv_in[s.in0_idx].rdy @= 0
+  //       s.recv_in[s.in1_idx].rdy @= 0
+  //       s.recv_in[s.in2_idx].rdy @= 0
+  
+  always_comb begin : comb_logic
+    recv_all_val = 1'd0;
+    in0 = 3'd0;
+    in1 = 3'd0;
+    in2 = 3'd0;
+    for ( int unsigned i = 1'd0; i < 3'( __const__num_inports_at_comb_logic ); i += 1'd1 )
+      recv_in__rdy[2'(i)] = 1'd0;
+    recv_const__rdy = 1'd0;
+    recv_opt__rdy = send_out__rdy[1'd0];
+    for ( int unsigned i = 1'd0; i < 2'( __const__num_outports_at_comb_logic ); i += 1'd1 ) begin
+      send_out__val[1'(i)] = 1'd0;
+      send_out__msg[1'(i)] = { 32'd0, 1'd0, 1'd0, 1'd0 };
+    end
+    send_to_ctrl_mem__val = 1'd0;
+    send_to_ctrl_mem__msg = { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 };
+    recv_from_ctrl_mem__rdy = 1'd0;
+    if ( recv_opt__val ) begin
+      if ( recv_opt__msg.fu_in[2'd0] != 3'd0 ) begin
+        in0 = recv_opt__msg.fu_in[2'd0] - 3'd1;
+      end
+      if ( recv_opt__msg.fu_in[2'd1] != 3'd0 ) begin
+        in1 = recv_opt__msg.fu_in[2'd1] - 3'd1;
+      end
+      if ( recv_opt__msg.fu_in[2'd2] != 3'd0 ) begin
+        in2 = recv_opt__msg.fu_in[2'd2] - 3'd1;
+      end
+    end
+    if ( recv_opt__val ) begin
+      if ( recv_opt__msg.operation == 7'( __const__OPT_SEL ) ) begin
+        if ( recv_in__msg[in0_idx].payload == 32'd1 ) begin
+          send_out__msg[1'd0] = recv_in__msg[in1_idx];
+        end
+        else
+          send_out__msg[1'd0] = recv_in__msg[in2_idx];
+        send_out__msg[1'd0].predicate = ( ( recv_in__msg[in0_idx].predicate & recv_in__msg[in1_idx].predicate ) & recv_in__msg[in2_idx].predicate ) & reached_vector_factor;
+        recv_all_val = ( recv_in__val[in0_idx] & recv_in__val[in1_idx] ) & recv_in__val[in2_idx];
+        send_out__val[1'd0] = recv_all_val;
+        recv_in__rdy[in0_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_in__rdy[in1_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_in__rdy[in2_idx] = recv_all_val & send_out__rdy[1'd0];
+        recv_opt__rdy = recv_all_val & send_out__rdy[1'd0];
+      end
+      else begin
+        for ( int unsigned j = 1'd0; j < 2'( __const__num_outports_at_comb_logic ); j += 1'd1 )
+          send_out__val[1'(j)] = 1'd0;
+        recv_opt__rdy = 1'd0;
+        recv_in__rdy[in0_idx] = 1'd0;
+        recv_in__rdy[in1_idx] = 1'd0;
+        recv_in__rdy[in2_idx] = 1'd0;
+      end
+    end
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/SelRTL.py:79
+  // @update
+  // def update_mem():
+  //   s.to_mem_waddr.val @= b1(0)
+  //   s.to_mem_wdata.val @= b1(0)
+  //   s.to_mem_wdata.msg @= s.const_zero
+  //   s.to_mem_waddr.msg @= AddrType(0)
+  //   s.to_mem_raddr.msg @= AddrType(0)
+  //   s.to_mem_raddr.val @= b1(0)
+  //   s.from_mem_rdata.rdy @= b1(0)
+  
+  always_comb begin : update_mem
+    to_mem_waddr__val = 1'd0;
+    to_mem_wdata__val = 1'd0;
+    to_mem_wdata__msg = const_zero;
+    to_mem_waddr__msg = 7'd0;
+    to_mem_raddr__msg = 7'd0;
+    to_mem_raddr__val = 1'd0;
+    from_mem_rdata__rdy = 1'd0;
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/SelRTL.py:145
+  // @update
+  // def update_reached_vector_factor():
+  //   s.reached_vector_factor @= 0
+  //   if s.recv_opt.val & (s.vector_factor_counter + \
+  //                        (VectorFactorType(1) << zext(s.vector_factor_power, VectorFactorType)) >= \
+  //                        (VectorFactorType(1) << zext(s.recv_opt.msg.vector_factor_power, VectorFactorType))):
+  //     s.reached_vector_factor @= 1
+  
+  always_comb begin : update_reached_vector_factor
+    reached_vector_factor = 1'd0;
+    if ( recv_opt__val & ( ( vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } ) ) >= ( 8'd1 << { { 5 { 1'b0 } }, recv_opt__msg.vector_factor_power } ) ) ) begin
+      reached_vector_factor = 1'd1;
+    end
+  end
+
+  // PyMTL Update Block Source
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/SelRTL.py:153
+  // @update_ff
+  // def update_vector_factor_counter():
+  //   if s.reset:
+  //     s.vector_factor_counter <<= 0
+  //   else:
+  //     if s.recv_opt.val:
+  //       if s.recv_opt.msg.is_last_ctrl & \
+  //          (s.vector_factor_counter + \
+  //           (VectorFactorType(1) << zext(s.vector_factor_power, VectorFactorType)) < \
+  //          (VectorFactorType(1) << zext(s.recv_opt.msg.vector_factor_power, VectorFactorType))):
+  //         s.vector_factor_counter <<= s.vector_factor_counter + \
+  //                                     (VectorFactorType(1) << zext(s.vector_factor_power, \
+  //                                                                  VectorFactorType))
+  //       elif s.recv_opt.msg.is_last_ctrl & s.reached_vector_factor:
+  //         s.vector_factor_counter <<= 0
+  
+  always_ff @(posedge clk) begin : update_vector_factor_counter
+    if ( reset ) begin
+      vector_factor_counter <= 8'd0;
+    end
+    else if ( recv_opt__val ) begin
+      if ( recv_opt__msg.is_last_ctrl & ( ( vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } ) ) < ( 8'd1 << { { 5 { 1'b0 } }, recv_opt__msg.vector_factor_power } ) ) ) begin
+        vector_factor_counter <= vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } );
+      end
+      else if ( recv_opt__msg.is_last_ctrl & reached_vector_factor ) begin
+        vector_factor_counter <= 8'd0;
+      end
+    end
+  end
+
+  assign in0_idx = in0[1:0];
+  assign in1_idx = in1[1:0];
+  assign in2_idx = in2[1:0];
+  assign vector_factor_power = 3'd0;
+
+endmodule
+
+
+// PyMTL Component RetRTL Definition
+// Full name: RetRTL__CtrlPktType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_inports_4__num_outports_2__vector_factor_power_0
+// At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/RetRTL.py
+
+module RetRTL__53f68ca63f4009b7
+(
+  input  logic [0:0] clear ,
+  input  logic [0:0] clk ,
+  input  logic [2:0] ctrl_addr_inport ,
+  input  logic [0:0] reset ,
+  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 from_mem_rdata__msg  ,
+  output logic [0:0] from_mem_rdata__rdy  ,
+  input logic [0:0] from_mem_rdata__val  ,
+  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_const__msg  ,
+  output logic [0:0] recv_const__rdy  ,
+  input logic [0:0] recv_const__val  ,
+  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_from_ctrl_mem__msg  ,
+  output logic [0:0] recv_from_ctrl_mem__rdy  ,
+  input logic [0:0] recv_from_ctrl_mem__val  ,
+  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_in__msg [0:3] ,
+  output logic [0:0] recv_in__rdy [0:3] ,
+  input logic [0:0] recv_in__val [0:3] ,
+  input CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 recv_opt__msg  ,
+  output logic [0:0] recv_opt__rdy  ,
+  input logic [0:0] recv_opt__val  ,
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_out__msg [0:1] ,
+  input logic [0:0] send_out__rdy [0:1] ,
+  output logic [0:0] send_out__val [0:1] ,
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 send_to_ctrl_mem__msg  ,
   input logic [0:0] send_to_ctrl_mem__rdy  ,
   output logic [0:0] send_to_ctrl_mem__val  ,
   output logic [6:0] to_mem_raddr__msg  ,
@@ -13244,7 +14165,7 @@ module RetRTL__15576116170e90c9
       send_out__msg[1'(j)] = { 32'd0, 1'd0, 1'd0, 1'd0 };
     end
     send_to_ctrl_mem__val = 1'd0;
-    send_to_ctrl_mem__msg = { 5'd0, 35'd0, 7'd0, 131'd0, 3'd0 };
+    send_to_ctrl_mem__msg = { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 };
     recv_from_ctrl_mem__rdy = 1'd0;
     recv_const__rdy = 1'd0;
     recv_opt__rdy = 1'd0;
@@ -13262,7 +14183,7 @@ module RetRTL__15576116170e90c9
         end
         else if ( recv_in__msg[in0_idx].predicate ) begin
           send_to_ctrl_mem__val = recv_all_val & reached_vector_factor;
-          send_to_ctrl_mem__msg = { 5'( __const__CMD_COMPLETE ), recv_in__msg[in0_idx], 7'd0, recv_opt__msg, 3'd0 };
+          send_to_ctrl_mem__msg = { 6'( __const__CMD_COMPLETE ), recv_in__msg[in0_idx], 7'd0, recv_opt__msg, 3'd0 };
           recv_in__rdy[in0_idx] = ( recv_all_val & reached_vector_factor ) & send_to_ctrl_mem__rdy;
           recv_opt__rdy = ( recv_all_val & reached_vector_factor ) & send_to_ctrl_mem__rdy;
         end
@@ -13279,7 +14200,7 @@ module RetRTL__15576116170e90c9
         end
         else if ( recv_in__msg[in0_idx].predicate ) begin
           send_to_ctrl_mem__val = recv_all_val & reached_vector_factor;
-          send_to_ctrl_mem__msg = { 5'( __const__CMD_COMPLETE ), 35'd0, 7'd0, recv_opt__msg, 3'd0 };
+          send_to_ctrl_mem__msg = { 6'( __const__CMD_COMPLETE ), 35'd0, 7'd0, recv_opt__msg, 3'd0 };
           recv_in__rdy[in0_idx] = ( recv_all_val & reached_vector_factor ) & send_to_ctrl_mem__rdy;
           recv_opt__rdy = ( recv_all_val & reached_vector_factor ) & send_to_ctrl_mem__rdy;
         end
@@ -13432,298 +14353,99 @@ module RetRTL__15576116170e90c9
 endmodule
 
 
-// PyMTL Component NahRTL Definition
-// Full name: NahRTL__CtrlPktType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__num_inports_4__num_outports_2__vector_factor_power_0
-// At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/NahRTL.py
-
-module NahRTL__15576116170e90c9
-(
-  input  logic [0:0] clear ,
-  input  logic [0:0] clk ,
-  input  logic [2:0] ctrl_addr_inport ,
-  input  logic [0:0] reset ,
-  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 from_mem_rdata__msg  ,
-  output logic [0:0] from_mem_rdata__rdy  ,
-  input logic [0:0] from_mem_rdata__val  ,
-  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_const__msg  ,
-  output logic [0:0] recv_const__rdy  ,
-  input logic [0:0] recv_const__val  ,
-  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa recv_from_ctrl_mem__msg  ,
-  output logic [0:0] recv_from_ctrl_mem__rdy  ,
-  input logic [0:0] recv_from_ctrl_mem__val  ,
-  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_in__msg [0:3] ,
-  output logic [0:0] recv_in__rdy [0:3] ,
-  input logic [0:0] recv_in__val [0:3] ,
-  input CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 recv_opt__msg  ,
-  output logic [0:0] recv_opt__rdy  ,
-  input logic [0:0] recv_opt__val  ,
-  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_out__msg [0:1] ,
-  input logic [0:0] send_out__rdy [0:1] ,
-  output logic [0:0] send_out__val [0:1] ,
-  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa send_to_ctrl_mem__msg  ,
-  input logic [0:0] send_to_ctrl_mem__rdy  ,
-  output logic [0:0] send_to_ctrl_mem__val  ,
-  output logic [6:0] to_mem_raddr__msg  ,
-  input logic [0:0] to_mem_raddr__rdy  ,
-  output logic [0:0] to_mem_raddr__val  ,
-  output logic [6:0] to_mem_waddr__msg  ,
-  input logic [0:0] to_mem_waddr__rdy  ,
-  output logic [0:0] to_mem_waddr__val  ,
-  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 to_mem_wdata__msg  ,
-  input logic [0:0] to_mem_wdata__rdy  ,
-  output logic [0:0] to_mem_wdata__val  
-);
-  localparam CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 const_zero  = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  localparam logic [6:0] __const__OPT_START  = 7'd0;
-  localparam logic [0:0] __const__latency_at_proceed_latency  = 1'd1;
-  localparam logic [2:0] __const__num_inports_at_comb_logic  = 3'd4;
-  localparam logic [1:0] __const__num_outports_at_comb_logic  = 2'd2;
-  localparam logic [6:0] __const__OPT_NAH  = 7'd1;
-  logic [0:0] latency;
-  logic [0:0] reached_vector_factor;
-  logic [7:0] vector_factor_counter;
-  logic [2:0] vector_factor_power;
-
-  // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/single/NahRTL.py:21
-  // @update
-  // def comb_logic():
-  // 
-  //   s.recv_const.rdy @= 0
-  //   s.recv_opt.rdy @= 0
-  //   # For pick input register
-  //   for i in range(num_inports):
-  //     s.recv_in[i].rdy @= b1(0)
-  // 
-  //   for i in range( num_outports ):
-  //     # s.send_out[i].val @= s.recv_opt.val
-  //     s.send_out[i].val @= 0
-  //     s.send_out[i].msg @= s.DataType()
-  // 
-  //   s.send_to_ctrl_mem.val @= 0
-  //   s.send_to_ctrl_mem.msg @= s.CgraPayloadType(0, 0, 0, 0, 0)
-  //   s.recv_from_ctrl_mem.rdy @= 0
-  // 
-  //   if s.recv_opt.val & (s.recv_opt.msg.operation == OPT_NAH):
-  //     s.recv_opt.rdy @= 1
-  //   else:
-  //     for j in range(num_outports):
-  //       s.send_out[j].val @= b1(0)
-  //     s.recv_opt.rdy @= 0
-  
-  always_comb begin : comb_logic
-    recv_const__rdy = 1'd0;
-    recv_opt__rdy = 1'd0;
-    for ( int unsigned i = 1'd0; i < 3'( __const__num_inports_at_comb_logic ); i += 1'd1 )
-      recv_in__rdy[2'(i)] = 1'd0;
-    for ( int unsigned i = 1'd0; i < 2'( __const__num_outports_at_comb_logic ); i += 1'd1 ) begin
-      send_out__val[1'(i)] = 1'd0;
-      send_out__msg[1'(i)] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-    end
-    send_to_ctrl_mem__val = 1'd0;
-    send_to_ctrl_mem__msg = { 5'd0, 35'd0, 7'd0, 131'd0, 3'd0 };
-    recv_from_ctrl_mem__rdy = 1'd0;
-    if ( recv_opt__val & ( recv_opt__msg.operation == 7'( __const__OPT_NAH ) ) ) begin
-      recv_opt__rdy = 1'd1;
-    end
-    else begin
-      for ( int unsigned j = 1'd0; j < 2'( __const__num_outports_at_comb_logic ); j += 1'd1 )
-        send_out__val[1'(j)] = 1'd0;
-      recv_opt__rdy = 1'd0;
-    end
-  end
-
-  // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:68
-  // @update
-  // def update_mem():
-  //   s.to_mem_waddr.val @= b1(0)
-  //   s.to_mem_wdata.val @= b1(0)
-  //   s.to_mem_wdata.msg @= s.const_zero
-  //   s.to_mem_waddr.msg @= s.DataAddrType(0)
-  //   s.to_mem_raddr.msg @= s.DataAddrType(0)
-  //   s.to_mem_raddr.val @= b1(0)
-  //   s.from_mem_rdata.rdy @= b1(0)
-  
-  always_comb begin : update_mem
-    to_mem_waddr__val = 1'd0;
-    to_mem_wdata__val = 1'd0;
-    to_mem_wdata__msg = const_zero;
-    to_mem_waddr__msg = 7'd0;
-    to_mem_raddr__msg = 7'd0;
-    to_mem_raddr__val = 1'd0;
-    from_mem_rdata__rdy = 1'd0;
-  end
-
-  // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:87
-  // @update
-  // def update_reached_vector_factor():
-  //   s.reached_vector_factor @= 0
-  //   if s.recv_opt.val & (s.vector_factor_counter + \
-  //                        (VectorFactorType(1) << zext(s.vector_factor_power, VectorFactorType)) >= \
-  //                        (VectorFactorType(1) << zext(s.recv_opt.msg.vector_factor_power, VectorFactorType))):
-  //     s.reached_vector_factor @= 1
-  
-  always_comb begin : update_reached_vector_factor
-    reached_vector_factor = 1'd0;
-    if ( recv_opt__val & ( ( vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } ) ) >= ( 8'd1 << { { 5 { 1'b0 } }, recv_opt__msg.vector_factor_power } ) ) ) begin
-      reached_vector_factor = 1'd1;
-    end
-  end
-
-  // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:78
-  // @update_ff
-  // def proceed_latency():
-  //   if s.recv_opt.msg.operation == OPT_START:
-  //     s.latency <<= LatencyType(0)
-  //   elif s.latency == latency - 1:
-  //     s.latency <<= LatencyType(0)
-  //   else:
-  //     s.latency <<= s.latency + LatencyType(1)
-  
-  always_ff @(posedge clk) begin : proceed_latency
-    if ( recv_opt__msg.operation == 7'( __const__OPT_START ) ) begin
-      latency <= 1'd0;
-    end
-    else if ( latency == ( 1'( __const__latency_at_proceed_latency ) - 1'd1 ) ) begin
-      latency <= 1'd0;
-    end
-    else
-      latency <= latency + 1'd1;
-  end
-
-  // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/basic/Fu.py:95
-  // @update_ff
-  // def update_vector_factor_counter():
-  //   if s.reset:
-  //     s.vector_factor_counter <<= 0
-  //   else:
-  //     if s.recv_opt.val:
-  //       if s.recv_opt.msg.is_last_ctrl & \
-  //          (s.vector_factor_counter + \
-  //           (VectorFactorType(1) << zext(s.vector_factor_power, VectorFactorType)) < \
-  //           (VectorFactorType(1) << zext(s.recv_opt.msg.vector_factor_power, VectorFactorType))):
-  //         s.vector_factor_counter <<= s.vector_factor_counter + \
-  //                                     (VectorFactorType(1) << zext(s.vector_factor_power, \
-  //                                                                  VectorFactorType))
-  //       elif s.recv_opt.msg.is_last_ctrl & s.reached_vector_factor:
-  //         s.vector_factor_counter <<= 0
-  
-  always_ff @(posedge clk) begin : update_vector_factor_counter
-    if ( reset ) begin
-      vector_factor_counter <= 8'd0;
-    end
-    else if ( recv_opt__val ) begin
-      if ( recv_opt__msg.is_last_ctrl & ( ( vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } ) ) < ( 8'd1 << { { 5 { 1'b0 } }, recv_opt__msg.vector_factor_power } ) ) ) begin
-        vector_factor_counter <= vector_factor_counter + ( 8'd1 << { { 5 { 1'b0 } }, vector_factor_power } );
-      end
-      else if ( recv_opt__msg.is_last_ctrl & reached_vector_factor ) begin
-        vector_factor_counter <= 8'd0;
-      end
-    end
-  end
-
-  assign vector_factor_power = 3'd0;
-
-endmodule
-
-
 // PyMTL Component FlexibleFuRTL Definition
-// Full name: FlexibleFuRTL__CtrlPktType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__num_inports_4__num_outports_2__num_tiles_16__FuList_[<class 'VectorCGRA.fu.single.AdderRTL.AdderRTL'>, <class 'VectorCGRA.fu.single.MulRTL.MulRTL'>, <class 'VectorCGRA.fu.single.LogicRTL.LogicRTL'>, <class 'VectorCGRA.fu.single.CompRTL.CompRTL'>, <class 'VectorCGRA.fu.single.GrantRTL.GrantRTL'>, <class 'VectorCGRA.fu.single.PhiRTL.PhiRTL'>, <class 'VectorCGRA.fu.single.MemUnitRTL.MemUnitRTL'>, <class 'VectorCGRA.fu.single.RetRTL.RetRTL'>, <class 'VectorCGRA.fu.single.NahRTL.NahRTL'>]__exec_lantency_{}
+// Full name: FlexibleFuRTL__CtrlPktType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__num_inports_4__num_outports_2__num_tiles_16__FuList_[<class 'VectorCGRA.fu.single.AdderRTL.AdderRTL'>, <class 'VectorCGRA.fu.single.MulRTL.MulRTL'>, <class 'VectorCGRA.fu.single.LogicRTL.LogicRTL'>, <class 'VectorCGRA.fu.single.ShifterRTL.ShifterRTL'>, <class 'VectorCGRA.fu.single.PhiRTL.PhiRTL'>, <class 'VectorCGRA.fu.single.CompRTL.CompRTL'>, <class 'VectorCGRA.fu.single.GrantRTL.GrantRTL'>, <class 'VectorCGRA.fu.single.MemUnitRTL.MemUnitRTL'>, <class 'VectorCGRA.fu.single.SelRTL.SelRTL'>, <class 'VectorCGRA.fu.single.RetRTL.RetRTL'>, <class 'VectorCGRA.fu.single.NahRTL.NahRTL'>]__exec_lantency_{}
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/fu/flexible/FlexibleFuRTL.py
 
-module FlexibleFuRTL__5341ddb2c6b6f0f2
+module FlexibleFuRTL__87ad9acb4aa46d66
 (
-  input  logic [0:0] clear [0:8],
+  input  logic [0:0] clear [0:10],
   input  logic [0:0] clk ,
   input  logic [2:0] ctrl_addr_inport ,
   input  logic [2:0] prologue_count_inport ,
   input  logic [0:0] reset ,
   input  logic [4:0] tile_id ,
-  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 from_mem_rdata__msg [0:8] ,
-  output logic [0:0] from_mem_rdata__rdy [0:8] ,
-  input logic [0:0] from_mem_rdata__val [0:8] ,
+  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 from_mem_rdata__msg [0:10] ,
+  output logic [0:0] from_mem_rdata__rdy [0:10] ,
+  input logic [0:0] from_mem_rdata__val [0:10] ,
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_const__msg  ,
   output logic [0:0] recv_const__rdy  ,
   input logic [0:0] recv_const__val  ,
-  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa recv_from_ctrl_mem__msg  ,
+  input MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 recv_from_ctrl_mem__msg  ,
   output logic [0:0] recv_from_ctrl_mem__rdy  ,
   input logic [0:0] recv_from_ctrl_mem__val  ,
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_in__msg [0:3] ,
   output logic [0:0] recv_in__rdy [0:3] ,
   input logic [0:0] recv_in__val [0:3] ,
-  input CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 recv_opt__msg  ,
+  input CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 recv_opt__msg  ,
   output logic [0:0] recv_opt__rdy  ,
   input logic [0:0] recv_opt__val  ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv_pkt_from_controller__msg  ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv_pkt_from_controller__msg  ,
   output logic [0:0] recv_pkt_from_controller__rdy  ,
   input logic [0:0] recv_pkt_from_controller__val  ,
   output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_out__msg [0:1] ,
   input logic [0:0] send_out__rdy [0:1] ,
   output logic [0:0] send_out__val [0:1] ,
-  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa send_to_ctrl_mem__msg  ,
+  output MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 send_to_ctrl_mem__msg  ,
   input logic [0:0] send_to_ctrl_mem__rdy  ,
   output logic [0:0] send_to_ctrl_mem__val  ,
-  output logic [6:0] to_mem_raddr__msg [0:8] ,
-  input logic [0:0] to_mem_raddr__rdy [0:8] ,
-  output logic [0:0] to_mem_raddr__val [0:8] ,
-  output logic [6:0] to_mem_waddr__msg [0:8] ,
-  input logic [0:0] to_mem_waddr__rdy [0:8] ,
-  output logic [0:0] to_mem_waddr__val [0:8] ,
-  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 to_mem_wdata__msg [0:8] ,
-  input logic [0:0] to_mem_wdata__rdy [0:8] ,
-  output logic [0:0] to_mem_wdata__val [0:8] 
+  output logic [6:0] to_mem_raddr__msg [0:10] ,
+  input logic [0:0] to_mem_raddr__rdy [0:10] ,
+  output logic [0:0] to_mem_raddr__val [0:10] ,
+  output logic [6:0] to_mem_waddr__msg [0:10] ,
+  input logic [0:0] to_mem_waddr__rdy [0:10] ,
+  output logic [0:0] to_mem_waddr__val [0:10] ,
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 to_mem_wdata__msg [0:10] ,
+  input logic [0:0] to_mem_wdata__rdy [0:10] ,
+  output logic [0:0] to_mem_wdata__val [0:10] 
 );
   localparam logic [1:0] __const__num_outports_at_comb_logic  = 2'd2;
   localparam logic [6:0] __const__OPT_NAH  = 7'd1;
   localparam logic [2:0] __const__num_inports_at_comb_logic  = 3'd4;
-  logic [8:0] fu_recv_const_rdy_vector;
-  logic [8:0] fu_recv_in_rdy_vector [0:3];
-  logic [8:0] fu_recv_opt_rdy_vector;
-  logic [8:0] recv_from_controller_rdy_vector;
+  logic [10:0] fu_recv_const_rdy_vector;
+  logic [10:0] fu_recv_in_rdy_vector [0:3];
+  logic [10:0] fu_recv_opt_rdy_vector;
+  logic [10:0] recv_from_controller_rdy_vector;
   //-------------------------------------------------------------
-  // Component fu[0:8]
+  // Component fu[0:10]
   //-------------------------------------------------------------
 
-  logic [0:0] fu__clear [0:8];
-  logic [0:0] fu__clk [0:8];
-  logic [2:0] fu__ctrl_addr_inport [0:8];
-  logic [0:0] fu__reset [0:8];
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 fu__from_mem_rdata__msg [0:8];
-  logic [0:0] fu__from_mem_rdata__rdy [0:8];
-  logic [0:0] fu__from_mem_rdata__val [0:8];
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 fu__recv_const__msg [0:8];
-  logic [0:0] fu__recv_const__rdy [0:8];
-  logic [0:0] fu__recv_const__val [0:8];
-  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa fu__recv_from_ctrl_mem__msg [0:8];
-  logic [0:0] fu__recv_from_ctrl_mem__rdy [0:8];
-  logic [0:0] fu__recv_from_ctrl_mem__val [0:8];
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 fu__recv_in__msg [0:8][0:3];
-  logic [0:0] fu__recv_in__rdy [0:8][0:3];
-  logic [0:0] fu__recv_in__val [0:8][0:3];
-  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 fu__recv_opt__msg [0:8];
-  logic [0:0] fu__recv_opt__rdy [0:8];
-  logic [0:0] fu__recv_opt__val [0:8];
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 fu__send_out__msg [0:8][0:1];
-  logic [0:0] fu__send_out__rdy [0:8][0:1];
-  logic [0:0] fu__send_out__val [0:8][0:1];
-  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa fu__send_to_ctrl_mem__msg [0:8];
-  logic [0:0] fu__send_to_ctrl_mem__rdy [0:8];
-  logic [0:0] fu__send_to_ctrl_mem__val [0:8];
-  logic [6:0] fu__to_mem_raddr__msg [0:8];
-  logic [0:0] fu__to_mem_raddr__rdy [0:8];
-  logic [0:0] fu__to_mem_raddr__val [0:8];
-  logic [6:0] fu__to_mem_waddr__msg [0:8];
-  logic [0:0] fu__to_mem_waddr__rdy [0:8];
-  logic [0:0] fu__to_mem_waddr__val [0:8];
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 fu__to_mem_wdata__msg [0:8];
-  logic [0:0] fu__to_mem_wdata__rdy [0:8];
-  logic [0:0] fu__to_mem_wdata__val [0:8];
+  logic [0:0] fu__clear [0:10];
+  logic [0:0] fu__clk [0:10];
+  logic [2:0] fu__ctrl_addr_inport [0:10];
+  logic [0:0] fu__reset [0:10];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 fu__from_mem_rdata__msg [0:10];
+  logic [0:0] fu__from_mem_rdata__rdy [0:10];
+  logic [0:0] fu__from_mem_rdata__val [0:10];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 fu__recv_const__msg [0:10];
+  logic [0:0] fu__recv_const__rdy [0:10];
+  logic [0:0] fu__recv_const__val [0:10];
+  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 fu__recv_from_ctrl_mem__msg [0:10];
+  logic [0:0] fu__recv_from_ctrl_mem__rdy [0:10];
+  logic [0:0] fu__recv_from_ctrl_mem__val [0:10];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 fu__recv_in__msg [0:10][0:3];
+  logic [0:0] fu__recv_in__rdy [0:10][0:3];
+  logic [0:0] fu__recv_in__val [0:10][0:3];
+  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 fu__recv_opt__msg [0:10];
+  logic [0:0] fu__recv_opt__rdy [0:10];
+  logic [0:0] fu__recv_opt__val [0:10];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 fu__send_out__msg [0:10][0:1];
+  logic [0:0] fu__send_out__rdy [0:10][0:1];
+  logic [0:0] fu__send_out__val [0:10][0:1];
+  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 fu__send_to_ctrl_mem__msg [0:10];
+  logic [0:0] fu__send_to_ctrl_mem__rdy [0:10];
+  logic [0:0] fu__send_to_ctrl_mem__val [0:10];
+  logic [6:0] fu__to_mem_raddr__msg [0:10];
+  logic [0:0] fu__to_mem_raddr__rdy [0:10];
+  logic [0:0] fu__to_mem_raddr__val [0:10];
+  logic [6:0] fu__to_mem_waddr__msg [0:10];
+  logic [0:0] fu__to_mem_waddr__rdy [0:10];
+  logic [0:0] fu__to_mem_waddr__val [0:10];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 fu__to_mem_wdata__msg [0:10];
+  logic [0:0] fu__to_mem_wdata__rdy [0:10];
+  logic [0:0] fu__to_mem_wdata__val [0:10];
 
-  AdderRTL__15576116170e90c9 fu__0
+  AdderRTL__53f68ca63f4009b7 fu__0
   (
     .clear( fu__clear[0] ),
     .clk( fu__clk[0] ),
@@ -13761,7 +14483,7 @@ module FlexibleFuRTL__5341ddb2c6b6f0f2
     .to_mem_wdata__val( fu__to_mem_wdata__val[0] )
   );
 
-  MulRTL__15576116170e90c9 fu__1
+  MulRTL__53f68ca63f4009b7 fu__1
   (
     .clear( fu__clear[1] ),
     .clk( fu__clk[1] ),
@@ -13799,7 +14521,7 @@ module FlexibleFuRTL__5341ddb2c6b6f0f2
     .to_mem_wdata__val( fu__to_mem_wdata__val[1] )
   );
 
-  LogicRTL__15576116170e90c9 fu__2
+  LogicRTL__53f68ca63f4009b7 fu__2
   (
     .clear( fu__clear[2] ),
     .clk( fu__clk[2] ),
@@ -13837,7 +14559,7 @@ module FlexibleFuRTL__5341ddb2c6b6f0f2
     .to_mem_wdata__val( fu__to_mem_wdata__val[2] )
   );
 
-  CompRTL__15576116170e90c9 fu__3
+  ShifterRTL__53f68ca63f4009b7 fu__3
   (
     .clear( fu__clear[3] ),
     .clk( fu__clk[3] ),
@@ -13875,7 +14597,7 @@ module FlexibleFuRTL__5341ddb2c6b6f0f2
     .to_mem_wdata__val( fu__to_mem_wdata__val[3] )
   );
 
-  GrantRTL__15576116170e90c9 fu__4
+  PhiRTL__53f68ca63f4009b7 fu__4
   (
     .clear( fu__clear[4] ),
     .clk( fu__clk[4] ),
@@ -13913,7 +14635,7 @@ module FlexibleFuRTL__5341ddb2c6b6f0f2
     .to_mem_wdata__val( fu__to_mem_wdata__val[4] )
   );
 
-  PhiRTL__15576116170e90c9 fu__5
+  CompRTL__53f68ca63f4009b7 fu__5
   (
     .clear( fu__clear[5] ),
     .clk( fu__clk[5] ),
@@ -13951,7 +14673,7 @@ module FlexibleFuRTL__5341ddb2c6b6f0f2
     .to_mem_wdata__val( fu__to_mem_wdata__val[5] )
   );
 
-  MemUnitRTL__15576116170e90c9 fu__6
+  GrantRTL__53f68ca63f4009b7 fu__6
   (
     .clear( fu__clear[6] ),
     .clk( fu__clk[6] ),
@@ -13989,7 +14711,7 @@ module FlexibleFuRTL__5341ddb2c6b6f0f2
     .to_mem_wdata__val( fu__to_mem_wdata__val[6] )
   );
 
-  RetRTL__15576116170e90c9 fu__7
+  MemUnitRTL__53f68ca63f4009b7 fu__7
   (
     .clear( fu__clear[7] ),
     .clk( fu__clk[7] ),
@@ -14027,7 +14749,7 @@ module FlexibleFuRTL__5341ddb2c6b6f0f2
     .to_mem_wdata__val( fu__to_mem_wdata__val[7] )
   );
 
-  NahRTL__15576116170e90c9 fu__8
+  SelRTL__53f68ca63f4009b7 fu__8
   (
     .clear( fu__clear[8] ),
     .clk( fu__clk[8] ),
@@ -14065,8 +14787,84 @@ module FlexibleFuRTL__5341ddb2c6b6f0f2
     .to_mem_wdata__val( fu__to_mem_wdata__val[8] )
   );
 
+  RetRTL__53f68ca63f4009b7 fu__9
+  (
+    .clear( fu__clear[9] ),
+    .clk( fu__clk[9] ),
+    .ctrl_addr_inport( fu__ctrl_addr_inport[9] ),
+    .reset( fu__reset[9] ),
+    .from_mem_rdata__msg( fu__from_mem_rdata__msg[9] ),
+    .from_mem_rdata__rdy( fu__from_mem_rdata__rdy[9] ),
+    .from_mem_rdata__val( fu__from_mem_rdata__val[9] ),
+    .recv_const__msg( fu__recv_const__msg[9] ),
+    .recv_const__rdy( fu__recv_const__rdy[9] ),
+    .recv_const__val( fu__recv_const__val[9] ),
+    .recv_from_ctrl_mem__msg( fu__recv_from_ctrl_mem__msg[9] ),
+    .recv_from_ctrl_mem__rdy( fu__recv_from_ctrl_mem__rdy[9] ),
+    .recv_from_ctrl_mem__val( fu__recv_from_ctrl_mem__val[9] ),
+    .recv_in__msg( fu__recv_in__msg[9] ),
+    .recv_in__rdy( fu__recv_in__rdy[9] ),
+    .recv_in__val( fu__recv_in__val[9] ),
+    .recv_opt__msg( fu__recv_opt__msg[9] ),
+    .recv_opt__rdy( fu__recv_opt__rdy[9] ),
+    .recv_opt__val( fu__recv_opt__val[9] ),
+    .send_out__msg( fu__send_out__msg[9] ),
+    .send_out__rdy( fu__send_out__rdy[9] ),
+    .send_out__val( fu__send_out__val[9] ),
+    .send_to_ctrl_mem__msg( fu__send_to_ctrl_mem__msg[9] ),
+    .send_to_ctrl_mem__rdy( fu__send_to_ctrl_mem__rdy[9] ),
+    .send_to_ctrl_mem__val( fu__send_to_ctrl_mem__val[9] ),
+    .to_mem_raddr__msg( fu__to_mem_raddr__msg[9] ),
+    .to_mem_raddr__rdy( fu__to_mem_raddr__rdy[9] ),
+    .to_mem_raddr__val( fu__to_mem_raddr__val[9] ),
+    .to_mem_waddr__msg( fu__to_mem_waddr__msg[9] ),
+    .to_mem_waddr__rdy( fu__to_mem_waddr__rdy[9] ),
+    .to_mem_waddr__val( fu__to_mem_waddr__val[9] ),
+    .to_mem_wdata__msg( fu__to_mem_wdata__msg[9] ),
+    .to_mem_wdata__rdy( fu__to_mem_wdata__rdy[9] ),
+    .to_mem_wdata__val( fu__to_mem_wdata__val[9] )
+  );
+
+  NahRTL__53f68ca63f4009b7 fu__10
+  (
+    .clear( fu__clear[10] ),
+    .clk( fu__clk[10] ),
+    .ctrl_addr_inport( fu__ctrl_addr_inport[10] ),
+    .reset( fu__reset[10] ),
+    .from_mem_rdata__msg( fu__from_mem_rdata__msg[10] ),
+    .from_mem_rdata__rdy( fu__from_mem_rdata__rdy[10] ),
+    .from_mem_rdata__val( fu__from_mem_rdata__val[10] ),
+    .recv_const__msg( fu__recv_const__msg[10] ),
+    .recv_const__rdy( fu__recv_const__rdy[10] ),
+    .recv_const__val( fu__recv_const__val[10] ),
+    .recv_from_ctrl_mem__msg( fu__recv_from_ctrl_mem__msg[10] ),
+    .recv_from_ctrl_mem__rdy( fu__recv_from_ctrl_mem__rdy[10] ),
+    .recv_from_ctrl_mem__val( fu__recv_from_ctrl_mem__val[10] ),
+    .recv_in__msg( fu__recv_in__msg[10] ),
+    .recv_in__rdy( fu__recv_in__rdy[10] ),
+    .recv_in__val( fu__recv_in__val[10] ),
+    .recv_opt__msg( fu__recv_opt__msg[10] ),
+    .recv_opt__rdy( fu__recv_opt__rdy[10] ),
+    .recv_opt__val( fu__recv_opt__val[10] ),
+    .send_out__msg( fu__send_out__msg[10] ),
+    .send_out__rdy( fu__send_out__rdy[10] ),
+    .send_out__val( fu__send_out__val[10] ),
+    .send_to_ctrl_mem__msg( fu__send_to_ctrl_mem__msg[10] ),
+    .send_to_ctrl_mem__rdy( fu__send_to_ctrl_mem__rdy[10] ),
+    .send_to_ctrl_mem__val( fu__send_to_ctrl_mem__val[10] ),
+    .to_mem_raddr__msg( fu__to_mem_raddr__msg[10] ),
+    .to_mem_raddr__rdy( fu__to_mem_raddr__rdy[10] ),
+    .to_mem_raddr__val( fu__to_mem_raddr__val[10] ),
+    .to_mem_waddr__msg( fu__to_mem_waddr__msg[10] ),
+    .to_mem_waddr__rdy( fu__to_mem_waddr__rdy[10] ),
+    .to_mem_waddr__val( fu__to_mem_waddr__val[10] ),
+    .to_mem_wdata__msg( fu__to_mem_wdata__msg[10] ),
+    .to_mem_wdata__rdy( fu__to_mem_wdata__rdy[10] ),
+    .to_mem_wdata__val( fu__to_mem_wdata__val[10] )
+  );
+
   //-------------------------------------------------------------
-  // End of component fu[0:8]
+  // End of component fu[0:10]
   //-------------------------------------------------------------
 
   // PyMTL Update Block Source
@@ -14123,7 +14921,7 @@ module FlexibleFuRTL__5341ddb2c6b6f0f2
       send_out__val[1'(j)] = 1'd0;
       send_out__msg[1'(j)] = { 32'd0, 1'd0, 1'd0, 1'd0 };
     end
-    for ( int unsigned i = 1'd0; i < 4'd9; i += 1'd1 ) begin
+    for ( int unsigned i = 1'd0; i < 4'd11; i += 1'd1 ) begin
       fu__recv_const__msg[4'(i)] = recv_const__msg;
       fu__recv_const__val[4'(i)] = recv_const__val;
       fu_recv_const_rdy_vector[4'(i)] = fu__recv_const__rdy[4'(i)];
@@ -14146,7 +14944,7 @@ module FlexibleFuRTL__5341ddb2c6b6f0f2
     for ( int unsigned j = 1'd0; j < 3'( __const__num_inports_at_comb_logic ); j += 1'd1 )
       recv_in__rdy[2'(j)] = 1'd0;
     for ( int unsigned port = 1'd0; port < 3'( __const__num_inports_at_comb_logic ); port += 1'd1 ) begin
-      for ( int unsigned i = 1'd0; i < 4'd9; i += 1'd1 ) begin
+      for ( int unsigned i = 1'd0; i < 4'd11; i += 1'd1 ) begin
         fu__recv_in__msg[4'(i)][2'(port)] = recv_in__msg[2'(port)];
         fu__recv_in__val[4'(i)][2'(port)] = recv_in__val[2'(port)];
         fu_recv_in_rdy_vector[2'(port)][4'(i)] = fu__recv_in__rdy[4'(i)][2'(port)];
@@ -14176,15 +14974,15 @@ module FlexibleFuRTL__5341ddb2c6b6f0f2
   //     s.fu[i].ctrl_addr_inport @= s.ctrl_addr_inport
   
   always_comb begin : connect_to_controller
-    for ( int unsigned i = 1'd0; i < 4'd9; i += 1'd1 ) begin
+    for ( int unsigned i = 1'd0; i < 4'd11; i += 1'd1 ) begin
       fu__recv_from_ctrl_mem__msg[4'(i)] = recv_from_ctrl_mem__msg;
       fu__recv_from_ctrl_mem__val[4'(i)] = recv_from_ctrl_mem__val;
       recv_from_controller_rdy_vector[4'(i)] = fu__recv_from_ctrl_mem__rdy[4'(i)];
     end
     recv_from_ctrl_mem__rdy = ( | recv_from_controller_rdy_vector );
-    send_to_ctrl_mem__msg = { 5'd0, 35'd0, 7'd0, 131'd0, 3'd0 };
+    send_to_ctrl_mem__msg = { 6'd0, 35'd0, 7'd0, 111'd0, 3'd0 };
     send_to_ctrl_mem__val = 1'd0;
-    for ( int unsigned i = 1'd0; i < 4'd9; i += 1'd1 ) begin
+    for ( int unsigned i = 1'd0; i < 4'd11; i += 1'd1 ) begin
       if ( fu__send_to_ctrl_mem__val[4'(i)] ) begin
         send_to_ctrl_mem__msg = fu__send_to_ctrl_mem__msg[4'(i)];
         send_to_ctrl_mem__val = fu__send_to_ctrl_mem__val[4'(i)];
@@ -14212,6 +15010,10 @@ module FlexibleFuRTL__5341ddb2c6b6f0f2
   assign fu__reset[7] = reset;
   assign fu__clk[8] = clk;
   assign fu__reset[8] = reset;
+  assign fu__clk[9] = clk;
+  assign fu__reset[9] = reset;
+  assign fu__clk[10] = clk;
+  assign fu__reset[10] = reset;
   assign to_mem_raddr__msg[0] = fu__to_mem_raddr__msg[0];
   assign fu__to_mem_raddr__rdy[0] = to_mem_raddr__rdy[0];
   assign to_mem_raddr__val[0] = fu__to_mem_raddr__val[0];
@@ -14329,22 +15131,48 @@ module FlexibleFuRTL__5341ddb2c6b6f0f2
   assign fu__to_mem_wdata__rdy[8] = to_mem_wdata__rdy[8];
   assign to_mem_wdata__val[8] = fu__to_mem_wdata__val[8];
   assign fu__clear[8] = clear[8];
+  assign to_mem_raddr__msg[9] = fu__to_mem_raddr__msg[9];
+  assign fu__to_mem_raddr__rdy[9] = to_mem_raddr__rdy[9];
+  assign to_mem_raddr__val[9] = fu__to_mem_raddr__val[9];
+  assign fu__from_mem_rdata__msg[9] = from_mem_rdata__msg[9];
+  assign from_mem_rdata__rdy[9] = fu__from_mem_rdata__rdy[9];
+  assign fu__from_mem_rdata__val[9] = from_mem_rdata__val[9];
+  assign to_mem_waddr__msg[9] = fu__to_mem_waddr__msg[9];
+  assign fu__to_mem_waddr__rdy[9] = to_mem_waddr__rdy[9];
+  assign to_mem_waddr__val[9] = fu__to_mem_waddr__val[9];
+  assign to_mem_wdata__msg[9] = fu__to_mem_wdata__msg[9];
+  assign fu__to_mem_wdata__rdy[9] = to_mem_wdata__rdy[9];
+  assign to_mem_wdata__val[9] = fu__to_mem_wdata__val[9];
+  assign fu__clear[9] = clear[9];
+  assign to_mem_raddr__msg[10] = fu__to_mem_raddr__msg[10];
+  assign fu__to_mem_raddr__rdy[10] = to_mem_raddr__rdy[10];
+  assign to_mem_raddr__val[10] = fu__to_mem_raddr__val[10];
+  assign fu__from_mem_rdata__msg[10] = from_mem_rdata__msg[10];
+  assign from_mem_rdata__rdy[10] = fu__from_mem_rdata__rdy[10];
+  assign fu__from_mem_rdata__val[10] = from_mem_rdata__val[10];
+  assign to_mem_waddr__msg[10] = fu__to_mem_waddr__msg[10];
+  assign fu__to_mem_waddr__rdy[10] = to_mem_waddr__rdy[10];
+  assign to_mem_waddr__val[10] = fu__to_mem_waddr__val[10];
+  assign to_mem_wdata__msg[10] = fu__to_mem_wdata__msg[10];
+  assign fu__to_mem_wdata__rdy[10] = to_mem_wdata__rdy[10];
+  assign to_mem_wdata__val[10] = fu__to_mem_wdata__val[10];
+  assign fu__clear[10] = clear[10];
 
 endmodule
 
 
 // PyMTL Component CrossbarRTL Definition
-// Full name: CrossbarRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__CtrlType_CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247__num_inports_2__num_outports_12__num_cgras_1__num_tiles_16__ctrl_mem_size_6__outport_towards_local_base_id_8
+// Full name: CrossbarRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__CtrlType_CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9__num_inports_2__num_outports_8__num_cgras_4__num_tiles_16__ctrl_mem_size_6__outport_towards_local_base_id_4
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py
 
-module CrossbarRTL__a8f5d386e9ea604a
+module CrossbarRTL__4fa89c3e3095e34f
 (
-  input  logic [0:0] cgra_id ,
+  input  logic [1:0] cgra_id ,
   input  logic [0:0] clear ,
   input  logic [0:0] clk ,
   input  logic [0:0] compute_done ,
   input  logic [0:0] crossbar_id ,
-  input  logic [1:0] crossbar_outport [0:11],
+  input  logic [1:0] crossbar_outport [0:7],
   input  logic [2:0] ctrl_addr_inport ,
   input  logic [2:0] prologue_count_inport [0:5][0:1],
   input  logic [0:0] reset ,
@@ -14352,50 +15180,50 @@ module CrossbarRTL__a8f5d386e9ea604a
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_data__msg [0:1] ,
   output logic [0:0] recv_data__rdy [0:1] ,
   input logic [0:0] recv_data__val [0:1] ,
-  input CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 recv_opt__msg  ,
+  input CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 recv_opt__msg  ,
   output logic [0:0] recv_opt__rdy  ,
   input logic [0:0] recv_opt__val  ,
-  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data__msg [0:11] ,
-  input logic [0:0] send_data__rdy [0:11] ,
-  output logic [0:0] send_data__val [0:11] 
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data__msg [0:7] ,
+  input logic [0:0] send_data__rdy [0:7] ,
+  output logic [0:0] send_data__val [0:7] 
 );
   localparam logic [1:0] __const__num_inports_at_update_signal  = 2'd2;
-  localparam logic [3:0] __const__num_outports_at_update_signal  = 4'd12;
+  localparam logic [3:0] __const__num_outports_at_update_signal  = 4'd8;
   localparam logic [6:0] __const__OPT_START  = 7'd0;
   localparam logic [2:0] __const__ctrl_mem_size_at_update_prologue_counter  = 3'd6;
   localparam logic [1:0] __const__num_inports_at_update_prologue_counter  = 2'd2;
   localparam logic [2:0] __const__ctrl_mem_size_at_update_prologue_counter_next  = 3'd6;
   localparam logic [1:0] __const__num_inports_at_update_prologue_counter_next  = 2'd2;
-  localparam logic [3:0] __const__num_outports_at_update_prologue_counter_next  = 4'd12;
-  localparam logic [3:0] __const__num_outports_at_update_send_accepted_next  = 4'd12;
-  localparam logic [3:0] __const__num_outports_at_update_prologue_allowing_vector  = 4'd12;
-  localparam logic [3:0] __const__num_outports_at_update_prologue_or_valid_vector  = 4'd12;
-  localparam logic [3:0] __const__num_outports_at_update_in_dir_vector  = 4'd12;
-  localparam logic [3:0] __const__num_outports_at_update_rdy_vector  = 4'd12;
-  localparam logic [3:0] __const__outport_towards_local_base_id_at_update_rdy_vector  = 4'd8;
-  localparam logic [3:0] __const__num_outports_at_update_valid_vector  = 4'd12;
+  localparam logic [3:0] __const__num_outports_at_update_prologue_counter_next  = 4'd8;
+  localparam logic [3:0] __const__num_outports_at_update_send_accepted_next  = 4'd8;
+  localparam logic [3:0] __const__num_outports_at_update_prologue_allowing_vector  = 4'd8;
+  localparam logic [3:0] __const__num_outports_at_update_prologue_or_valid_vector  = 4'd8;
+  localparam logic [3:0] __const__num_outports_at_update_in_dir_vector  = 4'd8;
+  localparam logic [3:0] __const__num_outports_at_update_rdy_vector  = 4'd8;
+  localparam logic [2:0] __const__outport_towards_local_base_id_at_update_rdy_vector  = 3'd4;
+  localparam logic [3:0] __const__num_outports_at_update_valid_vector  = 4'd8;
   localparam logic [1:0] __const__num_inports_at_update_recv_required_vector  = 2'd2;
-  localparam logic [3:0] __const__num_outports_at_update_recv_required_vector  = 4'd12;
-  localparam logic [3:0] __const__num_outports_at_update_send_required_vector  = 4'd12;
+  localparam logic [3:0] __const__num_outports_at_update_recv_required_vector  = 4'd8;
+  localparam logic [3:0] __const__num_outports_at_update_send_required_vector  = 4'd8;
   logic [0:0] all_send_accepted;
-  logic [1:0] in_dir [0:11];
-  logic [0:0] in_dir_local [0:11];
-  logic [11:0] prologue_allowing_vector;
+  logic [1:0] in_dir [0:7];
+  logic [0:0] in_dir_local [0:7];
+  logic [7:0] prologue_allowing_vector;
   logic [2:0] prologue_count_wire [0:5][0:1];
   logic [2:0] prologue_counter [0:5][0:1];
   logic [2:0] prologue_counter_next [0:5][0:1];
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_data_msg [0:1];
   logic [0:0] recv_data_val [0:1];
   logic [1:0] recv_required_vector;
-  logic [11:0] recv_valid_or_prologue_allowing_vector;
-  logic [11:0] recv_valid_vector;
-  logic [11:0] send_accepted;
-  logic [11:0] send_accepted_next;
-  logic [11:0] send_rdy_vector;
-  logic [11:0] send_required_vector;
+  logic [7:0] recv_valid_or_prologue_allowing_vector;
+  logic [7:0] recv_valid_vector;
+  logic [7:0] send_accepted;
+  logic [7:0] send_accepted_next;
+  logic [7:0] send_rdy_vector;
+  logic [7:0] send_required_vector;
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:219
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:230
   // @update
   // def update_in_dir_vector():
   // 
@@ -14410,19 +15238,19 @@ module CrossbarRTL__a8f5d386e9ea604a
   
   always_comb begin : update_in_dir_vector
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_in_dir_vector ); i += 1'd1 ) begin
-      in_dir[4'(i)] = 2'd0;
-      in_dir_local[4'(i)] = 1'd0;
+      in_dir[3'(i)] = 2'd0;
+      in_dir_local[3'(i)] = 1'd0;
     end
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_in_dir_vector ); i += 1'd1 ) begin
-      in_dir[4'(i)] = crossbar_outport[4'(i)];
-      if ( in_dir[4'(i)] > 2'd0 ) begin
-        in_dir_local[4'(i)] = 1'(in_dir[4'(i)] - 2'd1);
+      in_dir[3'(i)] = crossbar_outport[3'(i)];
+      if ( in_dir[3'(i)] > 2'd0 ) begin
+        in_dir_local[3'(i)] = 1'(in_dir[3'(i)] - 2'd1);
       end
     end
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:200
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:211
   // @update
   // def update_prologue_allowing_vector():
   //   s.prologue_allowing_vector @= 0
@@ -14436,17 +15264,17 @@ module CrossbarRTL__a8f5d386e9ea604a
   //       s.prologue_allowing_vector[i] @= 1
   
   always_comb begin : update_prologue_allowing_vector
-    prologue_allowing_vector = 12'd0;
+    prologue_allowing_vector = 8'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_prologue_allowing_vector ); i += 1'd1 )
-      if ( in_dir[4'(i)] > 2'd0 ) begin
-        prologue_allowing_vector[4'(i)] = prologue_counter[ctrl_addr_inport][in_dir_local[4'(i)]] < prologue_count_wire[ctrl_addr_inport][in_dir_local[4'(i)]];
+      if ( in_dir[3'(i)] > 2'd0 ) begin
+        prologue_allowing_vector[3'(i)] = prologue_counter[ctrl_addr_inport][in_dir_local[3'(i)]] < prologue_count_wire[ctrl_addr_inport][in_dir_local[3'(i)]];
       end
       else
-        prologue_allowing_vector[4'(i)] = 1'd1;
+        prologue_allowing_vector[3'(i)] = 1'd1;
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:162
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:173
   // @update
   // def update_prologue_counter_next():
   //   # Nested-loop to update the prologue counter, to avoid dynamic indexing to
@@ -14467,14 +15295,14 @@ module CrossbarRTL__a8f5d386e9ea604a
       for ( int unsigned i = 1'd0; i < 2'( __const__num_inports_at_update_prologue_counter_next ); i += 1'd1 ) begin
         prologue_counter_next[3'(addr)][1'(i)] = prologue_counter[3'(addr)][1'(i)];
         for ( int unsigned j = 1'd0; j < 4'( __const__num_outports_at_update_prologue_counter_next ); j += 1'd1 )
-          if ( ( ( ( recv_opt__rdy & ( in_dir[4'(j)] > 2'd0 ) ) & ( in_dir_local[4'(j)] == 1'(i) ) ) & ( 3'(addr) == ctrl_addr_inport ) ) & ( prologue_counter[3'(addr)][1'(i)] < prologue_count_wire[3'(addr)][1'(i)] ) ) begin
+          if ( ( ( ( recv_opt__rdy & ( in_dir[3'(j)] > 2'd0 ) ) & ( in_dir_local[3'(j)] == 1'(i) ) ) & ( 3'(addr) == ctrl_addr_inport ) ) & ( prologue_counter[3'(addr)][1'(i)] < prologue_count_wire[3'(addr)][1'(i)] ) ) begin
             prologue_counter_next[3'(addr)][1'(i)] = prologue_counter[3'(addr)][1'(i)] + 3'd1;
           end
       end
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:212
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:223
   // @update
   // def update_prologue_or_valid_vector():
   //   s.recv_valid_or_prologue_allowing_vector @= 0
@@ -14483,13 +15311,13 @@ module CrossbarRTL__a8f5d386e9ea604a
   //         s.recv_valid_vector[i] | s.prologue_allowing_vector[i]
   
   always_comb begin : update_prologue_or_valid_vector
-    recv_valid_or_prologue_allowing_vector = 12'd0;
+    recv_valid_or_prologue_allowing_vector = 8'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_prologue_or_valid_vector ); i += 1'd1 )
-      recv_valid_or_prologue_allowing_vector[4'(i)] = recv_valid_vector[4'(i)] | prologue_allowing_vector[4'(i)];
+      recv_valid_or_prologue_allowing_vector[3'(i)] = recv_valid_vector[3'(i)] | prologue_allowing_vector[3'(i)];
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:231
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:242
   // @update
   // def update_rdy_vector():
   //   s.send_rdy_vector @= 0
@@ -14501,42 +15329,49 @@ module CrossbarRTL__a8f5d386e9ea604a
   //     # the compute is already completed.
   //     if (s.in_dir[i] > 0) & \
   //        (~s.compute_done | (i < outport_towards_local_base_id)):
-  //       s.send_rdy_vector[i] @= s.send_data[i].rdy
+  //       # When prologue is active for this output's input, don't
+  //       # require the downstream channel to be ready -- we won't be
+  //       # sending any data through it during prologue anyway.
+  //       s.send_rdy_vector[i] @= s.send_data[i].rdy | \
+  //                                s.prologue_allowing_vector[i]
   //     else:
   //       s.send_rdy_vector[i] @= 1
   
   always_comb begin : update_rdy_vector
-    send_rdy_vector = 12'd0;
+    send_rdy_vector = 8'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_rdy_vector ); i += 1'd1 )
-      if ( ( in_dir[4'(i)] > 2'd0 ) & ( ( ~compute_done ) | ( 4'(i) < 4'( __const__outport_towards_local_base_id_at_update_rdy_vector ) ) ) ) begin
-        send_rdy_vector[4'(i)] = send_data__rdy[4'(i)];
+      if ( ( in_dir[3'(i)] > 2'd0 ) & ( ( ~compute_done ) | ( 3'(i) < 3'( __const__outport_towards_local_base_id_at_update_rdy_vector ) ) ) ) begin
+        send_rdy_vector[3'(i)] = send_data__rdy[3'(i)] | prologue_allowing_vector[3'(i)];
       end
       else
-        send_rdy_vector[4'(i)] = 1'd1;
+        send_rdy_vector[3'(i)] = 1'd1;
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:255
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:280
   // @update
   // def update_recv_required_vector():
   //   for i in range(num_inports):
   //     s.recv_required_vector[i] @= 0
   // 
   //   for i in range(num_outports):
-  //     if s.in_dir[i] > 0:
+  //     # An input is required only when it feeds an output that is not
+  //     # being bypassed by prologue.  This matches the send_required
+  //     # masking above so that prologued inputs are not consumed.
+  //     if (s.in_dir[i] > 0) & ~s.prologue_allowing_vector[i]:
   //       s.recv_required_vector[s.in_dir_local[i]] @= 1
   
   always_comb begin : update_recv_required_vector
     for ( int unsigned i = 1'd0; i < 2'( __const__num_inports_at_update_recv_required_vector ); i += 1'd1 )
       recv_required_vector[1'(i)] = 1'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_recv_required_vector ); i += 1'd1 )
-      if ( in_dir[4'(i)] > 2'd0 ) begin
-        recv_required_vector[in_dir_local[4'(i)]] = 1'd1;
+      if ( ( in_dir[3'(i)] > 2'd0 ) & ( ~prologue_allowing_vector[3'(i)] ) ) begin
+        recv_required_vector[in_dir_local[3'(i)]] = 1'd1;
       end
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:177
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:188
   // @update
   // def update_send_accepted_next():
   //   # By default, hold the current value.
@@ -14564,19 +15399,19 @@ module CrossbarRTL__a8f5d386e9ea604a
     send_accepted_next = send_accepted;
     if ( recv_opt__val & ( recv_opt__msg.operation != 7'( __const__OPT_START ) ) ) begin
       for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_send_accepted_next ); i += 1'd1 )
-        if ( ( ( send_required_vector[4'(i)] & ( ~send_accepted[4'(i)] ) ) & send_data__rdy[4'(i)] ) & send_data__val[4'(i)] ) begin
-          send_accepted_next[4'(i)] = 1'd1;
+        if ( ( ( send_required_vector[3'(i)] & ( ~send_accepted[3'(i)] ) ) & send_data__rdy[3'(i)] ) & send_data__val[3'(i)] ) begin
+          send_accepted_next[3'(i)] = 1'd1;
         end
       if ( recv_opt__rdy ) begin
-        send_accepted_next = 12'd0;
+        send_accepted_next = 8'd0;
       end
     end
     else
-      send_accepted_next = 12'd0;
+      send_accepted_next = 8'd0;
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:264
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:292
   // @update
   // def update_send_required_vector():
   // 
@@ -14584,15 +15419,20 @@ module CrossbarRTL__a8f5d386e9ea604a
   //     s.send_required_vector[i] @= 0
   // 
   //   for i in range(num_outports):
-  //     if s.in_dir[i] > 0:
+  //     # An output is required only when it has a mapped input AND
+  //     # that input is NOT being bypassed by the prologue mechanism.
+  //     # During prologue, the crossbar must not attempt to send data
+  //     # on outputs fed by prologued inputs; otherwise a full
+  //     # downstream channel would block the entire crossbar.
+  //     if (s.in_dir[i] > 0) & ~s.prologue_allowing_vector[i]:
   //       s.send_required_vector[i] @= 1
   
   always_comb begin : update_send_required_vector
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_send_required_vector ); i += 1'd1 )
-      send_required_vector[4'(i)] = 1'd0;
+      send_required_vector[3'(i)] = 1'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_send_required_vector ); i += 1'd1 )
-      if ( in_dir[4'(i)] > 2'd0 ) begin
-        send_required_vector[4'(i)] = 1'd1;
+      if ( ( in_dir[3'(i)] > 2'd0 ) & ( ~prologue_allowing_vector[3'(i)] ) ) begin
+        send_required_vector[3'(i)] = 1'd1;
       end
   end
 
@@ -14620,7 +15460,13 @@ module CrossbarRTL__a8f5d386e9ea604a
   //         s.all_send_accepted @= 0
   // 
   //     for i in range(num_inports):
-  //       s.recv_data[i].rdy @= reduce_and(s.recv_valid_vector) & \
+  //       # Use recv_valid_or_prologue_allowing_vector for the gate so
+  //       # that prologued inputs (which may or may not have data) do
+  //       # not prevent non-prologued data from flowing.  The separate
+  //       # recv_required_vector (which excludes prologued inputs)
+  //       # ensures we never actually dequeue data from a prologued
+  //       # input channel.
+  //       s.recv_data[i].rdy @= reduce_and(s.recv_valid_or_prologue_allowing_vector) & \
   //                             s.all_send_accepted & \
   //                             s.recv_required_vector[i]
   // 
@@ -14629,10 +15475,15 @@ module CrossbarRTL__a8f5d386e9ea604a
   //       # yet accepted in a previous cycle.  This prevents duplicate
   //       # delivery without making val depend on rdy (send_accepted is
   //       # a register, so this is purely val-depends-on-registered-state).
-  //       s.send_data[i].val @= reduce_and(s.recv_valid_vector) & \
+  //       #
+  //       # Uses recv_valid_or_prologue_allowing_vector as the gate so
+  //       # that prologued inputs (bypassed) do not suppress sends on
+  //       # non-prologued outputs.  send_required_vector already
+  //       # excludes prologued outputs, so they will never assert val.
+  //       s.send_data[i].val @= reduce_and(s.recv_valid_or_prologue_allowing_vector) & \
   //                             s.send_required_vector[i] & \
   //                             ~s.send_accepted[i]
-  //       if reduce_and(s.recv_valid_vector) & \
+  //       if reduce_and(s.recv_valid_or_prologue_allowing_vector) & \
   //          s.send_required_vector[i] & \
   //          ~s.send_accepted[i]:
   //         s.send_data[i].msg.payload @= s.recv_data_msg[s.in_dir_local[i]].payload
@@ -14645,24 +15496,24 @@ module CrossbarRTL__a8f5d386e9ea604a
     for ( int unsigned i = 1'd0; i < 2'( __const__num_inports_at_update_signal ); i += 1'd1 )
       recv_data__rdy[1'(i)] = 1'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_signal ); i += 1'd1 ) begin
-      send_data__val[4'(i)] = 1'd0;
-      send_data__msg[4'(i)] = { 32'd0, 1'd0, 1'd0, 1'd0 };
+      send_data__val[3'(i)] = 1'd0;
+      send_data__msg[3'(i)] = { 32'd0, 1'd0, 1'd0, 1'd0 };
     end
     recv_opt__rdy = 1'd0;
     all_send_accepted = 1'd0;
     if ( recv_opt__val & ( recv_opt__msg.operation != 7'( __const__OPT_START ) ) ) begin
       all_send_accepted = 1'd1;
       for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_signal ); i += 1'd1 )
-        if ( ( send_required_vector[4'(i)] & ( ~send_accepted[4'(i)] ) ) & ( ~send_rdy_vector[4'(i)] ) ) begin
+        if ( ( send_required_vector[3'(i)] & ( ~send_accepted[3'(i)] ) ) & ( ~send_rdy_vector[3'(i)] ) ) begin
           all_send_accepted = 1'd0;
         end
       for ( int unsigned i = 1'd0; i < 2'( __const__num_inports_at_update_signal ); i += 1'd1 )
-        recv_data__rdy[1'(i)] = ( ( & recv_valid_vector ) & all_send_accepted ) & recv_required_vector[1'(i)];
+        recv_data__rdy[1'(i)] = ( ( & recv_valid_or_prologue_allowing_vector ) & all_send_accepted ) & recv_required_vector[1'(i)];
       for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_signal ); i += 1'd1 ) begin
-        send_data__val[4'(i)] = ( ( & recv_valid_vector ) & send_required_vector[4'(i)] ) & ( ~send_accepted[4'(i)] );
-        if ( ( ( & recv_valid_vector ) & send_required_vector[4'(i)] ) & ( ~send_accepted[4'(i)] ) ) begin
-          send_data__msg[4'(i)].payload = recv_data_msg[in_dir_local[4'(i)]].payload;
-          send_data__msg[4'(i)].predicate = recv_data_msg[in_dir_local[4'(i)]].predicate;
+        send_data__val[3'(i)] = ( ( & recv_valid_or_prologue_allowing_vector ) & send_required_vector[3'(i)] ) & ( ~send_accepted[3'(i)] );
+        if ( ( ( & recv_valid_or_prologue_allowing_vector ) & send_required_vector[3'(i)] ) & ( ~send_accepted[3'(i)] ) ) begin
+          send_data__msg[3'(i)].payload = recv_data_msg[in_dir_local[3'(i)]].payload;
+          send_data__msg[3'(i)].predicate = recv_data_msg[in_dir_local[3'(i)]].predicate;
         end
       end
       recv_opt__rdy = all_send_accepted & ( & recv_valid_or_prologue_allowing_vector );
@@ -14670,28 +15521,38 @@ module CrossbarRTL__a8f5d386e9ea604a
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:246
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:261
   // @update
   // def update_valid_vector():
   //   s.recv_valid_vector @= 0
   //   for i in range(num_outports):
   //     if s.in_dir[i] > 0:
-  //       s.recv_valid_vector[i] @= s.recv_data_val[s.in_dir_local[i]]
+  //       # When prologue is active for this output's input, treat the
+  //       # input as not-valid even if data is physically present in the
+  //       # channel.  This prevents the crossbar from asserting
+  //       # send_data.val (and therefore potentially blocking on a full
+  //       # downstream channel) during prologue steps.  Without this
+  //       # masking, stale data that happens to sit in a channel can
+  //       # trick the crossbar into attempting a send, and if the
+  //       # destination channel is full the all-or-nothing semantics
+  //       # cause a deadlock.
+  //       s.recv_valid_vector[i] @= s.recv_data_val[s.in_dir_local[i]] & \
+  //                                  ~s.prologue_allowing_vector[i]
   //     else:
   //       s.recv_valid_vector[i] @= 1
   
   always_comb begin : update_valid_vector
-    recv_valid_vector = 12'd0;
+    recv_valid_vector = 8'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_valid_vector ); i += 1'd1 )
-      if ( in_dir[4'(i)] > 2'd0 ) begin
-        recv_valid_vector[4'(i)] = recv_data_val[in_dir_local[4'(i)]];
+      if ( in_dir[3'(i)] > 2'd0 ) begin
+        recv_valid_vector[3'(i)] = recv_data_val[in_dir_local[3'(i)]] & ( ~prologue_allowing_vector[3'(i)] );
       end
       else
-        recv_valid_vector[4'(i)] = 1'd1;
+        recv_valid_vector[3'(i)] = 1'd1;
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:149
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:160
   // @update_ff
   // def update_prologue_counter():
   //   if s.reset | s.clear:
@@ -14710,7 +15571,7 @@ module CrossbarRTL__a8f5d386e9ea604a
       for ( int unsigned addr = 1'd0; addr < 3'( __const__ctrl_mem_size_at_update_prologue_counter ); addr += 1'd1 )
         for ( int unsigned i = 1'd0; i < 2'( __const__num_inports_at_update_prologue_counter ); i += 1'd1 )
           prologue_counter[3'(addr)][1'(i)] <= 3'd0;
-      send_accepted <= 12'd0;
+      send_accepted <= 8'd0;
     end
     else begin
       for ( int unsigned addr = 1'd0; addr < 3'( __const__ctrl_mem_size_at_update_prologue_counter ); addr += 1'd1 )
@@ -14789,19 +15650,19 @@ endmodule
 
 
 // PyMTL Component RegisterBankRTL Definition
-// Full name: RegisterBankRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__CtrlType_CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247__reg_bank_id_0__num_registers_8
+// Full name: RegisterBankRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__CtrlType_CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9__reg_bank_id_0__num_registers_8
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py
 
-module RegisterBankRTL__41835da5649f8737
+module RegisterBankRTL__493e7203765a09b1
 (
   input  logic [0:0] clk ,
-  input  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 inport_opt ,
+  input  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 inport_opt ,
   input  logic [0:0] inport_valid [0:2],
   input  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 inport_wdata [0:2],
   input  logic [0:0] reset ,
-  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data_to_fu__msg  ,
-  input logic [0:0] send_data_to_fu__rdy  ,
-  output logic [0:0] send_data_to_fu__val  
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data__msg  ,
+  input logic [0:0] send_data__rdy  ,
+  output logic [0:0] send_data__val  
 );
   localparam logic [0:0] __const__reg_bank_id_at_access_registers  = 1'd0;
   localparam logic [0:0] __const__reg_bank_id_at_update_send_val  = 1'd0;
@@ -14831,22 +15692,26 @@ module RegisterBankRTL__41835da5649f8737
   //-------------------------------------------------------------
   // End of component reg_file
   //-------------------------------------------------------------
+  logic [1:0] __tmpvar__access_registers_read_towards;
   logic [1:0] __tmpvar__access_registers_write_reg_from;
+  logic [1:0] __tmpvar__update_send_val_read_towards;
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:41
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:49
   // @update
   // def access_registers():
   //   # Initializes signals.
   //   s.reg_file.raddr[0] @= AddrType()
-  //   s.send_data_to_fu.msg @= DataType()
+  //   s.send_data.msg @= DataType()
   //   s.reg_file.waddr[0] @= AddrType()
   //   s.reg_file.wdata[0] @= DataType()
   //   s.reg_file.wen[0] @= 0
   // 
-  //   if s.inport_opt.read_reg_from[reg_bank_id]:
+  //   read_towards = s.inport_opt.read_reg_towards[reg_bank_id]
+  //   # Reads from register if towards FU (1), routing_xbar (2), or both (3)
+  //   if read_towards > 0:
   //     s.reg_file.raddr[0] @= s.inport_opt.read_reg_idx[reg_bank_id]
-  //     s.send_data_to_fu.msg @= s.reg_file.rdata[0]
+  //     s.send_data.msg @= s.reg_file.rdata[0]
   // 
   //   write_reg_from = s.inport_opt.write_reg_from[reg_bank_id]
   //   if ~s.reset & (write_reg_from > 0):
@@ -14857,13 +15722,14 @@ module RegisterBankRTL__41835da5649f8737
   
   always_comb begin : access_registers
     reg_file__raddr[1'd0] = 3'd0;
-    send_data_to_fu__msg = { 32'd0, 1'd0, 1'd0, 1'd0 };
+    send_data__msg = { 32'd0, 1'd0, 1'd0, 1'd0 };
     reg_file__waddr[1'd0] = 3'd0;
     reg_file__wdata[1'd0] = { 32'd0, 1'd0, 1'd0, 1'd0 };
     reg_file__wen[1'd0] = 1'd0;
-    if ( inport_opt.read_reg_from[2'( __const__reg_bank_id_at_access_registers )] ) begin
+    __tmpvar__access_registers_read_towards = inport_opt.read_reg_towards[2'( __const__reg_bank_id_at_access_registers )];
+    if ( __tmpvar__access_registers_read_towards > 2'd0 ) begin
       reg_file__raddr[1'd0] = inport_opt.read_reg_idx[2'( __const__reg_bank_id_at_access_registers )];
-      send_data_to_fu__msg = reg_file__rdata[1'd0];
+      send_data__msg = reg_file__rdata[1'd0];
     end
     __tmpvar__access_registers_write_reg_from = inport_opt.write_reg_from[2'( __const__reg_bank_id_at_access_registers )];
     if ( ( ~reset ) & ( __tmpvar__access_registers_write_reg_from > 2'd0 ) ) begin
@@ -14876,17 +15742,20 @@ module RegisterBankRTL__41835da5649f8737
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:61
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:71
   // @update
   // def update_send_val():
-  //   s.send_data_to_fu.val @= 0
-  //   if ~s.reset & s.inport_opt.read_reg_from[reg_bank_id]:
-  //     s.send_data_to_fu.val @= 1
+  //   s.send_data.val @= 0
+  //   read_towards = s.inport_opt.read_reg_towards[reg_bank_id]
+  //   # Sends if towards FU or both (i.e. read_towards > 0)
+  //   if ~s.reset & (read_towards > 0):
+  //     s.send_data.val @= 1
   
   always_comb begin : update_send_val
-    send_data_to_fu__val = 1'd0;
-    if ( ( ~reset ) & inport_opt.read_reg_from[2'( __const__reg_bank_id_at_update_send_val )] ) begin
-      send_data_to_fu__val = 1'd1;
+    send_data__val = 1'd0;
+    __tmpvar__update_send_val_read_towards = inport_opt.read_reg_towards[2'( __const__reg_bank_id_at_update_send_val )];
+    if ( ( ~reset ) & ( __tmpvar__update_send_val_read_towards > 2'd0 ) ) begin
+      send_data__val = 1'd1;
     end
   end
 
@@ -14897,19 +15766,19 @@ endmodule
 
 
 // PyMTL Component RegisterBankRTL Definition
-// Full name: RegisterBankRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__CtrlType_CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247__reg_bank_id_1__num_registers_8
+// Full name: RegisterBankRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__CtrlType_CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9__reg_bank_id_1__num_registers_8
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py
 
-module RegisterBankRTL__0746f438584da18a
+module RegisterBankRTL__3596ca3621cddc37
 (
   input  logic [0:0] clk ,
-  input  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 inport_opt ,
+  input  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 inport_opt ,
   input  logic [0:0] inport_valid [0:2],
   input  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 inport_wdata [0:2],
   input  logic [0:0] reset ,
-  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data_to_fu__msg  ,
-  input logic [0:0] send_data_to_fu__rdy  ,
-  output logic [0:0] send_data_to_fu__val  
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data__msg  ,
+  input logic [0:0] send_data__rdy  ,
+  output logic [0:0] send_data__val  
 );
   localparam logic [0:0] __const__reg_bank_id_at_access_registers  = 1'd1;
   localparam logic [0:0] __const__reg_bank_id_at_update_send_val  = 1'd1;
@@ -14939,22 +15808,26 @@ module RegisterBankRTL__0746f438584da18a
   //-------------------------------------------------------------
   // End of component reg_file
   //-------------------------------------------------------------
+  logic [1:0] __tmpvar__access_registers_read_towards;
   logic [1:0] __tmpvar__access_registers_write_reg_from;
+  logic [1:0] __tmpvar__update_send_val_read_towards;
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:41
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:49
   // @update
   // def access_registers():
   //   # Initializes signals.
   //   s.reg_file.raddr[0] @= AddrType()
-  //   s.send_data_to_fu.msg @= DataType()
+  //   s.send_data.msg @= DataType()
   //   s.reg_file.waddr[0] @= AddrType()
   //   s.reg_file.wdata[0] @= DataType()
   //   s.reg_file.wen[0] @= 0
   // 
-  //   if s.inport_opt.read_reg_from[reg_bank_id]:
+  //   read_towards = s.inport_opt.read_reg_towards[reg_bank_id]
+  //   # Reads from register if towards FU (1), routing_xbar (2), or both (3)
+  //   if read_towards > 0:
   //     s.reg_file.raddr[0] @= s.inport_opt.read_reg_idx[reg_bank_id]
-  //     s.send_data_to_fu.msg @= s.reg_file.rdata[0]
+  //     s.send_data.msg @= s.reg_file.rdata[0]
   // 
   //   write_reg_from = s.inport_opt.write_reg_from[reg_bank_id]
   //   if ~s.reset & (write_reg_from > 0):
@@ -14965,13 +15838,14 @@ module RegisterBankRTL__0746f438584da18a
   
   always_comb begin : access_registers
     reg_file__raddr[1'd0] = 3'd0;
-    send_data_to_fu__msg = { 32'd0, 1'd0, 1'd0, 1'd0 };
+    send_data__msg = { 32'd0, 1'd0, 1'd0, 1'd0 };
     reg_file__waddr[1'd0] = 3'd0;
     reg_file__wdata[1'd0] = { 32'd0, 1'd0, 1'd0, 1'd0 };
     reg_file__wen[1'd0] = 1'd0;
-    if ( inport_opt.read_reg_from[2'( __const__reg_bank_id_at_access_registers )] ) begin
+    __tmpvar__access_registers_read_towards = inport_opt.read_reg_towards[2'( __const__reg_bank_id_at_access_registers )];
+    if ( __tmpvar__access_registers_read_towards > 2'd0 ) begin
       reg_file__raddr[1'd0] = inport_opt.read_reg_idx[2'( __const__reg_bank_id_at_access_registers )];
-      send_data_to_fu__msg = reg_file__rdata[1'd0];
+      send_data__msg = reg_file__rdata[1'd0];
     end
     __tmpvar__access_registers_write_reg_from = inport_opt.write_reg_from[2'( __const__reg_bank_id_at_access_registers )];
     if ( ( ~reset ) & ( __tmpvar__access_registers_write_reg_from > 2'd0 ) ) begin
@@ -14984,17 +15858,20 @@ module RegisterBankRTL__0746f438584da18a
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:61
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:71
   // @update
   // def update_send_val():
-  //   s.send_data_to_fu.val @= 0
-  //   if ~s.reset & s.inport_opt.read_reg_from[reg_bank_id]:
-  //     s.send_data_to_fu.val @= 1
+  //   s.send_data.val @= 0
+  //   read_towards = s.inport_opt.read_reg_towards[reg_bank_id]
+  //   # Sends if towards FU or both (i.e. read_towards > 0)
+  //   if ~s.reset & (read_towards > 0):
+  //     s.send_data.val @= 1
   
   always_comb begin : update_send_val
-    send_data_to_fu__val = 1'd0;
-    if ( ( ~reset ) & inport_opt.read_reg_from[2'( __const__reg_bank_id_at_update_send_val )] ) begin
-      send_data_to_fu__val = 1'd1;
+    send_data__val = 1'd0;
+    __tmpvar__update_send_val_read_towards = inport_opt.read_reg_towards[2'( __const__reg_bank_id_at_update_send_val )];
+    if ( ( ~reset ) & ( __tmpvar__update_send_val_read_towards > 2'd0 ) ) begin
+      send_data__val = 1'd1;
     end
   end
 
@@ -15005,19 +15882,19 @@ endmodule
 
 
 // PyMTL Component RegisterBankRTL Definition
-// Full name: RegisterBankRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__CtrlType_CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247__reg_bank_id_2__num_registers_8
+// Full name: RegisterBankRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__CtrlType_CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9__reg_bank_id_2__num_registers_8
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py
 
-module RegisterBankRTL__230e7df840565f2a
+module RegisterBankRTL__c9691accc64d09b9
 (
   input  logic [0:0] clk ,
-  input  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 inport_opt ,
+  input  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 inport_opt ,
   input  logic [0:0] inport_valid [0:2],
   input  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 inport_wdata [0:2],
   input  logic [0:0] reset ,
-  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data_to_fu__msg  ,
-  input logic [0:0] send_data_to_fu__rdy  ,
-  output logic [0:0] send_data_to_fu__val  
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data__msg  ,
+  input logic [0:0] send_data__rdy  ,
+  output logic [0:0] send_data__val  
 );
   localparam logic [1:0] __const__reg_bank_id_at_access_registers  = 2'd2;
   localparam logic [1:0] __const__reg_bank_id_at_update_send_val  = 2'd2;
@@ -15047,22 +15924,26 @@ module RegisterBankRTL__230e7df840565f2a
   //-------------------------------------------------------------
   // End of component reg_file
   //-------------------------------------------------------------
+  logic [1:0] __tmpvar__access_registers_read_towards;
   logic [1:0] __tmpvar__access_registers_write_reg_from;
+  logic [1:0] __tmpvar__update_send_val_read_towards;
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:41
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:49
   // @update
   // def access_registers():
   //   # Initializes signals.
   //   s.reg_file.raddr[0] @= AddrType()
-  //   s.send_data_to_fu.msg @= DataType()
+  //   s.send_data.msg @= DataType()
   //   s.reg_file.waddr[0] @= AddrType()
   //   s.reg_file.wdata[0] @= DataType()
   //   s.reg_file.wen[0] @= 0
   // 
-  //   if s.inport_opt.read_reg_from[reg_bank_id]:
+  //   read_towards = s.inport_opt.read_reg_towards[reg_bank_id]
+  //   # Reads from register if towards FU (1), routing_xbar (2), or both (3)
+  //   if read_towards > 0:
   //     s.reg_file.raddr[0] @= s.inport_opt.read_reg_idx[reg_bank_id]
-  //     s.send_data_to_fu.msg @= s.reg_file.rdata[0]
+  //     s.send_data.msg @= s.reg_file.rdata[0]
   // 
   //   write_reg_from = s.inport_opt.write_reg_from[reg_bank_id]
   //   if ~s.reset & (write_reg_from > 0):
@@ -15073,13 +15954,14 @@ module RegisterBankRTL__230e7df840565f2a
   
   always_comb begin : access_registers
     reg_file__raddr[1'd0] = 3'd0;
-    send_data_to_fu__msg = { 32'd0, 1'd0, 1'd0, 1'd0 };
+    send_data__msg = { 32'd0, 1'd0, 1'd0, 1'd0 };
     reg_file__waddr[1'd0] = 3'd0;
     reg_file__wdata[1'd0] = { 32'd0, 1'd0, 1'd0, 1'd0 };
     reg_file__wen[1'd0] = 1'd0;
-    if ( inport_opt.read_reg_from[2'( __const__reg_bank_id_at_access_registers )] ) begin
+    __tmpvar__access_registers_read_towards = inport_opt.read_reg_towards[2'( __const__reg_bank_id_at_access_registers )];
+    if ( __tmpvar__access_registers_read_towards > 2'd0 ) begin
       reg_file__raddr[1'd0] = inport_opt.read_reg_idx[2'( __const__reg_bank_id_at_access_registers )];
-      send_data_to_fu__msg = reg_file__rdata[1'd0];
+      send_data__msg = reg_file__rdata[1'd0];
     end
     __tmpvar__access_registers_write_reg_from = inport_opt.write_reg_from[2'( __const__reg_bank_id_at_access_registers )];
     if ( ( ~reset ) & ( __tmpvar__access_registers_write_reg_from > 2'd0 ) ) begin
@@ -15092,17 +15974,20 @@ module RegisterBankRTL__230e7df840565f2a
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:61
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:71
   // @update
   // def update_send_val():
-  //   s.send_data_to_fu.val @= 0
-  //   if ~s.reset & s.inport_opt.read_reg_from[reg_bank_id]:
-  //     s.send_data_to_fu.val @= 1
+  //   s.send_data.val @= 0
+  //   read_towards = s.inport_opt.read_reg_towards[reg_bank_id]
+  //   # Sends if towards FU or both (i.e. read_towards > 0)
+  //   if ~s.reset & (read_towards > 0):
+  //     s.send_data.val @= 1
   
   always_comb begin : update_send_val
-    send_data_to_fu__val = 1'd0;
-    if ( ( ~reset ) & inport_opt.read_reg_from[2'( __const__reg_bank_id_at_update_send_val )] ) begin
-      send_data_to_fu__val = 1'd1;
+    send_data__val = 1'd0;
+    __tmpvar__update_send_val_read_towards = inport_opt.read_reg_towards[2'( __const__reg_bank_id_at_update_send_val )];
+    if ( ( ~reset ) & ( __tmpvar__update_send_val_read_towards > 2'd0 ) ) begin
+      send_data__val = 1'd1;
     end
   end
 
@@ -15113,19 +15998,19 @@ endmodule
 
 
 // PyMTL Component RegisterBankRTL Definition
-// Full name: RegisterBankRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__CtrlType_CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247__reg_bank_id_3__num_registers_8
+// Full name: RegisterBankRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__CtrlType_CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9__reg_bank_id_3__num_registers_8
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py
 
-module RegisterBankRTL__8af41b7a1827606d
+module RegisterBankRTL__9a44c4bf7f9388e0
 (
   input  logic [0:0] clk ,
-  input  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 inport_opt ,
+  input  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 inport_opt ,
   input  logic [0:0] inport_valid [0:2],
   input  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 inport_wdata [0:2],
   input  logic [0:0] reset ,
-  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data_to_fu__msg  ,
-  input logic [0:0] send_data_to_fu__rdy  ,
-  output logic [0:0] send_data_to_fu__val  
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data__msg  ,
+  input logic [0:0] send_data__rdy  ,
+  output logic [0:0] send_data__val  
 );
   localparam logic [1:0] __const__reg_bank_id_at_access_registers  = 2'd3;
   localparam logic [1:0] __const__reg_bank_id_at_update_send_val  = 2'd3;
@@ -15155,22 +16040,26 @@ module RegisterBankRTL__8af41b7a1827606d
   //-------------------------------------------------------------
   // End of component reg_file
   //-------------------------------------------------------------
+  logic [1:0] __tmpvar__access_registers_read_towards;
   logic [1:0] __tmpvar__access_registers_write_reg_from;
+  logic [1:0] __tmpvar__update_send_val_read_towards;
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:41
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:49
   // @update
   // def access_registers():
   //   # Initializes signals.
   //   s.reg_file.raddr[0] @= AddrType()
-  //   s.send_data_to_fu.msg @= DataType()
+  //   s.send_data.msg @= DataType()
   //   s.reg_file.waddr[0] @= AddrType()
   //   s.reg_file.wdata[0] @= DataType()
   //   s.reg_file.wen[0] @= 0
   // 
-  //   if s.inport_opt.read_reg_from[reg_bank_id]:
+  //   read_towards = s.inport_opt.read_reg_towards[reg_bank_id]
+  //   # Reads from register if towards FU (1), routing_xbar (2), or both (3)
+  //   if read_towards > 0:
   //     s.reg_file.raddr[0] @= s.inport_opt.read_reg_idx[reg_bank_id]
-  //     s.send_data_to_fu.msg @= s.reg_file.rdata[0]
+  //     s.send_data.msg @= s.reg_file.rdata[0]
   // 
   //   write_reg_from = s.inport_opt.write_reg_from[reg_bank_id]
   //   if ~s.reset & (write_reg_from > 0):
@@ -15181,13 +16070,14 @@ module RegisterBankRTL__8af41b7a1827606d
   
   always_comb begin : access_registers
     reg_file__raddr[1'd0] = 3'd0;
-    send_data_to_fu__msg = { 32'd0, 1'd0, 1'd0, 1'd0 };
+    send_data__msg = { 32'd0, 1'd0, 1'd0, 1'd0 };
     reg_file__waddr[1'd0] = 3'd0;
     reg_file__wdata[1'd0] = { 32'd0, 1'd0, 1'd0, 1'd0 };
     reg_file__wen[1'd0] = 1'd0;
-    if ( inport_opt.read_reg_from[2'( __const__reg_bank_id_at_access_registers )] ) begin
+    __tmpvar__access_registers_read_towards = inport_opt.read_reg_towards[2'( __const__reg_bank_id_at_access_registers )];
+    if ( __tmpvar__access_registers_read_towards > 2'd0 ) begin
       reg_file__raddr[1'd0] = inport_opt.read_reg_idx[2'( __const__reg_bank_id_at_access_registers )];
-      send_data_to_fu__msg = reg_file__rdata[1'd0];
+      send_data__msg = reg_file__rdata[1'd0];
     end
     __tmpvar__access_registers_write_reg_from = inport_opt.write_reg_from[2'( __const__reg_bank_id_at_access_registers )];
     if ( ( ~reset ) & ( __tmpvar__access_registers_write_reg_from > 2'd0 ) ) begin
@@ -15200,17 +16090,20 @@ module RegisterBankRTL__8af41b7a1827606d
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:61
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterBankRTL.py:71
   // @update
   // def update_send_val():
-  //   s.send_data_to_fu.val @= 0
-  //   if ~s.reset & s.inport_opt.read_reg_from[reg_bank_id]:
-  //     s.send_data_to_fu.val @= 1
+  //   s.send_data.val @= 0
+  //   read_towards = s.inport_opt.read_reg_towards[reg_bank_id]
+  //   # Sends if towards FU or both (i.e. read_towards > 0)
+  //   if ~s.reset & (read_towards > 0):
+  //     s.send_data.val @= 1
   
   always_comb begin : update_send_val
-    send_data_to_fu__val = 1'd0;
-    if ( ( ~reset ) & inport_opt.read_reg_from[2'( __const__reg_bank_id_at_update_send_val )] ) begin
-      send_data_to_fu__val = 1'd1;
+    send_data__val = 1'd0;
+    __tmpvar__update_send_val_read_towards = inport_opt.read_reg_towards[2'( __const__reg_bank_id_at_update_send_val )];
+    if ( ( ~reset ) & ( __tmpvar__update_send_val_read_towards > 2'd0 ) ) begin
+      send_data__val = 1'd1;
     end
   end
 
@@ -15221,13 +16114,13 @@ endmodule
 
 
 // PyMTL Component RegisterClusterRTL Definition
-// Full name: RegisterClusterRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__CtrlType_CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247__num_reg_banks_4__num_registers_per_reg_bank_8
+// Full name: RegisterClusterRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__CtrlType_CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9__num_reg_banks_4__num_registers_per_reg_bank_8
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterClusterRTL.py
 
-module RegisterClusterRTL__16b1f4222fee5c0f
+module RegisterClusterRTL__4cdc70707e060b34
 (
   input  logic [0:0] clk ,
-  input  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 inport_opt ,
+  input  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 inport_opt ,
   input  logic [0:0] reset ,
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_data_from_const__msg [0:3] ,
   output logic [0:0] recv_data_from_const__rdy [0:3] ,
@@ -15240,76 +16133,86 @@ module RegisterClusterRTL__16b1f4222fee5c0f
   input logic [0:0] recv_data_from_routing_crossbar__val [0:3] ,
   output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data_to_fu__msg [0:3] ,
   input logic [0:0] send_data_to_fu__rdy [0:3] ,
-  output logic [0:0] send_data_to_fu__val [0:3] 
+  output logic [0:0] send_data_to_fu__val [0:3] ,
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data_to_routing_crossbar__msg [0:3] ,
+  input logic [0:0] send_data_to_routing_crossbar__rdy [0:3] ,
+  output logic [0:0] send_data_to_routing_crossbar__val [0:3] 
 );
   localparam logic [2:0] __const__num_reg_banks_at_update_msgs_signals  = 3'd4;
+  localparam logic [0:0] __const__kReadTowardsFu  = 1'd1;
+  localparam logic [1:0] __const__kReadTowardsBoth  = 2'd3;
+  localparam logic [1:0] __const__kReadTowardsRoutingXbar  = 2'd2;
+  localparam logic [6:0] __const__OPT_NAH  = 7'd1;
   //-------------------------------------------------------------
   // Component reg_bank[0:3]
   //-------------------------------------------------------------
 
   logic [0:0] reg_bank__clk [0:3];
-  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 reg_bank__inport_opt [0:3];
+  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 reg_bank__inport_opt [0:3];
   logic [0:0] reg_bank__inport_valid [0:3][0:2];
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 reg_bank__inport_wdata [0:3][0:2];
   logic [0:0] reg_bank__reset [0:3];
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 reg_bank__send_data_to_fu__msg [0:3];
-  logic [0:0] reg_bank__send_data_to_fu__rdy [0:3];
-  logic [0:0] reg_bank__send_data_to_fu__val [0:3];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 reg_bank__send_data__msg [0:3];
+  logic [0:0] reg_bank__send_data__rdy [0:3];
+  logic [0:0] reg_bank__send_data__val [0:3];
 
-  RegisterBankRTL__41835da5649f8737 reg_bank__0
+  RegisterBankRTL__493e7203765a09b1 reg_bank__0
   (
     .clk( reg_bank__clk[0] ),
     .inport_opt( reg_bank__inport_opt[0] ),
     .inport_valid( reg_bank__inport_valid[0] ),
     .inport_wdata( reg_bank__inport_wdata[0] ),
     .reset( reg_bank__reset[0] ),
-    .send_data_to_fu__msg( reg_bank__send_data_to_fu__msg[0] ),
-    .send_data_to_fu__rdy( reg_bank__send_data_to_fu__rdy[0] ),
-    .send_data_to_fu__val( reg_bank__send_data_to_fu__val[0] )
+    .send_data__msg( reg_bank__send_data__msg[0] ),
+    .send_data__rdy( reg_bank__send_data__rdy[0] ),
+    .send_data__val( reg_bank__send_data__val[0] )
   );
 
-  RegisterBankRTL__0746f438584da18a reg_bank__1
+  RegisterBankRTL__3596ca3621cddc37 reg_bank__1
   (
     .clk( reg_bank__clk[1] ),
     .inport_opt( reg_bank__inport_opt[1] ),
     .inport_valid( reg_bank__inport_valid[1] ),
     .inport_wdata( reg_bank__inport_wdata[1] ),
     .reset( reg_bank__reset[1] ),
-    .send_data_to_fu__msg( reg_bank__send_data_to_fu__msg[1] ),
-    .send_data_to_fu__rdy( reg_bank__send_data_to_fu__rdy[1] ),
-    .send_data_to_fu__val( reg_bank__send_data_to_fu__val[1] )
+    .send_data__msg( reg_bank__send_data__msg[1] ),
+    .send_data__rdy( reg_bank__send_data__rdy[1] ),
+    .send_data__val( reg_bank__send_data__val[1] )
   );
 
-  RegisterBankRTL__230e7df840565f2a reg_bank__2
+  RegisterBankRTL__c9691accc64d09b9 reg_bank__2
   (
     .clk( reg_bank__clk[2] ),
     .inport_opt( reg_bank__inport_opt[2] ),
     .inport_valid( reg_bank__inport_valid[2] ),
     .inport_wdata( reg_bank__inport_wdata[2] ),
     .reset( reg_bank__reset[2] ),
-    .send_data_to_fu__msg( reg_bank__send_data_to_fu__msg[2] ),
-    .send_data_to_fu__rdy( reg_bank__send_data_to_fu__rdy[2] ),
-    .send_data_to_fu__val( reg_bank__send_data_to_fu__val[2] )
+    .send_data__msg( reg_bank__send_data__msg[2] ),
+    .send_data__rdy( reg_bank__send_data__rdy[2] ),
+    .send_data__val( reg_bank__send_data__val[2] )
   );
 
-  RegisterBankRTL__8af41b7a1827606d reg_bank__3
+  RegisterBankRTL__9a44c4bf7f9388e0 reg_bank__3
   (
     .clk( reg_bank__clk[3] ),
     .inport_opt( reg_bank__inport_opt[3] ),
     .inport_valid( reg_bank__inport_valid[3] ),
     .inport_wdata( reg_bank__inport_wdata[3] ),
     .reset( reg_bank__reset[3] ),
-    .send_data_to_fu__msg( reg_bank__send_data_to_fu__msg[3] ),
-    .send_data_to_fu__rdy( reg_bank__send_data_to_fu__rdy[3] ),
-    .send_data_to_fu__val( reg_bank__send_data_to_fu__val[3] )
+    .send_data__msg( reg_bank__send_data__msg[3] ),
+    .send_data__rdy( reg_bank__send_data__rdy[3] ),
+    .send_data__val( reg_bank__send_data__val[3] )
   );
 
   //-------------------------------------------------------------
   // End of component reg_bank[0:3]
   //-------------------------------------------------------------
+  logic [1:0] __tmpvar__update_msgs_signals_read_towards;
+  logic [0:0] __tmpvar__update_msgs_signals_reg_towards_fu;
+  logic [0:0] __tmpvar__update_msgs_signals_reg_towards_routing_xbar;
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterClusterRTL.py:45
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/mem/register_cluster/RegisterClusterRTL.py:60
   // @update
   // def update_msgs_signals():
   //   # Initializes signals.
@@ -15319,26 +16222,38 @@ module RegisterClusterRTL__16b1f4222fee5c0f
   //     s.recv_data_from_fu_crossbar[i].rdy @= 0
   //     s.recv_data_from_const[i].rdy @= 0
   //     s.send_data_to_fu[i].val @= 0
+  //     s.send_data_to_routing_crossbar[i].msg @= DataType()
+  //     s.send_data_to_routing_crossbar[i].val @= 0
   // 
   //   for i in range(num_reg_banks):
-  //     # Compiler must make sure read_reg and routing do not happen at the same clock cycle, 
-  //     # otherwise the data read from register bank will overwrite the routing data, incurs
-  //     # unexpected behavior.
-  //     if s.reg_bank[i].send_data_to_fu.val:
+  //     read_towards = s.inport_opt.read_reg_towards[i]
+  //     # Checks if data should go towards FU (1 or 3)
+  //     reg_towards_fu = (read_towards == kReadTowardsFu) | (read_towards == kReadTowardsBoth)
+  //     # Checks if data should go towards routing_xbar (2 or 3)
+  //     reg_towards_routing_xbar = (read_towards == kReadTowardsRoutingXbar) | (read_towards == kReadTowardsBoth)
+  // 
+  //     # Data from register bank has priority over routing crossbar data for FU path.
+  //     # Note: reg_bank[i].send_data.val is set based on read_reg_towards in RegisterBankRTL.
+  //     if s.reg_bank[i].send_data.val & reg_towards_fu:
   //       s.send_data_to_fu[i].msg @= \
-  //         s.reg_bank[i].send_data_to_fu.msg
+  //         s.reg_bank[i].send_data.msg
   //     elif s.recv_data_from_routing_crossbar[i].val:
   //       s.send_data_to_fu[i].msg @= \
   //         s.recv_data_from_routing_crossbar[i].msg
   // 
   //     s.send_data_to_fu[i].val @= \
   //         s.recv_data_from_routing_crossbar[i].val | \
-  //         s.reg_bank[i].send_data_to_fu.val
-  //     s.reg_bank[i].send_data_to_fu.rdy @= s.send_data_to_fu[i].rdy
+  //         (s.reg_bank[i].send_data.val & reg_towards_fu)
+  //     s.reg_bank[i].send_data.rdy @= s.send_data_to_fu[i].rdy
   // 
-  //     s.recv_data_from_routing_crossbar[i].rdy @= s.send_data_to_fu[i].rdy
+  //     s.recv_data_from_routing_crossbar[i].rdy @= (s.inport_opt.operation == OPT_NAH) | (s.inport_opt.fu_in[i] == 0) | reg_towards_fu | s.send_data_to_fu[i].rdy
   //     s.recv_data_from_fu_crossbar[i].rdy @= 1
   //     s.recv_data_from_const[i].rdy @= 1
+  // 
+  //     # Drive the direct reg -> routing_crossbar path.
+  //     if reg_towards_routing_xbar:
+  //       s.send_data_to_routing_crossbar[i].msg @= s.reg_bank[i].send_data.msg
+  //       s.send_data_to_routing_crossbar[i].val @= 1
   
   always_comb begin : update_msgs_signals
     for ( int unsigned i = 1'd0; i < 3'( __const__num_reg_banks_at_update_msgs_signals ); i += 1'd1 ) begin
@@ -15347,19 +16262,28 @@ module RegisterClusterRTL__16b1f4222fee5c0f
       recv_data_from_fu_crossbar__rdy[2'(i)] = 1'd0;
       recv_data_from_const__rdy[2'(i)] = 1'd0;
       send_data_to_fu__val[2'(i)] = 1'd0;
+      send_data_to_routing_crossbar__msg[2'(i)] = { 32'd0, 1'd0, 1'd0, 1'd0 };
+      send_data_to_routing_crossbar__val[2'(i)] = 1'd0;
     end
     for ( int unsigned i = 1'd0; i < 3'( __const__num_reg_banks_at_update_msgs_signals ); i += 1'd1 ) begin
-      if ( reg_bank__send_data_to_fu__val[2'(i)] ) begin
-        send_data_to_fu__msg[2'(i)] = reg_bank__send_data_to_fu__msg[2'(i)];
+      __tmpvar__update_msgs_signals_read_towards = inport_opt.read_reg_towards[2'(i)];
+      __tmpvar__update_msgs_signals_reg_towards_fu = ( __tmpvar__update_msgs_signals_read_towards == 2'( __const__kReadTowardsFu ) ) | ( __tmpvar__update_msgs_signals_read_towards == 2'( __const__kReadTowardsBoth ) );
+      __tmpvar__update_msgs_signals_reg_towards_routing_xbar = ( __tmpvar__update_msgs_signals_read_towards == 2'( __const__kReadTowardsRoutingXbar ) ) | ( __tmpvar__update_msgs_signals_read_towards == 2'( __const__kReadTowardsBoth ) );
+      if ( reg_bank__send_data__val[2'(i)] & __tmpvar__update_msgs_signals_reg_towards_fu ) begin
+        send_data_to_fu__msg[2'(i)] = reg_bank__send_data__msg[2'(i)];
       end
       else if ( recv_data_from_routing_crossbar__val[2'(i)] ) begin
         send_data_to_fu__msg[2'(i)] = recv_data_from_routing_crossbar__msg[2'(i)];
       end
-      send_data_to_fu__val[2'(i)] = recv_data_from_routing_crossbar__val[2'(i)] | reg_bank__send_data_to_fu__val[2'(i)];
-      reg_bank__send_data_to_fu__rdy[2'(i)] = send_data_to_fu__rdy[2'(i)];
-      recv_data_from_routing_crossbar__rdy[2'(i)] = send_data_to_fu__rdy[2'(i)];
+      send_data_to_fu__val[2'(i)] = recv_data_from_routing_crossbar__val[2'(i)] | ( reg_bank__send_data__val[2'(i)] & __tmpvar__update_msgs_signals_reg_towards_fu );
+      reg_bank__send_data__rdy[2'(i)] = send_data_to_fu__rdy[2'(i)];
+      recv_data_from_routing_crossbar__rdy[2'(i)] = ( ( ( inport_opt.operation == 7'( __const__OPT_NAH ) ) | ( inport_opt.fu_in[2'(i)] == 3'd0 ) ) | __tmpvar__update_msgs_signals_reg_towards_fu ) | send_data_to_fu__rdy[2'(i)];
       recv_data_from_fu_crossbar__rdy[2'(i)] = 1'd1;
       recv_data_from_const__rdy[2'(i)] = 1'd1;
+      if ( __tmpvar__update_msgs_signals_reg_towards_routing_xbar ) begin
+        send_data_to_routing_crossbar__msg[2'(i)] = reg_bank__send_data__msg[2'(i)];
+        send_data_to_routing_crossbar__val[2'(i)] = 1'd1;
+      end
     end
   end
 
@@ -15404,17 +16328,17 @@ endmodule
 
 
 // PyMTL Component CrossbarRTL Definition
-// Full name: CrossbarRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__CtrlType_CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247__num_inports_8__num_outports_12__num_cgras_1__num_tiles_16__ctrl_mem_size_6__outport_towards_local_base_id_8
+// Full name: CrossbarRTL__DataType_CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1__CtrlType_CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9__num_inports_8__num_outports_8__num_cgras_4__num_tiles_16__ctrl_mem_size_6__outport_towards_local_base_id_4
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py
 
-module CrossbarRTL__bb33a9167580e3c1
+module CrossbarRTL__02e96482e8ce053d
 (
-  input  logic [0:0] cgra_id ,
+  input  logic [1:0] cgra_id ,
   input  logic [0:0] clear ,
   input  logic [0:0] clk ,
   input  logic [0:0] compute_done ,
   input  logic [0:0] crossbar_id ,
-  input  logic [3:0] crossbar_outport [0:11],
+  input  logic [3:0] crossbar_outport [0:7],
   input  logic [2:0] ctrl_addr_inport ,
   input  logic [2:0] prologue_count_inport [0:5][0:7],
   input  logic [0:0] reset ,
@@ -15422,50 +16346,50 @@ module CrossbarRTL__bb33a9167580e3c1
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_data__msg [0:7] ,
   output logic [0:0] recv_data__rdy [0:7] ,
   input logic [0:0] recv_data__val [0:7] ,
-  input CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 recv_opt__msg  ,
+  input CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 recv_opt__msg  ,
   output logic [0:0] recv_opt__rdy  ,
   input logic [0:0] recv_opt__val  ,
-  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data__msg [0:11] ,
-  input logic [0:0] send_data__rdy [0:11] ,
-  output logic [0:0] send_data__val [0:11] 
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data__msg [0:7] ,
+  input logic [0:0] send_data__rdy [0:7] ,
+  output logic [0:0] send_data__val [0:7] 
 );
   localparam logic [3:0] __const__num_inports_at_update_signal  = 4'd8;
-  localparam logic [3:0] __const__num_outports_at_update_signal  = 4'd12;
+  localparam logic [3:0] __const__num_outports_at_update_signal  = 4'd8;
   localparam logic [6:0] __const__OPT_START  = 7'd0;
   localparam logic [2:0] __const__ctrl_mem_size_at_update_prologue_counter  = 3'd6;
   localparam logic [3:0] __const__num_inports_at_update_prologue_counter  = 4'd8;
   localparam logic [2:0] __const__ctrl_mem_size_at_update_prologue_counter_next  = 3'd6;
   localparam logic [3:0] __const__num_inports_at_update_prologue_counter_next  = 4'd8;
-  localparam logic [3:0] __const__num_outports_at_update_prologue_counter_next  = 4'd12;
-  localparam logic [3:0] __const__num_outports_at_update_send_accepted_next  = 4'd12;
-  localparam logic [3:0] __const__num_outports_at_update_prologue_allowing_vector  = 4'd12;
-  localparam logic [3:0] __const__num_outports_at_update_prologue_or_valid_vector  = 4'd12;
-  localparam logic [3:0] __const__num_outports_at_update_in_dir_vector  = 4'd12;
-  localparam logic [3:0] __const__num_outports_at_update_rdy_vector  = 4'd12;
-  localparam logic [3:0] __const__outport_towards_local_base_id_at_update_rdy_vector  = 4'd8;
-  localparam logic [3:0] __const__num_outports_at_update_valid_vector  = 4'd12;
+  localparam logic [3:0] __const__num_outports_at_update_prologue_counter_next  = 4'd8;
+  localparam logic [3:0] __const__num_outports_at_update_send_accepted_next  = 4'd8;
+  localparam logic [3:0] __const__num_outports_at_update_prologue_allowing_vector  = 4'd8;
+  localparam logic [3:0] __const__num_outports_at_update_prologue_or_valid_vector  = 4'd8;
+  localparam logic [3:0] __const__num_outports_at_update_in_dir_vector  = 4'd8;
+  localparam logic [3:0] __const__num_outports_at_update_rdy_vector  = 4'd8;
+  localparam logic [2:0] __const__outport_towards_local_base_id_at_update_rdy_vector  = 3'd4;
+  localparam logic [3:0] __const__num_outports_at_update_valid_vector  = 4'd8;
   localparam logic [3:0] __const__num_inports_at_update_recv_required_vector  = 4'd8;
-  localparam logic [3:0] __const__num_outports_at_update_recv_required_vector  = 4'd12;
-  localparam logic [3:0] __const__num_outports_at_update_send_required_vector  = 4'd12;
+  localparam logic [3:0] __const__num_outports_at_update_recv_required_vector  = 4'd8;
+  localparam logic [3:0] __const__num_outports_at_update_send_required_vector  = 4'd8;
   logic [0:0] all_send_accepted;
-  logic [3:0] in_dir [0:11];
-  logic [2:0] in_dir_local [0:11];
-  logic [11:0] prologue_allowing_vector;
+  logic [3:0] in_dir [0:7];
+  logic [2:0] in_dir_local [0:7];
+  logic [7:0] prologue_allowing_vector;
   logic [2:0] prologue_count_wire [0:5][0:7];
   logic [2:0] prologue_counter [0:5][0:7];
   logic [2:0] prologue_counter_next [0:5][0:7];
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_data_msg [0:7];
   logic [0:0] recv_data_val [0:7];
   logic [7:0] recv_required_vector;
-  logic [11:0] recv_valid_or_prologue_allowing_vector;
-  logic [11:0] recv_valid_vector;
-  logic [11:0] send_accepted;
-  logic [11:0] send_accepted_next;
-  logic [11:0] send_rdy_vector;
-  logic [11:0] send_required_vector;
+  logic [7:0] recv_valid_or_prologue_allowing_vector;
+  logic [7:0] recv_valid_vector;
+  logic [7:0] send_accepted;
+  logic [7:0] send_accepted_next;
+  logic [7:0] send_rdy_vector;
+  logic [7:0] send_required_vector;
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:219
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:230
   // @update
   // def update_in_dir_vector():
   // 
@@ -15480,19 +16404,19 @@ module CrossbarRTL__bb33a9167580e3c1
   
   always_comb begin : update_in_dir_vector
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_in_dir_vector ); i += 1'd1 ) begin
-      in_dir[4'(i)] = 4'd0;
-      in_dir_local[4'(i)] = 3'd0;
+      in_dir[3'(i)] = 4'd0;
+      in_dir_local[3'(i)] = 3'd0;
     end
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_in_dir_vector ); i += 1'd1 ) begin
-      in_dir[4'(i)] = crossbar_outport[4'(i)];
-      if ( in_dir[4'(i)] > 4'd0 ) begin
-        in_dir_local[4'(i)] = 3'(in_dir[4'(i)] - 4'd1);
+      in_dir[3'(i)] = crossbar_outport[3'(i)];
+      if ( in_dir[3'(i)] > 4'd0 ) begin
+        in_dir_local[3'(i)] = 3'(in_dir[3'(i)] - 4'd1);
       end
     end
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:200
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:211
   // @update
   // def update_prologue_allowing_vector():
   //   s.prologue_allowing_vector @= 0
@@ -15506,17 +16430,17 @@ module CrossbarRTL__bb33a9167580e3c1
   //       s.prologue_allowing_vector[i] @= 1
   
   always_comb begin : update_prologue_allowing_vector
-    prologue_allowing_vector = 12'd0;
+    prologue_allowing_vector = 8'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_prologue_allowing_vector ); i += 1'd1 )
-      if ( in_dir[4'(i)] > 4'd0 ) begin
-        prologue_allowing_vector[4'(i)] = prologue_counter[ctrl_addr_inport][in_dir_local[4'(i)]] < prologue_count_wire[ctrl_addr_inport][in_dir_local[4'(i)]];
+      if ( in_dir[3'(i)] > 4'd0 ) begin
+        prologue_allowing_vector[3'(i)] = prologue_counter[ctrl_addr_inport][in_dir_local[3'(i)]] < prologue_count_wire[ctrl_addr_inport][in_dir_local[3'(i)]];
       end
       else
-        prologue_allowing_vector[4'(i)] = 1'd1;
+        prologue_allowing_vector[3'(i)] = 1'd1;
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:162
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:173
   // @update
   // def update_prologue_counter_next():
   //   # Nested-loop to update the prologue counter, to avoid dynamic indexing to
@@ -15537,14 +16461,14 @@ module CrossbarRTL__bb33a9167580e3c1
       for ( int unsigned i = 1'd0; i < 4'( __const__num_inports_at_update_prologue_counter_next ); i += 1'd1 ) begin
         prologue_counter_next[3'(addr)][3'(i)] = prologue_counter[3'(addr)][3'(i)];
         for ( int unsigned j = 1'd0; j < 4'( __const__num_outports_at_update_prologue_counter_next ); j += 1'd1 )
-          if ( ( ( ( recv_opt__rdy & ( in_dir[4'(j)] > 4'd0 ) ) & ( in_dir_local[4'(j)] == 3'(i) ) ) & ( 3'(addr) == ctrl_addr_inport ) ) & ( prologue_counter[3'(addr)][3'(i)] < prologue_count_wire[3'(addr)][3'(i)] ) ) begin
+          if ( ( ( ( recv_opt__rdy & ( in_dir[3'(j)] > 4'd0 ) ) & ( in_dir_local[3'(j)] == 3'(i) ) ) & ( 3'(addr) == ctrl_addr_inport ) ) & ( prologue_counter[3'(addr)][3'(i)] < prologue_count_wire[3'(addr)][3'(i)] ) ) begin
             prologue_counter_next[3'(addr)][3'(i)] = prologue_counter[3'(addr)][3'(i)] + 3'd1;
           end
       end
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:212
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:223
   // @update
   // def update_prologue_or_valid_vector():
   //   s.recv_valid_or_prologue_allowing_vector @= 0
@@ -15553,13 +16477,13 @@ module CrossbarRTL__bb33a9167580e3c1
   //         s.recv_valid_vector[i] | s.prologue_allowing_vector[i]
   
   always_comb begin : update_prologue_or_valid_vector
-    recv_valid_or_prologue_allowing_vector = 12'd0;
+    recv_valid_or_prologue_allowing_vector = 8'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_prologue_or_valid_vector ); i += 1'd1 )
-      recv_valid_or_prologue_allowing_vector[4'(i)] = recv_valid_vector[4'(i)] | prologue_allowing_vector[4'(i)];
+      recv_valid_or_prologue_allowing_vector[3'(i)] = recv_valid_vector[3'(i)] | prologue_allowing_vector[3'(i)];
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:231
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:242
   // @update
   // def update_rdy_vector():
   //   s.send_rdy_vector @= 0
@@ -15571,42 +16495,49 @@ module CrossbarRTL__bb33a9167580e3c1
   //     # the compute is already completed.
   //     if (s.in_dir[i] > 0) & \
   //        (~s.compute_done | (i < outport_towards_local_base_id)):
-  //       s.send_rdy_vector[i] @= s.send_data[i].rdy
+  //       # When prologue is active for this output's input, don't
+  //       # require the downstream channel to be ready -- we won't be
+  //       # sending any data through it during prologue anyway.
+  //       s.send_rdy_vector[i] @= s.send_data[i].rdy | \
+  //                                s.prologue_allowing_vector[i]
   //     else:
   //       s.send_rdy_vector[i] @= 1
   
   always_comb begin : update_rdy_vector
-    send_rdy_vector = 12'd0;
+    send_rdy_vector = 8'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_rdy_vector ); i += 1'd1 )
-      if ( ( in_dir[4'(i)] > 4'd0 ) & ( ( ~compute_done ) | ( 4'(i) < 4'( __const__outport_towards_local_base_id_at_update_rdy_vector ) ) ) ) begin
-        send_rdy_vector[4'(i)] = send_data__rdy[4'(i)];
+      if ( ( in_dir[3'(i)] > 4'd0 ) & ( ( ~compute_done ) | ( 3'(i) < 3'( __const__outport_towards_local_base_id_at_update_rdy_vector ) ) ) ) begin
+        send_rdy_vector[3'(i)] = send_data__rdy[3'(i)] | prologue_allowing_vector[3'(i)];
       end
       else
-        send_rdy_vector[4'(i)] = 1'd1;
+        send_rdy_vector[3'(i)] = 1'd1;
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:255
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:280
   // @update
   // def update_recv_required_vector():
   //   for i in range(num_inports):
   //     s.recv_required_vector[i] @= 0
   // 
   //   for i in range(num_outports):
-  //     if s.in_dir[i] > 0:
+  //     # An input is required only when it feeds an output that is not
+  //     # being bypassed by prologue.  This matches the send_required
+  //     # masking above so that prologued inputs are not consumed.
+  //     if (s.in_dir[i] > 0) & ~s.prologue_allowing_vector[i]:
   //       s.recv_required_vector[s.in_dir_local[i]] @= 1
   
   always_comb begin : update_recv_required_vector
     for ( int unsigned i = 1'd0; i < 4'( __const__num_inports_at_update_recv_required_vector ); i += 1'd1 )
       recv_required_vector[3'(i)] = 1'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_recv_required_vector ); i += 1'd1 )
-      if ( in_dir[4'(i)] > 4'd0 ) begin
-        recv_required_vector[in_dir_local[4'(i)]] = 1'd1;
+      if ( ( in_dir[3'(i)] > 4'd0 ) & ( ~prologue_allowing_vector[3'(i)] ) ) begin
+        recv_required_vector[in_dir_local[3'(i)]] = 1'd1;
       end
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:177
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:188
   // @update
   // def update_send_accepted_next():
   //   # By default, hold the current value.
@@ -15634,19 +16565,19 @@ module CrossbarRTL__bb33a9167580e3c1
     send_accepted_next = send_accepted;
     if ( recv_opt__val & ( recv_opt__msg.operation != 7'( __const__OPT_START ) ) ) begin
       for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_send_accepted_next ); i += 1'd1 )
-        if ( ( ( send_required_vector[4'(i)] & ( ~send_accepted[4'(i)] ) ) & send_data__rdy[4'(i)] ) & send_data__val[4'(i)] ) begin
-          send_accepted_next[4'(i)] = 1'd1;
+        if ( ( ( send_required_vector[3'(i)] & ( ~send_accepted[3'(i)] ) ) & send_data__rdy[3'(i)] ) & send_data__val[3'(i)] ) begin
+          send_accepted_next[3'(i)] = 1'd1;
         end
       if ( recv_opt__rdy ) begin
-        send_accepted_next = 12'd0;
+        send_accepted_next = 8'd0;
       end
     end
     else
-      send_accepted_next = 12'd0;
+      send_accepted_next = 8'd0;
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:264
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:292
   // @update
   // def update_send_required_vector():
   // 
@@ -15654,15 +16585,20 @@ module CrossbarRTL__bb33a9167580e3c1
   //     s.send_required_vector[i] @= 0
   // 
   //   for i in range(num_outports):
-  //     if s.in_dir[i] > 0:
+  //     # An output is required only when it has a mapped input AND
+  //     # that input is NOT being bypassed by the prologue mechanism.
+  //     # During prologue, the crossbar must not attempt to send data
+  //     # on outputs fed by prologued inputs; otherwise a full
+  //     # downstream channel would block the entire crossbar.
+  //     if (s.in_dir[i] > 0) & ~s.prologue_allowing_vector[i]:
   //       s.send_required_vector[i] @= 1
   
   always_comb begin : update_send_required_vector
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_send_required_vector ); i += 1'd1 )
-      send_required_vector[4'(i)] = 1'd0;
+      send_required_vector[3'(i)] = 1'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_send_required_vector ); i += 1'd1 )
-      if ( in_dir[4'(i)] > 4'd0 ) begin
-        send_required_vector[4'(i)] = 1'd1;
+      if ( ( in_dir[3'(i)] > 4'd0 ) & ( ~prologue_allowing_vector[3'(i)] ) ) begin
+        send_required_vector[3'(i)] = 1'd1;
       end
   end
 
@@ -15690,7 +16626,13 @@ module CrossbarRTL__bb33a9167580e3c1
   //         s.all_send_accepted @= 0
   // 
   //     for i in range(num_inports):
-  //       s.recv_data[i].rdy @= reduce_and(s.recv_valid_vector) & \
+  //       # Use recv_valid_or_prologue_allowing_vector for the gate so
+  //       # that prologued inputs (which may or may not have data) do
+  //       # not prevent non-prologued data from flowing.  The separate
+  //       # recv_required_vector (which excludes prologued inputs)
+  //       # ensures we never actually dequeue data from a prologued
+  //       # input channel.
+  //       s.recv_data[i].rdy @= reduce_and(s.recv_valid_or_prologue_allowing_vector) & \
   //                             s.all_send_accepted & \
   //                             s.recv_required_vector[i]
   // 
@@ -15699,10 +16641,15 @@ module CrossbarRTL__bb33a9167580e3c1
   //       # yet accepted in a previous cycle.  This prevents duplicate
   //       # delivery without making val depend on rdy (send_accepted is
   //       # a register, so this is purely val-depends-on-registered-state).
-  //       s.send_data[i].val @= reduce_and(s.recv_valid_vector) & \
+  //       #
+  //       # Uses recv_valid_or_prologue_allowing_vector as the gate so
+  //       # that prologued inputs (bypassed) do not suppress sends on
+  //       # non-prologued outputs.  send_required_vector already
+  //       # excludes prologued outputs, so they will never assert val.
+  //       s.send_data[i].val @= reduce_and(s.recv_valid_or_prologue_allowing_vector) & \
   //                             s.send_required_vector[i] & \
   //                             ~s.send_accepted[i]
-  //       if reduce_and(s.recv_valid_vector) & \
+  //       if reduce_and(s.recv_valid_or_prologue_allowing_vector) & \
   //          s.send_required_vector[i] & \
   //          ~s.send_accepted[i]:
   //         s.send_data[i].msg.payload @= s.recv_data_msg[s.in_dir_local[i]].payload
@@ -15715,24 +16662,24 @@ module CrossbarRTL__bb33a9167580e3c1
     for ( int unsigned i = 1'd0; i < 4'( __const__num_inports_at_update_signal ); i += 1'd1 )
       recv_data__rdy[3'(i)] = 1'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_signal ); i += 1'd1 ) begin
-      send_data__val[4'(i)] = 1'd0;
-      send_data__msg[4'(i)] = { 32'd0, 1'd0, 1'd0, 1'd0 };
+      send_data__val[3'(i)] = 1'd0;
+      send_data__msg[3'(i)] = { 32'd0, 1'd0, 1'd0, 1'd0 };
     end
     recv_opt__rdy = 1'd0;
     all_send_accepted = 1'd0;
     if ( recv_opt__val & ( recv_opt__msg.operation != 7'( __const__OPT_START ) ) ) begin
       all_send_accepted = 1'd1;
       for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_signal ); i += 1'd1 )
-        if ( ( send_required_vector[4'(i)] & ( ~send_accepted[4'(i)] ) ) & ( ~send_rdy_vector[4'(i)] ) ) begin
+        if ( ( send_required_vector[3'(i)] & ( ~send_accepted[3'(i)] ) ) & ( ~send_rdy_vector[3'(i)] ) ) begin
           all_send_accepted = 1'd0;
         end
       for ( int unsigned i = 1'd0; i < 4'( __const__num_inports_at_update_signal ); i += 1'd1 )
-        recv_data__rdy[3'(i)] = ( ( & recv_valid_vector ) & all_send_accepted ) & recv_required_vector[3'(i)];
+        recv_data__rdy[3'(i)] = ( ( & recv_valid_or_prologue_allowing_vector ) & all_send_accepted ) & recv_required_vector[3'(i)];
       for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_signal ); i += 1'd1 ) begin
-        send_data__val[4'(i)] = ( ( & recv_valid_vector ) & send_required_vector[4'(i)] ) & ( ~send_accepted[4'(i)] );
-        if ( ( ( & recv_valid_vector ) & send_required_vector[4'(i)] ) & ( ~send_accepted[4'(i)] ) ) begin
-          send_data__msg[4'(i)].payload = recv_data_msg[in_dir_local[4'(i)]].payload;
-          send_data__msg[4'(i)].predicate = recv_data_msg[in_dir_local[4'(i)]].predicate;
+        send_data__val[3'(i)] = ( ( & recv_valid_or_prologue_allowing_vector ) & send_required_vector[3'(i)] ) & ( ~send_accepted[3'(i)] );
+        if ( ( ( & recv_valid_or_prologue_allowing_vector ) & send_required_vector[3'(i)] ) & ( ~send_accepted[3'(i)] ) ) begin
+          send_data__msg[3'(i)].payload = recv_data_msg[in_dir_local[3'(i)]].payload;
+          send_data__msg[3'(i)].predicate = recv_data_msg[in_dir_local[3'(i)]].predicate;
         end
       end
       recv_opt__rdy = all_send_accepted & ( & recv_valid_or_prologue_allowing_vector );
@@ -15740,28 +16687,38 @@ module CrossbarRTL__bb33a9167580e3c1
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:246
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:261
   // @update
   // def update_valid_vector():
   //   s.recv_valid_vector @= 0
   //   for i in range(num_outports):
   //     if s.in_dir[i] > 0:
-  //       s.recv_valid_vector[i] @= s.recv_data_val[s.in_dir_local[i]]
+  //       # When prologue is active for this output's input, treat the
+  //       # input as not-valid even if data is physically present in the
+  //       # channel.  This prevents the crossbar from asserting
+  //       # send_data.val (and therefore potentially blocking on a full
+  //       # downstream channel) during prologue steps.  Without this
+  //       # masking, stale data that happens to sit in a channel can
+  //       # trick the crossbar into attempting a send, and if the
+  //       # destination channel is full the all-or-nothing semantics
+  //       # cause a deadlock.
+  //       s.recv_valid_vector[i] @= s.recv_data_val[s.in_dir_local[i]] & \
+  //                                  ~s.prologue_allowing_vector[i]
   //     else:
   //       s.recv_valid_vector[i] @= 1
   
   always_comb begin : update_valid_vector
-    recv_valid_vector = 12'd0;
+    recv_valid_vector = 8'd0;
     for ( int unsigned i = 1'd0; i < 4'( __const__num_outports_at_update_valid_vector ); i += 1'd1 )
-      if ( in_dir[4'(i)] > 4'd0 ) begin
-        recv_valid_vector[4'(i)] = recv_data_val[in_dir_local[4'(i)]];
+      if ( in_dir[3'(i)] > 4'd0 ) begin
+        recv_valid_vector[3'(i)] = recv_data_val[in_dir_local[3'(i)]] & ( ~prologue_allowing_vector[3'(i)] );
       end
       else
-        recv_valid_vector[4'(i)] = 1'd1;
+        recv_valid_vector[3'(i)] = 1'd1;
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:149
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/noc/CrossbarRTL.py:160
   // @update_ff
   // def update_prologue_counter():
   //   if s.reset | s.clear:
@@ -15780,7 +16737,7 @@ module CrossbarRTL__bb33a9167580e3c1
       for ( int unsigned addr = 1'd0; addr < 3'( __const__ctrl_mem_size_at_update_prologue_counter ); addr += 1'd1 )
         for ( int unsigned i = 1'd0; i < 4'( __const__num_inports_at_update_prologue_counter ); i += 1'd1 )
           prologue_counter[3'(addr)][3'(i)] <= 3'd0;
-      send_accepted <= 12'd0;
+      send_accepted <= 8'd0;
     end
     else begin
       for ( int unsigned addr = 1'd0; addr < 3'( __const__ctrl_mem_size_at_update_prologue_counter ); addr += 1'd1 )
@@ -16163,28 +17120,28 @@ endmodule
 
 
 // PyMTL Component TileRTL Definition
-// Full name: TileRTL__IntraCgraPktType_IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3__ctrl_mem_size_6__data_mem_size_128__num_ctrl_4__total_steps_42__num_fu_inports_4__num_fu_outports_2__num_tile_inports_8__num_tile_outports_8__num_cgras_1__num_tiles_16__num_registers_per_reg_bank_8__Fu_FlexibleFuRTL__FuList_[<class 'VectorCGRA.fu.single.AdderRTL.AdderRTL'>, <class 'VectorCGRA.fu.single.MulRTL.MulRTL'>, <class 'VectorCGRA.fu.single.LogicRTL.LogicRTL'>, <class 'VectorCGRA.fu.single.CompRTL.CompRTL'>, <class 'VectorCGRA.fu.single.GrantRTL.GrantRTL'>, <class 'VectorCGRA.fu.single.PhiRTL.PhiRTL'>, <class 'VectorCGRA.fu.single.MemUnitRTL.MemUnitRTL'>, <class 'VectorCGRA.fu.single.RetRTL.RetRTL'>, <class 'VectorCGRA.fu.single.NahRTL.NahRTL'>]
+// Full name: TileRTL__IntraCgraPktType_IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e__ctrl_mem_size_6__data_mem_size_128__num_ctrl_5__total_steps_90__num_fu_inports_4__num_fu_outports_2__num_tile_inports_4__num_tile_outports_4__num_cgras_4__num_tiles_16__num_registers_per_reg_bank_8__Fu_FlexibleFuRTL__FuList_[<class 'VectorCGRA.fu.single.AdderRTL.AdderRTL'>, <class 'VectorCGRA.fu.single.MulRTL.MulRTL'>, <class 'VectorCGRA.fu.single.LogicRTL.LogicRTL'>, <class 'VectorCGRA.fu.single.ShifterRTL.ShifterRTL'>, <class 'VectorCGRA.fu.single.PhiRTL.PhiRTL'>, <class 'VectorCGRA.fu.single.CompRTL.CompRTL'>, <class 'VectorCGRA.fu.single.GrantRTL.GrantRTL'>, <class 'VectorCGRA.fu.single.MemUnitRTL.MemUnitRTL'>, <class 'VectorCGRA.fu.single.SelRTL.SelRTL'>, <class 'VectorCGRA.fu.single.RetRTL.RetRTL'>, <class 'VectorCGRA.fu.single.NahRTL.NahRTL'>]
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/tile/TileRTL.py
 
-module TileRTL__3ef4e58633c18b24
+module TileRTL__6b09fc00ec3321d7
 (
-  input  logic [0:0] cgra_id ,
+  input  logic [1:0] cgra_id ,
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
   input  logic [4:0] tile_id ,
   input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 from_mem_rdata__msg  ,
   output logic [0:0] from_mem_rdata__rdy  ,
   input logic [0:0] from_mem_rdata__val  ,
-  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_data__msg [0:7] ,
-  output logic [0:0] recv_data__rdy [0:7] ,
-  input logic [0:0] recv_data__val [0:7] ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv_from_controller_pkt__msg  ,
+  input CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 recv_data__msg [0:3] ,
+  output logic [0:0] recv_data__rdy [0:3] ,
+  input logic [0:0] recv_data__val [0:3] ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv_from_controller_pkt__msg  ,
   output logic [0:0] recv_from_controller_pkt__rdy  ,
   input logic [0:0] recv_from_controller_pkt__val  ,
-  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data__msg [0:7] ,
-  input logic [0:0] send_data__rdy [0:7] ,
-  output logic [0:0] send_data__val [0:7] ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send_to_controller_pkt__msg  ,
+  output CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 send_data__msg [0:3] ,
+  input logic [0:0] send_data__rdy [0:3] ,
+  output logic [0:0] send_data__val [0:3] ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send_to_controller_pkt__msg  ,
   input logic [0:0] send_to_controller_pkt__rdy  ,
   output logic [0:0] send_to_controller_pkt__val  ,
   output logic [6:0] to_mem_raddr__msg  ,
@@ -16209,6 +17166,7 @@ module TileRTL__3ef4e58633c18b24
   localparam logic [4:0] __const__CMD_CONFIG_LOOP_LOWER  = 5'd28;
   localparam logic [4:0] __const__CMD_CONFIG_LOOP_UPPER  = 5'd29;
   localparam logic [4:0] __const__CMD_CONFIG_LOOP_STEP  = 5'd30;
+  localparam logic [5:0] __const__CMD_CONFIG_GEP_STRIDE  = 6'd43;
   localparam logic [3:0] __const__CMD_CONST  = 4'd13;
   logic [0:0] element_done;
   logic [0:0] fu_crossbar_done;
@@ -16250,7 +17208,7 @@ module TileRTL__3ef4e58633c18b24
   // Component ctrl_mem
   //-------------------------------------------------------------
 
-  logic [0:0] ctrl_mem__cgra_id;
+  logic [1:0] ctrl_mem__cgra_id;
   logic [0:0] ctrl_mem__clk;
   logic [2:0] ctrl_mem__ctrl_addr_outport;
   logic [2:0] ctrl_mem__prologue_count_outport_fu;
@@ -16258,23 +17216,23 @@ module TileRTL__3ef4e58633c18b24
   logic [2:0] ctrl_mem__prologue_count_outport_routing_crossbar [0:5][0:7];
   logic [0:0] ctrl_mem__reset;
   logic [4:0] ctrl_mem__tile_id;
-  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa ctrl_mem__recv_from_element__msg;
+  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 ctrl_mem__recv_from_element__msg;
   logic [0:0] ctrl_mem__recv_from_element__rdy;
   logic [0:0] ctrl_mem__recv_from_element__val;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 ctrl_mem__recv_pkt_from_controller__msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e ctrl_mem__recv_pkt_from_controller__msg;
   logic [0:0] ctrl_mem__recv_pkt_from_controller__rdy;
   logic [0:0] ctrl_mem__recv_pkt_from_controller__val;
-  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 ctrl_mem__send_ctrl__msg;
+  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 ctrl_mem__send_ctrl__msg;
   logic [0:0] ctrl_mem__send_ctrl__rdy;
   logic [0:0] ctrl_mem__send_ctrl__val;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 ctrl_mem__send_pkt_to_controller__msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e ctrl_mem__send_pkt_to_controller__msg;
   logic [0:0] ctrl_mem__send_pkt_to_controller__rdy;
   logic [0:0] ctrl_mem__send_pkt_to_controller__val;
-  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa ctrl_mem__send_to_element__msg;
+  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 ctrl_mem__send_to_element__msg;
   logic [0:0] ctrl_mem__send_to_element__rdy;
   logic [0:0] ctrl_mem__send_to_element__val;
 
-  CtrlMemDynamicRTL__f99828a3c83e61ad ctrl_mem
+  CtrlMemDynamicRTL__d23b4de9ea9f6541 ctrl_mem
   (
     .cgra_id( ctrl_mem__cgra_id ),
     .clk( ctrl_mem__clk ),
@@ -16309,47 +17267,47 @@ module TileRTL__3ef4e58633c18b24
   // Component element
   //-------------------------------------------------------------
 
-  logic [0:0] element__clear [0:8];
+  logic [0:0] element__clear [0:10];
   logic [0:0] element__clk;
   logic [2:0] element__ctrl_addr_inport;
   logic [2:0] element__prologue_count_inport;
   logic [0:0] element__reset;
   logic [4:0] element__tile_id;
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 element__from_mem_rdata__msg [0:8];
-  logic [0:0] element__from_mem_rdata__rdy [0:8];
-  logic [0:0] element__from_mem_rdata__val [0:8];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 element__from_mem_rdata__msg [0:10];
+  logic [0:0] element__from_mem_rdata__rdy [0:10];
+  logic [0:0] element__from_mem_rdata__val [0:10];
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 element__recv_const__msg;
   logic [0:0] element__recv_const__rdy;
   logic [0:0] element__recv_const__val;
-  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa element__recv_from_ctrl_mem__msg;
+  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 element__recv_from_ctrl_mem__msg;
   logic [0:0] element__recv_from_ctrl_mem__rdy;
   logic [0:0] element__recv_from_ctrl_mem__val;
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 element__recv_in__msg [0:3];
   logic [0:0] element__recv_in__rdy [0:3];
   logic [0:0] element__recv_in__val [0:3];
-  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 element__recv_opt__msg;
+  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 element__recv_opt__msg;
   logic [0:0] element__recv_opt__rdy;
   logic [0:0] element__recv_opt__val;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 element__recv_pkt_from_controller__msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e element__recv_pkt_from_controller__msg;
   logic [0:0] element__recv_pkt_from_controller__rdy;
   logic [0:0] element__recv_pkt_from_controller__val;
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 element__send_out__msg [0:1];
   logic [0:0] element__send_out__rdy [0:1];
   logic [0:0] element__send_out__val [0:1];
-  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa element__send_to_ctrl_mem__msg;
+  MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077 element__send_to_ctrl_mem__msg;
   logic [0:0] element__send_to_ctrl_mem__rdy;
   logic [0:0] element__send_to_ctrl_mem__val;
-  logic [6:0] element__to_mem_raddr__msg [0:8];
-  logic [0:0] element__to_mem_raddr__rdy [0:8];
-  logic [0:0] element__to_mem_raddr__val [0:8];
-  logic [6:0] element__to_mem_waddr__msg [0:8];
-  logic [0:0] element__to_mem_waddr__rdy [0:8];
-  logic [0:0] element__to_mem_waddr__val [0:8];
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 element__to_mem_wdata__msg [0:8];
-  logic [0:0] element__to_mem_wdata__rdy [0:8];
-  logic [0:0] element__to_mem_wdata__val [0:8];
+  logic [6:0] element__to_mem_raddr__msg [0:10];
+  logic [0:0] element__to_mem_raddr__rdy [0:10];
+  logic [0:0] element__to_mem_raddr__val [0:10];
+  logic [6:0] element__to_mem_waddr__msg [0:10];
+  logic [0:0] element__to_mem_waddr__rdy [0:10];
+  logic [0:0] element__to_mem_waddr__val [0:10];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 element__to_mem_wdata__msg [0:10];
+  logic [0:0] element__to_mem_wdata__rdy [0:10];
+  logic [0:0] element__to_mem_wdata__val [0:10];
 
-  FlexibleFuRTL__5341ddb2c6b6f0f2 element
+  FlexibleFuRTL__87ad9acb4aa46d66 element
   (
     .clear( element__clear ),
     .clk( element__clk ),
@@ -16400,12 +17358,12 @@ module TileRTL__3ef4e58633c18b24
   // Component fu_crossbar
   //-------------------------------------------------------------
 
-  logic [0:0] fu_crossbar__cgra_id;
+  logic [1:0] fu_crossbar__cgra_id;
   logic [0:0] fu_crossbar__clear;
   logic [0:0] fu_crossbar__clk;
   logic [0:0] fu_crossbar__compute_done;
   logic [0:0] fu_crossbar__crossbar_id;
-  logic [1:0] fu_crossbar__crossbar_outport [0:11];
+  logic [1:0] fu_crossbar__crossbar_outport [0:7];
   logic [2:0] fu_crossbar__ctrl_addr_inport;
   logic [2:0] fu_crossbar__prologue_count_inport [0:5][0:1];
   logic [0:0] fu_crossbar__reset;
@@ -16413,14 +17371,14 @@ module TileRTL__3ef4e58633c18b24
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 fu_crossbar__recv_data__msg [0:1];
   logic [0:0] fu_crossbar__recv_data__rdy [0:1];
   logic [0:0] fu_crossbar__recv_data__val [0:1];
-  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 fu_crossbar__recv_opt__msg;
+  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 fu_crossbar__recv_opt__msg;
   logic [0:0] fu_crossbar__recv_opt__rdy;
   logic [0:0] fu_crossbar__recv_opt__val;
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 fu_crossbar__send_data__msg [0:11];
-  logic [0:0] fu_crossbar__send_data__rdy [0:11];
-  logic [0:0] fu_crossbar__send_data__val [0:11];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 fu_crossbar__send_data__msg [0:7];
+  logic [0:0] fu_crossbar__send_data__rdy [0:7];
+  logic [0:0] fu_crossbar__send_data__val [0:7];
 
-  CrossbarRTL__a8f5d386e9ea604a fu_crossbar
+  CrossbarRTL__4fa89c3e3095e34f fu_crossbar
   (
     .cgra_id( fu_crossbar__cgra_id ),
     .clear( fu_crossbar__clear ),
@@ -16452,7 +17410,7 @@ module TileRTL__3ef4e58633c18b24
   //-------------------------------------------------------------
 
   logic [0:0] register_cluster__clk;
-  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 register_cluster__inport_opt;
+  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 register_cluster__inport_opt;
   logic [0:0] register_cluster__reset;
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 register_cluster__recv_data_from_const__msg [0:3];
   logic [0:0] register_cluster__recv_data_from_const__rdy [0:3];
@@ -16466,8 +17424,11 @@ module TileRTL__3ef4e58633c18b24
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 register_cluster__send_data_to_fu__msg [0:3];
   logic [0:0] register_cluster__send_data_to_fu__rdy [0:3];
   logic [0:0] register_cluster__send_data_to_fu__val [0:3];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 register_cluster__send_data_to_routing_crossbar__msg [0:3];
+  logic [0:0] register_cluster__send_data_to_routing_crossbar__rdy [0:3];
+  logic [0:0] register_cluster__send_data_to_routing_crossbar__val [0:3];
 
-  RegisterClusterRTL__16b1f4222fee5c0f register_cluster
+  RegisterClusterRTL__4cdc70707e060b34 register_cluster
   (
     .clk( register_cluster__clk ),
     .inport_opt( register_cluster__inport_opt ),
@@ -16483,7 +17444,10 @@ module TileRTL__3ef4e58633c18b24
     .recv_data_from_routing_crossbar__val( register_cluster__recv_data_from_routing_crossbar__val ),
     .send_data_to_fu__msg( register_cluster__send_data_to_fu__msg ),
     .send_data_to_fu__rdy( register_cluster__send_data_to_fu__rdy ),
-    .send_data_to_fu__val( register_cluster__send_data_to_fu__val )
+    .send_data_to_fu__val( register_cluster__send_data_to_fu__val ),
+    .send_data_to_routing_crossbar__msg( register_cluster__send_data_to_routing_crossbar__msg ),
+    .send_data_to_routing_crossbar__rdy( register_cluster__send_data_to_routing_crossbar__rdy ),
+    .send_data_to_routing_crossbar__val( register_cluster__send_data_to_routing_crossbar__val )
   );
 
   //-------------------------------------------------------------
@@ -16494,12 +17458,12 @@ module TileRTL__3ef4e58633c18b24
   // Component routing_crossbar
   //-------------------------------------------------------------
 
-  logic [0:0] routing_crossbar__cgra_id;
+  logic [1:0] routing_crossbar__cgra_id;
   logic [0:0] routing_crossbar__clear;
   logic [0:0] routing_crossbar__clk;
   logic [0:0] routing_crossbar__compute_done;
   logic [0:0] routing_crossbar__crossbar_id;
-  logic [3:0] routing_crossbar__crossbar_outport [0:11];
+  logic [3:0] routing_crossbar__crossbar_outport [0:7];
   logic [2:0] routing_crossbar__ctrl_addr_inport;
   logic [2:0] routing_crossbar__prologue_count_inport [0:5][0:7];
   logic [0:0] routing_crossbar__reset;
@@ -16507,14 +17471,14 @@ module TileRTL__3ef4e58633c18b24
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 routing_crossbar__recv_data__msg [0:7];
   logic [0:0] routing_crossbar__recv_data__rdy [0:7];
   logic [0:0] routing_crossbar__recv_data__val [0:7];
-  CGRAConfig_7_4_2_8_8_3__83ce9821a7d73247 routing_crossbar__recv_opt__msg;
+  CGRAConfig_7_4_2_4_4_3_4__56b0183ca2785df9 routing_crossbar__recv_opt__msg;
   logic [0:0] routing_crossbar__recv_opt__rdy;
   logic [0:0] routing_crossbar__recv_opt__val;
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 routing_crossbar__send_data__msg [0:11];
-  logic [0:0] routing_crossbar__send_data__rdy [0:11];
-  logic [0:0] routing_crossbar__send_data__val [0:11];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 routing_crossbar__send_data__msg [0:7];
+  logic [0:0] routing_crossbar__send_data__rdy [0:7];
+  logic [0:0] routing_crossbar__send_data__val [0:7];
 
-  CrossbarRTL__bb33a9167580e3c1 routing_crossbar
+  CrossbarRTL__02e96482e8ce053d routing_crossbar
   (
     .cgra_id( routing_crossbar__cgra_id ),
     .clear( routing_crossbar__clear ),
@@ -16542,17 +17506,17 @@ module TileRTL__3ef4e58633c18b24
   //-------------------------------------------------------------
 
   //-------------------------------------------------------------
-  // Component tile_in_channel[0:7]
+  // Component tile_in_channel[0:3]
   //-------------------------------------------------------------
 
-  logic [0:0] tile_in_channel__clk [0:7];
-  logic [0:0] tile_in_channel__reset [0:7];
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 tile_in_channel__recv__msg [0:7];
-  logic [0:0] tile_in_channel__recv__rdy [0:7];
-  logic [0:0] tile_in_channel__recv__val [0:7];
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 tile_in_channel__send__msg [0:7];
-  logic [0:0] tile_in_channel__send__rdy [0:7];
-  logic [0:0] tile_in_channel__send__val [0:7];
+  logic [0:0] tile_in_channel__clk [0:3];
+  logic [0:0] tile_in_channel__reset [0:3];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 tile_in_channel__recv__msg [0:3];
+  logic [0:0] tile_in_channel__recv__rdy [0:3];
+  logic [0:0] tile_in_channel__recv__val [0:3];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 tile_in_channel__send__msg [0:3];
+  logic [0:0] tile_in_channel__send__rdy [0:3];
+  logic [0:0] tile_in_channel__send__val [0:3];
 
   ChannelRTL__d316842813c529a6 tile_in_channel__0
   (
@@ -16602,73 +17566,25 @@ module TileRTL__3ef4e58633c18b24
     .send__val( tile_in_channel__send__val[3] )
   );
 
-  ChannelRTL__d316842813c529a6 tile_in_channel__4
-  (
-    .clk( tile_in_channel__clk[4] ),
-    .reset( tile_in_channel__reset[4] ),
-    .recv__msg( tile_in_channel__recv__msg[4] ),
-    .recv__rdy( tile_in_channel__recv__rdy[4] ),
-    .recv__val( tile_in_channel__recv__val[4] ),
-    .send__msg( tile_in_channel__send__msg[4] ),
-    .send__rdy( tile_in_channel__send__rdy[4] ),
-    .send__val( tile_in_channel__send__val[4] )
-  );
-
-  ChannelRTL__d316842813c529a6 tile_in_channel__5
-  (
-    .clk( tile_in_channel__clk[5] ),
-    .reset( tile_in_channel__reset[5] ),
-    .recv__msg( tile_in_channel__recv__msg[5] ),
-    .recv__rdy( tile_in_channel__recv__rdy[5] ),
-    .recv__val( tile_in_channel__recv__val[5] ),
-    .send__msg( tile_in_channel__send__msg[5] ),
-    .send__rdy( tile_in_channel__send__rdy[5] ),
-    .send__val( tile_in_channel__send__val[5] )
-  );
-
-  ChannelRTL__d316842813c529a6 tile_in_channel__6
-  (
-    .clk( tile_in_channel__clk[6] ),
-    .reset( tile_in_channel__reset[6] ),
-    .recv__msg( tile_in_channel__recv__msg[6] ),
-    .recv__rdy( tile_in_channel__recv__rdy[6] ),
-    .recv__val( tile_in_channel__recv__val[6] ),
-    .send__msg( tile_in_channel__send__msg[6] ),
-    .send__rdy( tile_in_channel__send__rdy[6] ),
-    .send__val( tile_in_channel__send__val[6] )
-  );
-
-  ChannelRTL__d316842813c529a6 tile_in_channel__7
-  (
-    .clk( tile_in_channel__clk[7] ),
-    .reset( tile_in_channel__reset[7] ),
-    .recv__msg( tile_in_channel__recv__msg[7] ),
-    .recv__rdy( tile_in_channel__recv__rdy[7] ),
-    .recv__val( tile_in_channel__recv__val[7] ),
-    .send__msg( tile_in_channel__send__msg[7] ),
-    .send__rdy( tile_in_channel__send__rdy[7] ),
-    .send__val( tile_in_channel__send__val[7] )
-  );
-
   //-------------------------------------------------------------
-  // End of component tile_in_channel[0:7]
+  // End of component tile_in_channel[0:3]
   //-------------------------------------------------------------
 
   //-------------------------------------------------------------
-  // Component tile_out_or_link[0:7]
+  // Component tile_out_or_link[0:3]
   //-------------------------------------------------------------
 
-  logic [0:0] tile_out_or_link__clk [0:7];
-  logic [0:0] tile_out_or_link__reset [0:7];
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 tile_out_or_link__recv_fu__msg [0:7];
-  logic [0:0] tile_out_or_link__recv_fu__rdy [0:7];
-  logic [0:0] tile_out_or_link__recv_fu__val [0:7];
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 tile_out_or_link__recv_xbar__msg [0:7];
-  logic [0:0] tile_out_or_link__recv_xbar__rdy [0:7];
-  logic [0:0] tile_out_or_link__recv_xbar__val [0:7];
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 tile_out_or_link__send__msg [0:7];
-  logic [0:0] tile_out_or_link__send__rdy [0:7];
-  logic [0:0] tile_out_or_link__send__val [0:7];
+  logic [0:0] tile_out_or_link__clk [0:3];
+  logic [0:0] tile_out_or_link__reset [0:3];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 tile_out_or_link__recv_fu__msg [0:3];
+  logic [0:0] tile_out_or_link__recv_fu__rdy [0:3];
+  logic [0:0] tile_out_or_link__recv_fu__val [0:3];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 tile_out_or_link__recv_xbar__msg [0:3];
+  logic [0:0] tile_out_or_link__recv_xbar__rdy [0:3];
+  logic [0:0] tile_out_or_link__recv_xbar__val [0:3];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 tile_out_or_link__send__msg [0:3];
+  logic [0:0] tile_out_or_link__send__rdy [0:3];
+  logic [0:0] tile_out_or_link__send__val [0:3];
 
   LinkOrRTL__a54ca58e7852ace8 tile_out_or_link__0
   (
@@ -16730,72 +17646,12 @@ module TileRTL__3ef4e58633c18b24
     .send__val( tile_out_or_link__send__val[3] )
   );
 
-  LinkOrRTL__a54ca58e7852ace8 tile_out_or_link__4
-  (
-    .clk( tile_out_or_link__clk[4] ),
-    .reset( tile_out_or_link__reset[4] ),
-    .recv_fu__msg( tile_out_or_link__recv_fu__msg[4] ),
-    .recv_fu__rdy( tile_out_or_link__recv_fu__rdy[4] ),
-    .recv_fu__val( tile_out_or_link__recv_fu__val[4] ),
-    .recv_xbar__msg( tile_out_or_link__recv_xbar__msg[4] ),
-    .recv_xbar__rdy( tile_out_or_link__recv_xbar__rdy[4] ),
-    .recv_xbar__val( tile_out_or_link__recv_xbar__val[4] ),
-    .send__msg( tile_out_or_link__send__msg[4] ),
-    .send__rdy( tile_out_or_link__send__rdy[4] ),
-    .send__val( tile_out_or_link__send__val[4] )
-  );
-
-  LinkOrRTL__a54ca58e7852ace8 tile_out_or_link__5
-  (
-    .clk( tile_out_or_link__clk[5] ),
-    .reset( tile_out_or_link__reset[5] ),
-    .recv_fu__msg( tile_out_or_link__recv_fu__msg[5] ),
-    .recv_fu__rdy( tile_out_or_link__recv_fu__rdy[5] ),
-    .recv_fu__val( tile_out_or_link__recv_fu__val[5] ),
-    .recv_xbar__msg( tile_out_or_link__recv_xbar__msg[5] ),
-    .recv_xbar__rdy( tile_out_or_link__recv_xbar__rdy[5] ),
-    .recv_xbar__val( tile_out_or_link__recv_xbar__val[5] ),
-    .send__msg( tile_out_or_link__send__msg[5] ),
-    .send__rdy( tile_out_or_link__send__rdy[5] ),
-    .send__val( tile_out_or_link__send__val[5] )
-  );
-
-  LinkOrRTL__a54ca58e7852ace8 tile_out_or_link__6
-  (
-    .clk( tile_out_or_link__clk[6] ),
-    .reset( tile_out_or_link__reset[6] ),
-    .recv_fu__msg( tile_out_or_link__recv_fu__msg[6] ),
-    .recv_fu__rdy( tile_out_or_link__recv_fu__rdy[6] ),
-    .recv_fu__val( tile_out_or_link__recv_fu__val[6] ),
-    .recv_xbar__msg( tile_out_or_link__recv_xbar__msg[6] ),
-    .recv_xbar__rdy( tile_out_or_link__recv_xbar__rdy[6] ),
-    .recv_xbar__val( tile_out_or_link__recv_xbar__val[6] ),
-    .send__msg( tile_out_or_link__send__msg[6] ),
-    .send__rdy( tile_out_or_link__send__rdy[6] ),
-    .send__val( tile_out_or_link__send__val[6] )
-  );
-
-  LinkOrRTL__a54ca58e7852ace8 tile_out_or_link__7
-  (
-    .clk( tile_out_or_link__clk[7] ),
-    .reset( tile_out_or_link__reset[7] ),
-    .recv_fu__msg( tile_out_or_link__recv_fu__msg[7] ),
-    .recv_fu__rdy( tile_out_or_link__recv_fu__rdy[7] ),
-    .recv_fu__val( tile_out_or_link__recv_fu__val[7] ),
-    .recv_xbar__msg( tile_out_or_link__recv_xbar__msg[7] ),
-    .recv_xbar__rdy( tile_out_or_link__recv_xbar__rdy[7] ),
-    .recv_xbar__val( tile_out_or_link__recv_xbar__val[7] ),
-    .send__msg( tile_out_or_link__send__msg[7] ),
-    .send__rdy( tile_out_or_link__send__rdy[7] ),
-    .send__val( tile_out_or_link__send__val[7] )
-  );
-
   //-------------------------------------------------------------
-  // End of component tile_out_or_link[0:7]
+  // End of component tile_out_or_link[0:3]
   //-------------------------------------------------------------
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/tile/TileRTL.py:235
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/tile/TileRTL.py:241
   // @update
   // def feed_pkt():
   //     s.ctrl_mem.recv_pkt_from_controller.msg @= CtrlPktType(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) # , 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -16816,7 +17672,8 @@ module TileRTL__3ef4e58633c18b24
   //         (s.recv_from_controller_pkt.msg.payload.cmd == CMD_LAUNCH) | \
   //         (s.recv_from_controller_pkt.msg.payload.cmd == CMD_CONFIG_LOOP_LOWER) | \
   //         (s.recv_from_controller_pkt.msg.payload.cmd == CMD_CONFIG_LOOP_UPPER) | \
-  //         (s.recv_from_controller_pkt.msg.payload.cmd == CMD_CONFIG_LOOP_STEP)):
+  //         (s.recv_from_controller_pkt.msg.payload.cmd == CMD_CONFIG_LOOP_STEP) | \
+  //         (s.recv_from_controller_pkt.msg.payload.cmd == CMD_CONFIG_GEP_STRIDE)):
   //         s.ctrl_mem.recv_pkt_from_controller.val @= 1
   //         s.ctrl_mem.recv_pkt_from_controller.msg @= s.recv_from_controller_pkt.msg
   //         s.recv_from_controller_pkt.rdy @= s.ctrl_mem.recv_pkt_from_controller.rdy
@@ -16826,17 +17683,17 @@ module TileRTL__3ef4e58633c18b24
   //         s.recv_from_controller_pkt.rdy @= s.const_mem.recv_const.rdy
   
   always_comb begin : feed_pkt
-    ctrl_mem__recv_pkt_from_controller__msg = { 5'd0, 5'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 8'd0, 1'd0, 181'd0 };
+    ctrl_mem__recv_pkt_from_controller__msg = { 5'd0, 5'd0, 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 8'd0, 1'd0, 162'd0 };
     const_mem__recv_const__msg = { 32'd0, 1'd0, 1'd0, 1'd0 };
     ctrl_mem__recv_pkt_from_controller__val = 1'd0;
     const_mem__recv_const__val = 1'd0;
     recv_from_controller_pkt__rdy = 1'd0;
-    if ( recv_from_controller_pkt__val & ( ( ( ( ( ( ( ( ( ( ( ( recv_from_controller_pkt__msg.payload.cmd == 5'( __const__CMD_CONFIG ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 5'( __const__CMD_CONFIG_PROLOGUE_FU ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 5'( __const__CMD_CONFIG_PROLOGUE_FU_CROSSBAR ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 5'( __const__CMD_CONFIG_PROLOGUE_ROUTING_CROSSBAR ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 5'( __const__CMD_CONFIG_TOTAL_CTRL_COUNT ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 5'( __const__CMD_CONFIG_COUNT_PER_ITER ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 5'( __const__CMD_GLOBAL_REDUCE_ADD_RESPONSE ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 5'( __const__CMD_GLOBAL_REDUCE_MUL_RESPONSE ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 5'( __const__CMD_LAUNCH ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 5'( __const__CMD_CONFIG_LOOP_LOWER ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 5'( __const__CMD_CONFIG_LOOP_UPPER ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 5'( __const__CMD_CONFIG_LOOP_STEP ) ) ) ) begin
+    if ( recv_from_controller_pkt__val & ( ( ( ( ( ( ( ( ( ( ( ( ( recv_from_controller_pkt__msg.payload.cmd == 6'( __const__CMD_CONFIG ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 6'( __const__CMD_CONFIG_PROLOGUE_FU ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 6'( __const__CMD_CONFIG_PROLOGUE_FU_CROSSBAR ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 6'( __const__CMD_CONFIG_PROLOGUE_ROUTING_CROSSBAR ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 6'( __const__CMD_CONFIG_TOTAL_CTRL_COUNT ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 6'( __const__CMD_CONFIG_COUNT_PER_ITER ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 6'( __const__CMD_GLOBAL_REDUCE_ADD_RESPONSE ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 6'( __const__CMD_GLOBAL_REDUCE_MUL_RESPONSE ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 6'( __const__CMD_LAUNCH ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 6'( __const__CMD_CONFIG_LOOP_LOWER ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 6'( __const__CMD_CONFIG_LOOP_UPPER ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 6'( __const__CMD_CONFIG_LOOP_STEP ) ) ) | ( recv_from_controller_pkt__msg.payload.cmd == 6'( __const__CMD_CONFIG_GEP_STRIDE ) ) ) ) begin
       ctrl_mem__recv_pkt_from_controller__val = 1'd1;
       ctrl_mem__recv_pkt_from_controller__msg = recv_from_controller_pkt__msg;
       recv_from_controller_pkt__rdy = ctrl_mem__recv_pkt_from_controller__rdy;
     end
-    else if ( recv_from_controller_pkt__val & ( recv_from_controller_pkt__msg.payload.cmd == 5'( __const__CMD_CONST ) ) ) begin
+    else if ( recv_from_controller_pkt__val & ( recv_from_controller_pkt__msg.payload.cmd == 6'( __const__CMD_CONST ) ) ) begin
       const_mem__recv_const__val = 1'd1;
       const_mem__recv_const__msg = recv_from_controller_pkt__msg.payload.data;
       recv_from_controller_pkt__rdy = const_mem__recv_const__rdy;
@@ -16844,7 +17701,7 @@ module TileRTL__3ef4e58633c18b24
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/tile/TileRTL.py:294
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/tile/TileRTL.py:301
   // @update
   // def notify_const_mem():
   //   s.const_mem.ctrl_proceed @= s.ctrl_mem.send_ctrl.rdy & s.ctrl_mem.send_ctrl.val
@@ -16854,7 +17711,7 @@ module TileRTL__3ef4e58633c18b24
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/tile/TileRTL.py:313
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/tile/TileRTL.py:320
   // @update
   // def notify_crossbars_compute_status():
   //   s.routing_crossbar.compute_done @= s.element_done
@@ -16866,7 +17723,7 @@ module TileRTL__3ef4e58633c18b24
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/tile/TileRTL.py:274
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/tile/TileRTL.py:281
   // @update
   // def update_opt():
   //   s.element.recv_opt.msg @= s.ctrl_mem.send_ctrl.msg
@@ -16897,7 +17754,7 @@ module TileRTL__3ef4e58633c18b24
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/tile/TileRTL.py:264
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/tile/TileRTL.py:271
   // @update
   // def update_send_out_signal():
   //     s.send_to_controller_pkt.val @= 0
@@ -16909,7 +17766,7 @@ module TileRTL__3ef4e58633c18b24
   
   always_comb begin : update_send_out_signal
     send_to_controller_pkt__val = 1'd0;
-    send_to_controller_pkt__msg = { 5'd0, 5'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 1'd0, 8'd0, 1'd0, 181'd0 };
+    send_to_controller_pkt__msg = { 5'd0, 5'd0, 2'd0, 2'd0, 2'd0, 1'd0, 2'd0, 1'd0, 8'd0, 1'd0, 162'd0 };
     if ( ctrl_mem__send_pkt_to_controller__val ) begin
       send_to_controller_pkt__val = 1'd1;
       send_to_controller_pkt__msg = ctrl_mem__send_pkt_to_controller__msg;
@@ -16918,7 +17775,7 @@ module TileRTL__3ef4e58633c18b24
   end
 
   // PyMTL Update Block Source
-  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/tile/TileRTL.py:299
+  // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/tile/TileRTL.py:306
   // @update_ff
   // def already_done():
   //   if s.reset | s.ctrl_mem.send_ctrl.rdy:
@@ -16972,14 +17829,6 @@ module TileRTL__3ef4e58633c18b24
   assign tile_in_channel__reset[2] = reset;
   assign tile_in_channel__clk[3] = clk;
   assign tile_in_channel__reset[3] = reset;
-  assign tile_in_channel__clk[4] = clk;
-  assign tile_in_channel__reset[4] = reset;
-  assign tile_in_channel__clk[5] = clk;
-  assign tile_in_channel__reset[5] = reset;
-  assign tile_in_channel__clk[6] = clk;
-  assign tile_in_channel__reset[6] = reset;
-  assign tile_in_channel__clk[7] = clk;
-  assign tile_in_channel__reset[7] = reset;
   assign tile_out_or_link__clk[0] = clk;
   assign tile_out_or_link__reset[0] = reset;
   assign tile_out_or_link__clk[1] = clk;
@@ -16988,14 +17837,6 @@ module TileRTL__3ef4e58633c18b24
   assign tile_out_or_link__reset[2] = reset;
   assign tile_out_or_link__clk[3] = clk;
   assign tile_out_or_link__reset[3] = reset;
-  assign tile_out_or_link__clk[4] = clk;
-  assign tile_out_or_link__reset[4] = reset;
-  assign tile_out_or_link__clk[5] = clk;
-  assign tile_out_or_link__reset[5] = reset;
-  assign tile_out_or_link__clk[6] = clk;
-  assign tile_out_or_link__reset[6] = reset;
-  assign tile_out_or_link__clk[7] = clk;
-  assign tile_out_or_link__reset[7] = reset;
   assign element__tile_id = tile_id;
   assign ctrl_mem__cgra_id = cgra_id;
   assign ctrl_mem__tile_id = tile_id;
@@ -17108,28 +17949,38 @@ module TileRTL__3ef4e58633c18b24
   assign element__from_mem_rdata__msg[5] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign element__to_mem_waddr__rdy[5] = 1'd0;
   assign element__to_mem_wdata__rdy[5] = 1'd0;
-  assign to_mem_raddr__msg = element__to_mem_raddr__msg[6];
-  assign element__to_mem_raddr__rdy[6] = to_mem_raddr__rdy;
-  assign to_mem_raddr__val = element__to_mem_raddr__val[6];
-  assign element__from_mem_rdata__msg[6] = from_mem_rdata__msg;
-  assign from_mem_rdata__rdy = element__from_mem_rdata__rdy[6];
-  assign element__from_mem_rdata__val[6] = from_mem_rdata__val;
-  assign to_mem_waddr__msg = element__to_mem_waddr__msg[6];
-  assign element__to_mem_waddr__rdy[6] = to_mem_waddr__rdy;
-  assign to_mem_waddr__val = element__to_mem_waddr__val[6];
-  assign to_mem_wdata__msg = element__to_mem_wdata__msg[6];
-  assign element__to_mem_wdata__rdy[6] = to_mem_wdata__rdy;
-  assign to_mem_wdata__val = element__to_mem_wdata__val[6];
-  assign element__to_mem_raddr__rdy[7] = 1'd0;
-  assign element__from_mem_rdata__val[7] = 1'd0;
-  assign element__from_mem_rdata__msg[7] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign element__to_mem_waddr__rdy[7] = 1'd0;
-  assign element__to_mem_wdata__rdy[7] = 1'd0;
+  assign element__to_mem_raddr__rdy[6] = 1'd0;
+  assign element__from_mem_rdata__val[6] = 1'd0;
+  assign element__from_mem_rdata__msg[6] = { 32'd0, 1'd0, 1'd0, 1'd0 };
+  assign element__to_mem_waddr__rdy[6] = 1'd0;
+  assign element__to_mem_wdata__rdy[6] = 1'd0;
+  assign to_mem_raddr__msg = element__to_mem_raddr__msg[7];
+  assign element__to_mem_raddr__rdy[7] = to_mem_raddr__rdy;
+  assign to_mem_raddr__val = element__to_mem_raddr__val[7];
+  assign element__from_mem_rdata__msg[7] = from_mem_rdata__msg;
+  assign from_mem_rdata__rdy = element__from_mem_rdata__rdy[7];
+  assign element__from_mem_rdata__val[7] = from_mem_rdata__val;
+  assign to_mem_waddr__msg = element__to_mem_waddr__msg[7];
+  assign element__to_mem_waddr__rdy[7] = to_mem_waddr__rdy;
+  assign to_mem_waddr__val = element__to_mem_waddr__val[7];
+  assign to_mem_wdata__msg = element__to_mem_wdata__msg[7];
+  assign element__to_mem_wdata__rdy[7] = to_mem_wdata__rdy;
+  assign to_mem_wdata__val = element__to_mem_wdata__val[7];
   assign element__to_mem_raddr__rdy[8] = 1'd0;
   assign element__from_mem_rdata__val[8] = 1'd0;
   assign element__from_mem_rdata__msg[8] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign element__to_mem_waddr__rdy[8] = 1'd0;
   assign element__to_mem_wdata__rdy[8] = 1'd0;
+  assign element__to_mem_raddr__rdy[9] = 1'd0;
+  assign element__from_mem_rdata__val[9] = 1'd0;
+  assign element__from_mem_rdata__msg[9] = { 32'd0, 1'd0, 1'd0, 1'd0 };
+  assign element__to_mem_waddr__rdy[9] = 1'd0;
+  assign element__to_mem_wdata__rdy[9] = 1'd0;
+  assign element__to_mem_raddr__rdy[10] = 1'd0;
+  assign element__from_mem_rdata__val[10] = 1'd0;
+  assign element__from_mem_rdata__msg[10] = { 32'd0, 1'd0, 1'd0, 1'd0 };
+  assign element__to_mem_waddr__rdy[10] = 1'd0;
+  assign element__to_mem_wdata__rdy[10] = 1'd0;
   assign tile_in_channel__recv__msg[0] = recv_data__msg[0];
   assign recv_data__rdy[0] = tile_in_channel__recv__rdy[0];
   assign tile_in_channel__recv__val[0] = recv_data__val[0];
@@ -17154,30 +18005,18 @@ module TileRTL__3ef4e58633c18b24
   assign routing_crossbar__recv_data__msg[3] = tile_in_channel__send__msg[3];
   assign tile_in_channel__send__rdy[3] = routing_crossbar__recv_data__rdy[3];
   assign routing_crossbar__recv_data__val[3] = tile_in_channel__send__val[3];
-  assign tile_in_channel__recv__msg[4] = recv_data__msg[4];
-  assign recv_data__rdy[4] = tile_in_channel__recv__rdy[4];
-  assign tile_in_channel__recv__val[4] = recv_data__val[4];
-  assign routing_crossbar__recv_data__msg[4] = tile_in_channel__send__msg[4];
-  assign tile_in_channel__send__rdy[4] = routing_crossbar__recv_data__rdy[4];
-  assign routing_crossbar__recv_data__val[4] = tile_in_channel__send__val[4];
-  assign tile_in_channel__recv__msg[5] = recv_data__msg[5];
-  assign recv_data__rdy[5] = tile_in_channel__recv__rdy[5];
-  assign tile_in_channel__recv__val[5] = recv_data__val[5];
-  assign routing_crossbar__recv_data__msg[5] = tile_in_channel__send__msg[5];
-  assign tile_in_channel__send__rdy[5] = routing_crossbar__recv_data__rdy[5];
-  assign routing_crossbar__recv_data__val[5] = tile_in_channel__send__val[5];
-  assign tile_in_channel__recv__msg[6] = recv_data__msg[6];
-  assign recv_data__rdy[6] = tile_in_channel__recv__rdy[6];
-  assign tile_in_channel__recv__val[6] = recv_data__val[6];
-  assign routing_crossbar__recv_data__msg[6] = tile_in_channel__send__msg[6];
-  assign tile_in_channel__send__rdy[6] = routing_crossbar__recv_data__rdy[6];
-  assign routing_crossbar__recv_data__val[6] = tile_in_channel__send__val[6];
-  assign tile_in_channel__recv__msg[7] = recv_data__msg[7];
-  assign recv_data__rdy[7] = tile_in_channel__recv__rdy[7];
-  assign tile_in_channel__recv__val[7] = recv_data__val[7];
-  assign routing_crossbar__recv_data__msg[7] = tile_in_channel__send__msg[7];
-  assign tile_in_channel__send__rdy[7] = routing_crossbar__recv_data__rdy[7];
-  assign routing_crossbar__recv_data__val[7] = tile_in_channel__send__val[7];
+  assign routing_crossbar__recv_data__msg[4] = register_cluster__send_data_to_routing_crossbar__msg[0];
+  assign register_cluster__send_data_to_routing_crossbar__rdy[0] = routing_crossbar__recv_data__rdy[4];
+  assign routing_crossbar__recv_data__val[4] = register_cluster__send_data_to_routing_crossbar__val[0];
+  assign routing_crossbar__recv_data__msg[5] = register_cluster__send_data_to_routing_crossbar__msg[1];
+  assign register_cluster__send_data_to_routing_crossbar__rdy[1] = routing_crossbar__recv_data__rdy[5];
+  assign routing_crossbar__recv_data__val[5] = register_cluster__send_data_to_routing_crossbar__val[1];
+  assign routing_crossbar__recv_data__msg[6] = register_cluster__send_data_to_routing_crossbar__msg[2];
+  assign register_cluster__send_data_to_routing_crossbar__rdy[2] = routing_crossbar__recv_data__rdy[6];
+  assign routing_crossbar__recv_data__val[6] = register_cluster__send_data_to_routing_crossbar__val[2];
+  assign routing_crossbar__recv_data__msg[7] = register_cluster__send_data_to_routing_crossbar__msg[3];
+  assign register_cluster__send_data_to_routing_crossbar__rdy[3] = routing_crossbar__recv_data__rdy[7];
+  assign routing_crossbar__recv_data__val[7] = register_cluster__send_data_to_routing_crossbar__val[3];
   assign routing_crossbar__crossbar_outport[0] = ctrl_mem__send_ctrl__msg.routing_xbar_outport[0];
   assign fu_crossbar__crossbar_outport[0] = ctrl_mem__send_ctrl__msg.fu_xbar_outport[0];
   assign routing_crossbar__crossbar_outport[1] = ctrl_mem__send_ctrl__msg.routing_xbar_outport[1];
@@ -17194,14 +18033,6 @@ module TileRTL__3ef4e58633c18b24
   assign fu_crossbar__crossbar_outport[6] = ctrl_mem__send_ctrl__msg.fu_xbar_outport[6];
   assign routing_crossbar__crossbar_outport[7] = ctrl_mem__send_ctrl__msg.routing_xbar_outport[7];
   assign fu_crossbar__crossbar_outport[7] = ctrl_mem__send_ctrl__msg.fu_xbar_outport[7];
-  assign routing_crossbar__crossbar_outport[8] = ctrl_mem__send_ctrl__msg.routing_xbar_outport[8];
-  assign fu_crossbar__crossbar_outport[8] = ctrl_mem__send_ctrl__msg.fu_xbar_outport[8];
-  assign routing_crossbar__crossbar_outport[9] = ctrl_mem__send_ctrl__msg.routing_xbar_outport[9];
-  assign fu_crossbar__crossbar_outport[9] = ctrl_mem__send_ctrl__msg.fu_xbar_outport[9];
-  assign routing_crossbar__crossbar_outport[10] = ctrl_mem__send_ctrl__msg.routing_xbar_outport[10];
-  assign fu_crossbar__crossbar_outport[10] = ctrl_mem__send_ctrl__msg.fu_xbar_outport[10];
-  assign routing_crossbar__crossbar_outport[11] = ctrl_mem__send_ctrl__msg.routing_xbar_outport[11];
-  assign fu_crossbar__crossbar_outport[11] = ctrl_mem__send_ctrl__msg.fu_xbar_outport[11];
   assign fu_crossbar__recv_data__msg[0] = element__send_out__msg[0];
   assign element__send_out__rdy[0] = fu_crossbar__recv_data__rdy[0];
   assign fu_crossbar__recv_data__val[0] = element__send_out__val[0];
@@ -17244,82 +18075,46 @@ module TileRTL__3ef4e58633c18b24
   assign send_data__msg[3] = tile_out_or_link__send__msg[3];
   assign tile_out_or_link__send__rdy[3] = send_data__rdy[3];
   assign send_data__val[3] = tile_out_or_link__send__val[3];
-  assign tile_out_or_link__recv_fu__msg[4] = fu_crossbar__send_data__msg[4];
-  assign fu_crossbar__send_data__rdy[4] = tile_out_or_link__recv_fu__rdy[4];
-  assign tile_out_or_link__recv_fu__val[4] = fu_crossbar__send_data__val[4];
-  assign tile_out_or_link__recv_xbar__msg[4] = routing_crossbar__send_data__msg[4];
-  assign routing_crossbar__send_data__rdy[4] = tile_out_or_link__recv_xbar__rdy[4];
-  assign tile_out_or_link__recv_xbar__val[4] = routing_crossbar__send_data__val[4];
-  assign send_data__msg[4] = tile_out_or_link__send__msg[4];
-  assign tile_out_or_link__send__rdy[4] = send_data__rdy[4];
-  assign send_data__val[4] = tile_out_or_link__send__val[4];
-  assign tile_out_or_link__recv_fu__msg[5] = fu_crossbar__send_data__msg[5];
-  assign fu_crossbar__send_data__rdy[5] = tile_out_or_link__recv_fu__rdy[5];
-  assign tile_out_or_link__recv_fu__val[5] = fu_crossbar__send_data__val[5];
-  assign tile_out_or_link__recv_xbar__msg[5] = routing_crossbar__send_data__msg[5];
-  assign routing_crossbar__send_data__rdy[5] = tile_out_or_link__recv_xbar__rdy[5];
-  assign tile_out_or_link__recv_xbar__val[5] = routing_crossbar__send_data__val[5];
-  assign send_data__msg[5] = tile_out_or_link__send__msg[5];
-  assign tile_out_or_link__send__rdy[5] = send_data__rdy[5];
-  assign send_data__val[5] = tile_out_or_link__send__val[5];
-  assign tile_out_or_link__recv_fu__msg[6] = fu_crossbar__send_data__msg[6];
-  assign fu_crossbar__send_data__rdy[6] = tile_out_or_link__recv_fu__rdy[6];
-  assign tile_out_or_link__recv_fu__val[6] = fu_crossbar__send_data__val[6];
-  assign tile_out_or_link__recv_xbar__msg[6] = routing_crossbar__send_data__msg[6];
-  assign routing_crossbar__send_data__rdy[6] = tile_out_or_link__recv_xbar__rdy[6];
-  assign tile_out_or_link__recv_xbar__val[6] = routing_crossbar__send_data__val[6];
-  assign send_data__msg[6] = tile_out_or_link__send__msg[6];
-  assign tile_out_or_link__send__rdy[6] = send_data__rdy[6];
-  assign send_data__val[6] = tile_out_or_link__send__val[6];
-  assign tile_out_or_link__recv_fu__msg[7] = fu_crossbar__send_data__msg[7];
-  assign fu_crossbar__send_data__rdy[7] = tile_out_or_link__recv_fu__rdy[7];
-  assign tile_out_or_link__recv_fu__val[7] = fu_crossbar__send_data__val[7];
-  assign tile_out_or_link__recv_xbar__msg[7] = routing_crossbar__send_data__msg[7];
-  assign routing_crossbar__send_data__rdy[7] = tile_out_or_link__recv_xbar__rdy[7];
-  assign tile_out_or_link__recv_xbar__val[7] = routing_crossbar__send_data__val[7];
-  assign send_data__msg[7] = tile_out_or_link__send__msg[7];
-  assign tile_out_or_link__send__rdy[7] = send_data__rdy[7];
-  assign send_data__val[7] = tile_out_or_link__send__val[7];
-  assign register_cluster__recv_data_from_routing_crossbar__msg[0] = routing_crossbar__send_data__msg[8];
-  assign routing_crossbar__send_data__rdy[8] = register_cluster__recv_data_from_routing_crossbar__rdy[0];
-  assign register_cluster__recv_data_from_routing_crossbar__val[0] = routing_crossbar__send_data__val[8];
-  assign register_cluster__recv_data_from_fu_crossbar__msg[0] = fu_crossbar__send_data__msg[8];
-  assign fu_crossbar__send_data__rdy[8] = register_cluster__recv_data_from_fu_crossbar__rdy[0];
-  assign register_cluster__recv_data_from_fu_crossbar__val[0] = fu_crossbar__send_data__val[8];
+  assign register_cluster__recv_data_from_routing_crossbar__msg[0] = routing_crossbar__send_data__msg[4];
+  assign routing_crossbar__send_data__rdy[4] = register_cluster__recv_data_from_routing_crossbar__rdy[0];
+  assign register_cluster__recv_data_from_routing_crossbar__val[0] = routing_crossbar__send_data__val[4];
+  assign register_cluster__recv_data_from_fu_crossbar__msg[0] = fu_crossbar__send_data__msg[4];
+  assign fu_crossbar__send_data__rdy[4] = register_cluster__recv_data_from_fu_crossbar__rdy[0];
+  assign register_cluster__recv_data_from_fu_crossbar__val[0] = fu_crossbar__send_data__val[4];
   assign register_cluster__recv_data_from_const__msg[0] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign register_cluster__recv_data_from_const__val[0] = 1'd0;
   assign element__recv_in__msg[0] = register_cluster__send_data_to_fu__msg[0];
   assign register_cluster__send_data_to_fu__rdy[0] = element__recv_in__rdy[0];
   assign element__recv_in__val[0] = register_cluster__send_data_to_fu__val[0];
   assign register_cluster__inport_opt = ctrl_mem__send_ctrl__msg;
-  assign register_cluster__recv_data_from_routing_crossbar__msg[1] = routing_crossbar__send_data__msg[9];
-  assign routing_crossbar__send_data__rdy[9] = register_cluster__recv_data_from_routing_crossbar__rdy[1];
-  assign register_cluster__recv_data_from_routing_crossbar__val[1] = routing_crossbar__send_data__val[9];
-  assign register_cluster__recv_data_from_fu_crossbar__msg[1] = fu_crossbar__send_data__msg[9];
-  assign fu_crossbar__send_data__rdy[9] = register_cluster__recv_data_from_fu_crossbar__rdy[1];
-  assign register_cluster__recv_data_from_fu_crossbar__val[1] = fu_crossbar__send_data__val[9];
+  assign register_cluster__recv_data_from_routing_crossbar__msg[1] = routing_crossbar__send_data__msg[5];
+  assign routing_crossbar__send_data__rdy[5] = register_cluster__recv_data_from_routing_crossbar__rdy[1];
+  assign register_cluster__recv_data_from_routing_crossbar__val[1] = routing_crossbar__send_data__val[5];
+  assign register_cluster__recv_data_from_fu_crossbar__msg[1] = fu_crossbar__send_data__msg[5];
+  assign fu_crossbar__send_data__rdy[5] = register_cluster__recv_data_from_fu_crossbar__rdy[1];
+  assign register_cluster__recv_data_from_fu_crossbar__val[1] = fu_crossbar__send_data__val[5];
   assign register_cluster__recv_data_from_const__msg[1] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign register_cluster__recv_data_from_const__val[1] = 1'd0;
   assign element__recv_in__msg[1] = register_cluster__send_data_to_fu__msg[1];
   assign register_cluster__send_data_to_fu__rdy[1] = element__recv_in__rdy[1];
   assign element__recv_in__val[1] = register_cluster__send_data_to_fu__val[1];
-  assign register_cluster__recv_data_from_routing_crossbar__msg[2] = routing_crossbar__send_data__msg[10];
-  assign routing_crossbar__send_data__rdy[10] = register_cluster__recv_data_from_routing_crossbar__rdy[2];
-  assign register_cluster__recv_data_from_routing_crossbar__val[2] = routing_crossbar__send_data__val[10];
-  assign register_cluster__recv_data_from_fu_crossbar__msg[2] = fu_crossbar__send_data__msg[10];
-  assign fu_crossbar__send_data__rdy[10] = register_cluster__recv_data_from_fu_crossbar__rdy[2];
-  assign register_cluster__recv_data_from_fu_crossbar__val[2] = fu_crossbar__send_data__val[10];
+  assign register_cluster__recv_data_from_routing_crossbar__msg[2] = routing_crossbar__send_data__msg[6];
+  assign routing_crossbar__send_data__rdy[6] = register_cluster__recv_data_from_routing_crossbar__rdy[2];
+  assign register_cluster__recv_data_from_routing_crossbar__val[2] = routing_crossbar__send_data__val[6];
+  assign register_cluster__recv_data_from_fu_crossbar__msg[2] = fu_crossbar__send_data__msg[6];
+  assign fu_crossbar__send_data__rdy[6] = register_cluster__recv_data_from_fu_crossbar__rdy[2];
+  assign register_cluster__recv_data_from_fu_crossbar__val[2] = fu_crossbar__send_data__val[6];
   assign register_cluster__recv_data_from_const__msg[2] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign register_cluster__recv_data_from_const__val[2] = 1'd0;
   assign element__recv_in__msg[2] = register_cluster__send_data_to_fu__msg[2];
   assign register_cluster__send_data_to_fu__rdy[2] = element__recv_in__rdy[2];
   assign element__recv_in__val[2] = register_cluster__send_data_to_fu__val[2];
-  assign register_cluster__recv_data_from_routing_crossbar__msg[3] = routing_crossbar__send_data__msg[11];
-  assign routing_crossbar__send_data__rdy[11] = register_cluster__recv_data_from_routing_crossbar__rdy[3];
-  assign register_cluster__recv_data_from_routing_crossbar__val[3] = routing_crossbar__send_data__val[11];
-  assign register_cluster__recv_data_from_fu_crossbar__msg[3] = fu_crossbar__send_data__msg[11];
-  assign fu_crossbar__send_data__rdy[11] = register_cluster__recv_data_from_fu_crossbar__rdy[3];
-  assign register_cluster__recv_data_from_fu_crossbar__val[3] = fu_crossbar__send_data__val[11];
+  assign register_cluster__recv_data_from_routing_crossbar__msg[3] = routing_crossbar__send_data__msg[7];
+  assign routing_crossbar__send_data__rdy[7] = register_cluster__recv_data_from_routing_crossbar__rdy[3];
+  assign register_cluster__recv_data_from_routing_crossbar__val[3] = routing_crossbar__send_data__val[7];
+  assign register_cluster__recv_data_from_fu_crossbar__msg[3] = fu_crossbar__send_data__msg[7];
+  assign fu_crossbar__send_data__rdy[7] = register_cluster__recv_data_from_fu_crossbar__rdy[3];
+  assign register_cluster__recv_data_from_fu_crossbar__val[3] = fu_crossbar__send_data__val[7];
   assign register_cluster__recv_data_from_const__msg[3] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign register_cluster__recv_data_from_const__val[3] = 1'd0;
   assign element__recv_in__msg[3] = register_cluster__send_data_to_fu__msg[3];
@@ -17334,6 +18129,8 @@ module TileRTL__3ef4e58633c18b24
   assign element__clear[6] = 1'd0;
   assign element__clear[7] = 1'd0;
   assign element__clear[8] = 1'd0;
+  assign element__clear[9] = 1'd0;
+  assign element__clear[10] = 1'd0;
   assign fu_crossbar__clear = 1'd0;
   assign routing_crossbar__clear = 1'd0;
 
@@ -17341,26 +18138,26 @@ endmodule
 
 
 // PyMTL Component CgraTemplateRTL Definition
-// Full name: CgraTemplateRTL__CgraPayloadType_MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__9afc50be402e0afa__multi_cgra_rows_1__multi_cgra_columns_1__per_cgra_rows_4__per_cgra_columns_4__ctrl_mem_size_6__data_mem_size_global_128__data_mem_size_per_bank_16__num_banks_per_cgra_2__num_registers_per_reg_bank_8__num_ctrl_4__total_steps_42__mem_access_is_combinational_True__FunctionUnit_FlexibleFuRTL__FuList_[]__TileList_[<VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb1520>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb17f0>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb16a0>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb1820>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb1880>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb1c70>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb1d90>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb1ca0>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb2450>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb21b0>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb1fd0>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb18e0>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb1b50>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb13d0>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb22d0>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7fd48abb24e0>]__LinkList_[<VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48b66fc50>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb15b0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb1610>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2480>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2330>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2570>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2660>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb25d0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48b66fcb0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb27b0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2690>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb1d00>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb26f0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2540>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb25a0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2870>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb23c0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb27e0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb28a0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2780>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2840>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2900>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2930>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2960>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2990>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb29c0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb28d0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2a20>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2a50>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2a80>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2ab0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2ae0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb29f0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2b40>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2b70>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2ba0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2bd0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2c00>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb20f0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2c60>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2c90>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2cc0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2cf0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2d20>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2d50>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2d80>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2c30>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2de0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2e10>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2e40>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2e70>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2ea0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2ed0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2f00>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2db0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2f60>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2f90>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2fc0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2ff0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3020>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3050>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3080>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb2b10>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb30e0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3110>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3140>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3170>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb31a0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb31d0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3200>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3230>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3260>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3290>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb32c0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb30b0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3320>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3350>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3380>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb33b0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb33e0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3410>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3440>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3470>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb34a0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb34d0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3500>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb32f0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3560>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3590>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb35c0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb35f0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3620>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3650>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3680>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb36b0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb36e0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3710>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7fd48abb3740>]__dataSPM_<VectorCGRA.lib.util.cgra.DataSPM.DataSPM object at 0x7fd48abb2f30>__controller2addr_map_{0: (0, 127)}__idTo2d_map_{0: (0, 0)}__is_multi_cgra_False__cgra_id_0
+// Full name: CgraTemplateRTL__CgraPayloadType_MultiCgraPayload_Cmd_Data_DataAddr_Ctrl_CtrlAddr__828c7ec5d8f18077__multi_cgra_rows_1__multi_cgra_columns_4__per_cgra_rows_4__per_cgra_columns_4__ctrl_mem_size_6__data_mem_size_global_128__data_mem_size_per_bank_16__num_banks_per_cgra_2__num_registers_per_reg_bank_8__num_ctrl_5__total_steps_90__mem_access_is_combinational_True__FunctionUnit_FlexibleFuRTL__FuList_[<class 'VectorCGRA.fu.single.AdderRTL.AdderRTL'>, <class 'VectorCGRA.fu.single.MulRTL.MulRTL'>, <class 'VectorCGRA.fu.single.LogicRTL.LogicRTL'>, <class 'VectorCGRA.fu.single.ShifterRTL.ShifterRTL'>, <class 'VectorCGRA.fu.single.PhiRTL.PhiRTL'>, <class 'VectorCGRA.fu.single.CompRTL.CompRTL'>, <class 'VectorCGRA.fu.single.GrantRTL.GrantRTL'>, <class 'VectorCGRA.fu.single.MemUnitRTL.MemUnitRTL'>, <class 'VectorCGRA.fu.single.SelRTL.SelRTL'>, <class 'VectorCGRA.fu.single.RetRTL.RetRTL'>]__TileList_[<VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c2a5aed50>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c29d96750>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c29d97470>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c2a685220>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c2a4a7260>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c2aa657c0>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c29d965a0>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c2ac5fdd0>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c2a68f230>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c29e36d20>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c29e36180>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c29e37d10>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c2ac5f2f0>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c29e36330>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c29e361b0>, <VectorCGRA.lib.util.cgra.Tile.Tile object at 0x7f6c29e36270>]__LinkList_[<VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e369f0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36e40>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e361e0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36240>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e362d0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36420>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36210>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e362a0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e367e0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e360f0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36150>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e363c0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e364e0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36360>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36600>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e363f0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36810>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e364b0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36690>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36300>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36450>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e369c0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36a50>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e372f0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36990>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36ea0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36a80>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36b10>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36f30>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36e70>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e368d0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36fc0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36c60>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36ed0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37050>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36ba0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36f00>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e370e0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36780>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36ff0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37170>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37080>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37020>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37200>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e370b0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37110>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e36f90>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e371a0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37140>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37320>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e371d0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37230>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37440>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37260>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e372c0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e368a0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37500>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e374d0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37590>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37bc0>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37350>, <VectorCGRA.lib.util.cgra.Link.Link object at 0x7f6c29e37650>]__dataSPM_<VectorCGRA.lib.util.cgra.DataSPM.DataSPM object at 0x7f6c2a8ac680>__controller2addr_map_{0: [0, 31], 1: [32, 63], 2: [64, 95], 3: [96, 127]}__idTo2d_map_{0: [0, 0], 1: [1, 0], 2: [2, 0], 3: [3, 0]}__is_multi_cgra_False__cgra_id_0
 // At /mnt/public/sichuan_a/qjj/CGRA-SoC/VectorCGRA/cgra/CgraTemplateRTL.py
 
 module CgraTemplateRTL_single
 (
   input  logic [6:0] address_lower ,
   input  logic [6:0] address_upper ,
-  input  logic [0:0] cgra_id ,
+  input  logic [1:0] cgra_id ,
   input  logic [0:0] clk ,
   input  logic [0:0] reset ,
-  input IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 recv_from_cpu_pkt__msg  ,
+  input IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e recv_from_cpu_pkt__msg  ,
   output logic [0:0] recv_from_cpu_pkt__rdy  ,
   input logic [0:0] recv_from_cpu_pkt__val  ,
-  input InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d recv_from_inter_cgra_noc__msg  ,
+  input InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b recv_from_inter_cgra_noc__msg  ,
   output logic [0:0] recv_from_inter_cgra_noc__rdy  ,
   input logic [0:0] recv_from_inter_cgra_noc__val  ,
-  output IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 send_to_cpu_pkt__msg  ,
+  output IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e send_to_cpu_pkt__msg  ,
   input logic [0:0] send_to_cpu_pkt__rdy  ,
   output logic [0:0] send_to_cpu_pkt__val  ,
-  output InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d send_to_inter_cgra_noc__msg  ,
+  output InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b send_to_inter_cgra_noc__msg  ,
   input logic [0:0] send_to_inter_cgra_noc__rdy  ,
   output logic [0:0] send_to_inter_cgra_noc__val  
 );
@@ -17371,14 +18168,14 @@ module CgraTemplateRTL_single
   logic [0:0] bypass_queue__clk;
   logic [0:0] bypass_queue__count;
   logic [0:0] bypass_queue__reset;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d bypass_queue__recv__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b bypass_queue__recv__msg;
   logic [0:0] bypass_queue__recv__rdy;
   logic [0:0] bypass_queue__recv__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d bypass_queue__send__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b bypass_queue__send__msg;
   logic [0:0] bypass_queue__send__rdy;
   logic [0:0] bypass_queue__send__val;
 
-  BypassQueueRTL__59f175e7cf505267 bypass_queue
+  BypassQueueRTL__103b241972a0d957 bypass_queue
   (
     .clk( bypass_queue__clk ),
     .count( bypass_queue__count ),
@@ -17399,47 +18196,47 @@ module CgraTemplateRTL_single
   // Component controller
   //-------------------------------------------------------------
 
-  logic [0:0] controller__cgra_id;
+  logic [1:0] controller__cgra_id;
   logic [0:0] controller__clk;
   logic [0:0] controller__reset;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 controller__recv_from_cpu_pkt__msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e controller__recv_from_cpu_pkt__msg;
   logic [0:0] controller__recv_from_cpu_pkt__rdy;
   logic [0:0] controller__recv_from_cpu_pkt__val;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 controller__recv_from_ctrl_ring_pkt__msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e controller__recv_from_ctrl_ring_pkt__msg;
   logic [0:0] controller__recv_from_ctrl_ring_pkt__rdy;
   logic [0:0] controller__recv_from_ctrl_ring_pkt__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d controller__recv_from_inter_cgra_noc__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b controller__recv_from_inter_cgra_noc__msg;
   logic [0:0] controller__recv_from_inter_cgra_noc__rdy;
   logic [0:0] controller__recv_from_inter_cgra_noc__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d controller__recv_from_tile_load_request_pkt__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b controller__recv_from_tile_load_request_pkt__msg;
   logic [0:0] controller__recv_from_tile_load_request_pkt__rdy;
   logic [0:0] controller__recv_from_tile_load_request_pkt__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d controller__recv_from_tile_load_response_pkt__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b controller__recv_from_tile_load_response_pkt__msg;
   logic [0:0] controller__recv_from_tile_load_response_pkt__rdy;
   logic [0:0] controller__recv_from_tile_load_response_pkt__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d controller__recv_from_tile_store_request_pkt__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b controller__recv_from_tile_store_request_pkt__msg;
   logic [0:0] controller__recv_from_tile_store_request_pkt__rdy;
   logic [0:0] controller__recv_from_tile_store_request_pkt__val;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 controller__send_to_cpu_pkt__msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e controller__send_to_cpu_pkt__msg;
   logic [0:0] controller__send_to_cpu_pkt__rdy;
   logic [0:0] controller__send_to_cpu_pkt__val;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 controller__send_to_ctrl_ring_pkt__msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e controller__send_to_ctrl_ring_pkt__msg;
   logic [0:0] controller__send_to_ctrl_ring_pkt__rdy;
   logic [0:0] controller__send_to_ctrl_ring_pkt__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d controller__send_to_inter_cgra_noc__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b controller__send_to_inter_cgra_noc__msg;
   logic [0:0] controller__send_to_inter_cgra_noc__rdy;
   logic [0:0] controller__send_to_inter_cgra_noc__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d controller__send_to_mem_load_request__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b controller__send_to_mem_load_request__msg;
   logic [0:0] controller__send_to_mem_load_request__rdy;
   logic [0:0] controller__send_to_mem_load_request__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d controller__send_to_mem_store_request__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b controller__send_to_mem_store_request__msg;
   logic [0:0] controller__send_to_mem_store_request__rdy;
   logic [0:0] controller__send_to_mem_store_request__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d controller__send_to_tile_load_response__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b controller__send_to_tile_load_response__msg;
   logic [0:0] controller__send_to_tile_load_response__rdy;
   logic [0:0] controller__send_to_tile_load_response__val;
 
-  ControllerRTL__6540e011c4a26b19 controller
+  ControllerRTL__977902f3afea1ac1 controller
   (
     .cgra_id( controller__cgra_id ),
     .clk( controller__clk ),
@@ -17492,14 +18289,14 @@ module CgraTemplateRTL_single
 
   logic [0:0] ctrl_ring__clk;
   logic [0:0] ctrl_ring__reset;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 ctrl_ring__recv__msg [0:16];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e ctrl_ring__recv__msg [0:16];
   logic [0:0] ctrl_ring__recv__rdy [0:16];
   logic [0:0] ctrl_ring__recv__val [0:16];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 ctrl_ring__send__msg [0:16];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e ctrl_ring__send__msg [0:16];
   logic [0:0] ctrl_ring__send__rdy [0:16];
   logic [0:0] ctrl_ring__send__val [0:16];
 
-  RingNetworkRTL__3e3e9efc26784367 ctrl_ring
+  RingNetworkRTL__e6c2f6171e4c41f6 ctrl_ring
   (
     .clk( ctrl_ring__clk ),
     .reset( ctrl_ring__reset ),
@@ -17521,16 +18318,16 @@ module CgraTemplateRTL_single
 
   logic [6:0] data_mem__address_lower;
   logic [6:0] data_mem__address_upper;
-  logic [0:0] data_mem__cgra_id;
+  logic [1:0] data_mem__cgra_id;
   logic [0:0] data_mem__clk;
   logic [0:0] data_mem__reset;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d data_mem__recv_from_noc_load_request__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b data_mem__recv_from_noc_load_request__msg;
   logic [0:0] data_mem__recv_from_noc_load_request__rdy;
   logic [0:0] data_mem__recv_from_noc_load_request__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d data_mem__recv_from_noc_load_response_pkt__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b data_mem__recv_from_noc_load_response_pkt__msg;
   logic [0:0] data_mem__recv_from_noc_load_response_pkt__rdy;
   logic [0:0] data_mem__recv_from_noc_load_response_pkt__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d data_mem__recv_from_noc_store_request__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b data_mem__recv_from_noc_store_request__msg;
   logic [0:0] data_mem__recv_from_noc_store_request__rdy;
   logic [0:0] data_mem__recv_from_noc_store_request__val;
   logic [6:0] data_mem__recv_raddr__msg [0:6];
@@ -17545,17 +18342,17 @@ module CgraTemplateRTL_single
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 data_mem__send_rdata__msg [0:6];
   logic [0:0] data_mem__send_rdata__rdy [0:6];
   logic [0:0] data_mem__send_rdata__val [0:6];
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d data_mem__send_to_noc_load_request_pkt__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b data_mem__send_to_noc_load_request_pkt__msg;
   logic [0:0] data_mem__send_to_noc_load_request_pkt__rdy;
   logic [0:0] data_mem__send_to_noc_load_request_pkt__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d data_mem__send_to_noc_load_response_pkt__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b data_mem__send_to_noc_load_response_pkt__msg;
   logic [0:0] data_mem__send_to_noc_load_response_pkt__rdy;
   logic [0:0] data_mem__send_to_noc_load_response_pkt__val;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d data_mem__send_to_noc_store_pkt__msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b data_mem__send_to_noc_store_pkt__msg;
   logic [0:0] data_mem__send_to_noc_store_pkt__rdy;
   logic [0:0] data_mem__send_to_noc_store_pkt__val;
 
-  DataMemControllerRTL__0a18490583396d4e data_mem
+  DataMemControllerRTL__e101360e8b182a3a data_mem
   (
     .address_lower( data_mem__address_lower ),
     .address_upper( data_mem__address_upper ),
@@ -17602,23 +18399,23 @@ module CgraTemplateRTL_single
   // Component tile[0:15]
   //-------------------------------------------------------------
 
-  logic [0:0] tile__cgra_id [0:15];
+  logic [1:0] tile__cgra_id [0:15];
   logic [0:0] tile__clk [0:15];
   logic [0:0] tile__reset [0:15];
   logic [4:0] tile__tile_id [0:15];
   CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 tile__from_mem_rdata__msg [0:15];
   logic [0:0] tile__from_mem_rdata__rdy [0:15];
   logic [0:0] tile__from_mem_rdata__val [0:15];
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 tile__recv_data__msg [0:15][0:7];
-  logic [0:0] tile__recv_data__rdy [0:15][0:7];
-  logic [0:0] tile__recv_data__val [0:15][0:7];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 tile__recv_from_controller_pkt__msg [0:15];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 tile__recv_data__msg [0:15][0:3];
+  logic [0:0] tile__recv_data__rdy [0:15][0:3];
+  logic [0:0] tile__recv_data__val [0:15][0:3];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e tile__recv_from_controller_pkt__msg [0:15];
   logic [0:0] tile__recv_from_controller_pkt__rdy [0:15];
   logic [0:0] tile__recv_from_controller_pkt__val [0:15];
-  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 tile__send_data__msg [0:15][0:7];
-  logic [0:0] tile__send_data__rdy [0:15][0:7];
-  logic [0:0] tile__send_data__val [0:15][0:7];
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 tile__send_to_controller_pkt__msg [0:15];
+  CgraData_32_1_1_1__payload_32__predicate_1__bypass_1__delay_1 tile__send_data__msg [0:15][0:3];
+  logic [0:0] tile__send_data__rdy [0:15][0:3];
+  logic [0:0] tile__send_data__val [0:15][0:3];
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e tile__send_to_controller_pkt__msg [0:15];
   logic [0:0] tile__send_to_controller_pkt__rdy [0:15];
   logic [0:0] tile__send_to_controller_pkt__val [0:15];
   logic [6:0] tile__to_mem_raddr__msg [0:15];
@@ -17631,7 +18428,7 @@ module CgraTemplateRTL_single
   logic [0:0] tile__to_mem_wdata__rdy [0:15];
   logic [0:0] tile__to_mem_wdata__val [0:15];
 
-  TileRTL__3ef4e58633c18b24 tile__0
+  TileRTL__6b09fc00ec3321d7 tile__0
   (
     .cgra_id( tile__cgra_id[0] ),
     .clk( tile__clk[0] ),
@@ -17663,7 +18460,7 @@ module CgraTemplateRTL_single
     .to_mem_wdata__val( tile__to_mem_wdata__val[0] )
   );
 
-  TileRTL__3ef4e58633c18b24 tile__1
+  TileRTL__6b09fc00ec3321d7 tile__1
   (
     .cgra_id( tile__cgra_id[1] ),
     .clk( tile__clk[1] ),
@@ -17695,7 +18492,7 @@ module CgraTemplateRTL_single
     .to_mem_wdata__val( tile__to_mem_wdata__val[1] )
   );
 
-  TileRTL__3ef4e58633c18b24 tile__2
+  TileRTL__6b09fc00ec3321d7 tile__2
   (
     .cgra_id( tile__cgra_id[2] ),
     .clk( tile__clk[2] ),
@@ -17727,7 +18524,7 @@ module CgraTemplateRTL_single
     .to_mem_wdata__val( tile__to_mem_wdata__val[2] )
   );
 
-  TileRTL__3ef4e58633c18b24 tile__3
+  TileRTL__6b09fc00ec3321d7 tile__3
   (
     .cgra_id( tile__cgra_id[3] ),
     .clk( tile__clk[3] ),
@@ -17759,7 +18556,7 @@ module CgraTemplateRTL_single
     .to_mem_wdata__val( tile__to_mem_wdata__val[3] )
   );
 
-  TileRTL__3ef4e58633c18b24 tile__4
+  TileRTL__6b09fc00ec3321d7 tile__4
   (
     .cgra_id( tile__cgra_id[4] ),
     .clk( tile__clk[4] ),
@@ -17791,7 +18588,7 @@ module CgraTemplateRTL_single
     .to_mem_wdata__val( tile__to_mem_wdata__val[4] )
   );
 
-  TileRTL__3ef4e58633c18b24 tile__5
+  TileRTL__6b09fc00ec3321d7 tile__5
   (
     .cgra_id( tile__cgra_id[5] ),
     .clk( tile__clk[5] ),
@@ -17823,7 +18620,7 @@ module CgraTemplateRTL_single
     .to_mem_wdata__val( tile__to_mem_wdata__val[5] )
   );
 
-  TileRTL__3ef4e58633c18b24 tile__6
+  TileRTL__6b09fc00ec3321d7 tile__6
   (
     .cgra_id( tile__cgra_id[6] ),
     .clk( tile__clk[6] ),
@@ -17855,7 +18652,7 @@ module CgraTemplateRTL_single
     .to_mem_wdata__val( tile__to_mem_wdata__val[6] )
   );
 
-  TileRTL__3ef4e58633c18b24 tile__7
+  TileRTL__6b09fc00ec3321d7 tile__7
   (
     .cgra_id( tile__cgra_id[7] ),
     .clk( tile__clk[7] ),
@@ -17887,7 +18684,7 @@ module CgraTemplateRTL_single
     .to_mem_wdata__val( tile__to_mem_wdata__val[7] )
   );
 
-  TileRTL__3ef4e58633c18b24 tile__8
+  TileRTL__6b09fc00ec3321d7 tile__8
   (
     .cgra_id( tile__cgra_id[8] ),
     .clk( tile__clk[8] ),
@@ -17919,7 +18716,7 @@ module CgraTemplateRTL_single
     .to_mem_wdata__val( tile__to_mem_wdata__val[8] )
   );
 
-  TileRTL__3ef4e58633c18b24 tile__9
+  TileRTL__6b09fc00ec3321d7 tile__9
   (
     .cgra_id( tile__cgra_id[9] ),
     .clk( tile__clk[9] ),
@@ -17951,7 +18748,7 @@ module CgraTemplateRTL_single
     .to_mem_wdata__val( tile__to_mem_wdata__val[9] )
   );
 
-  TileRTL__3ef4e58633c18b24 tile__10
+  TileRTL__6b09fc00ec3321d7 tile__10
   (
     .cgra_id( tile__cgra_id[10] ),
     .clk( tile__clk[10] ),
@@ -17983,7 +18780,7 @@ module CgraTemplateRTL_single
     .to_mem_wdata__val( tile__to_mem_wdata__val[10] )
   );
 
-  TileRTL__3ef4e58633c18b24 tile__11
+  TileRTL__6b09fc00ec3321d7 tile__11
   (
     .cgra_id( tile__cgra_id[11] ),
     .clk( tile__clk[11] ),
@@ -18015,7 +18812,7 @@ module CgraTemplateRTL_single
     .to_mem_wdata__val( tile__to_mem_wdata__val[11] )
   );
 
-  TileRTL__3ef4e58633c18b24 tile__12
+  TileRTL__6b09fc00ec3321d7 tile__12
   (
     .cgra_id( tile__cgra_id[12] ),
     .clk( tile__clk[12] ),
@@ -18047,7 +18844,7 @@ module CgraTemplateRTL_single
     .to_mem_wdata__val( tile__to_mem_wdata__val[12] )
   );
 
-  TileRTL__3ef4e58633c18b24 tile__13
+  TileRTL__6b09fc00ec3321d7 tile__13
   (
     .cgra_id( tile__cgra_id[13] ),
     .clk( tile__clk[13] ),
@@ -18079,7 +18876,7 @@ module CgraTemplateRTL_single
     .to_mem_wdata__val( tile__to_mem_wdata__val[13] )
   );
 
-  TileRTL__3ef4e58633c18b24 tile__14
+  TileRTL__6b09fc00ec3321d7 tile__14
   (
     .cgra_id( tile__cgra_id[14] ),
     .clk( tile__clk[14] ),
@@ -18111,7 +18908,7 @@ module CgraTemplateRTL_single
     .to_mem_wdata__val( tile__to_mem_wdata__val[14] )
   );
 
-  TileRTL__3ef4e58633c18b24 tile__15
+  TileRTL__6b09fc00ec3321d7 tile__15
   (
     .cgra_id( tile__cgra_id[15] ),
     .clk( tile__clk[15] ),
@@ -18604,156 +19401,12 @@ module CgraTemplateRTL_single
   assign tile__recv_data__msg[11][0] = tile__send_data__msg[15][1];
   assign tile__send_data__rdy[15][1] = tile__recv_data__rdy[11][0];
   assign tile__recv_data__val[11][0] = tile__send_data__val[15][1];
-  assign tile__recv_data__msg[5][7] = tile__send_data__msg[0][5];
-  assign tile__send_data__rdy[0][5] = tile__recv_data__rdy[5][7];
-  assign tile__recv_data__val[5][7] = tile__send_data__val[0][5];
-  assign tile__recv_data__msg[0][5] = tile__send_data__msg[5][7];
-  assign tile__send_data__rdy[5][7] = tile__recv_data__rdy[0][5];
-  assign tile__recv_data__val[0][5] = tile__send_data__val[5][7];
-  assign tile__recv_data__msg[4][6] = tile__send_data__msg[1][4];
-  assign tile__send_data__rdy[1][4] = tile__recv_data__rdy[4][6];
-  assign tile__recv_data__val[4][6] = tile__send_data__val[1][4];
-  assign tile__recv_data__msg[1][4] = tile__send_data__msg[4][6];
-  assign tile__send_data__rdy[4][6] = tile__recv_data__rdy[1][4];
-  assign tile__recv_data__val[1][4] = tile__send_data__val[4][6];
-  assign tile__recv_data__msg[6][7] = tile__send_data__msg[1][5];
-  assign tile__send_data__rdy[1][5] = tile__recv_data__rdy[6][7];
-  assign tile__recv_data__val[6][7] = tile__send_data__val[1][5];
-  assign tile__recv_data__msg[1][5] = tile__send_data__msg[6][7];
-  assign tile__send_data__rdy[6][7] = tile__recv_data__rdy[1][5];
-  assign tile__recv_data__val[1][5] = tile__send_data__val[6][7];
-  assign tile__recv_data__msg[5][6] = tile__send_data__msg[2][4];
-  assign tile__send_data__rdy[2][4] = tile__recv_data__rdy[5][6];
-  assign tile__recv_data__val[5][6] = tile__send_data__val[2][4];
-  assign tile__recv_data__msg[2][4] = tile__send_data__msg[5][6];
-  assign tile__send_data__rdy[5][6] = tile__recv_data__rdy[2][4];
-  assign tile__recv_data__val[2][4] = tile__send_data__val[5][6];
-  assign tile__recv_data__msg[7][7] = tile__send_data__msg[2][5];
-  assign tile__send_data__rdy[2][5] = tile__recv_data__rdy[7][7];
-  assign tile__recv_data__val[7][7] = tile__send_data__val[2][5];
-  assign tile__recv_data__msg[2][5] = tile__send_data__msg[7][7];
-  assign tile__send_data__rdy[7][7] = tile__recv_data__rdy[2][5];
-  assign tile__recv_data__val[2][5] = tile__send_data__val[7][7];
-  assign tile__recv_data__msg[6][6] = tile__send_data__msg[3][4];
-  assign tile__send_data__rdy[3][4] = tile__recv_data__rdy[6][6];
-  assign tile__recv_data__val[6][6] = tile__send_data__val[3][4];
-  assign tile__recv_data__msg[3][4] = tile__send_data__msg[6][6];
-  assign tile__send_data__rdy[6][6] = tile__recv_data__rdy[3][4];
-  assign tile__recv_data__val[3][4] = tile__send_data__val[6][6];
-  assign tile__recv_data__msg[9][7] = tile__send_data__msg[4][5];
-  assign tile__send_data__rdy[4][5] = tile__recv_data__rdy[9][7];
-  assign tile__recv_data__val[9][7] = tile__send_data__val[4][5];
-  assign tile__recv_data__msg[4][5] = tile__send_data__msg[9][7];
-  assign tile__send_data__rdy[9][7] = tile__recv_data__rdy[4][5];
-  assign tile__recv_data__val[4][5] = tile__send_data__val[9][7];
-  assign tile__recv_data__msg[8][6] = tile__send_data__msg[5][4];
-  assign tile__send_data__rdy[5][4] = tile__recv_data__rdy[8][6];
-  assign tile__recv_data__val[8][6] = tile__send_data__val[5][4];
-  assign tile__recv_data__msg[5][4] = tile__send_data__msg[8][6];
-  assign tile__send_data__rdy[8][6] = tile__recv_data__rdy[5][4];
-  assign tile__recv_data__val[5][4] = tile__send_data__val[8][6];
-  assign tile__recv_data__msg[10][7] = tile__send_data__msg[5][5];
-  assign tile__send_data__rdy[5][5] = tile__recv_data__rdy[10][7];
-  assign tile__recv_data__val[10][7] = tile__send_data__val[5][5];
-  assign tile__recv_data__msg[5][5] = tile__send_data__msg[10][7];
-  assign tile__send_data__rdy[10][7] = tile__recv_data__rdy[5][5];
-  assign tile__recv_data__val[5][5] = tile__send_data__val[10][7];
-  assign tile__recv_data__msg[9][6] = tile__send_data__msg[6][4];
-  assign tile__send_data__rdy[6][4] = tile__recv_data__rdy[9][6];
-  assign tile__recv_data__val[9][6] = tile__send_data__val[6][4];
-  assign tile__recv_data__msg[6][4] = tile__send_data__msg[9][6];
-  assign tile__send_data__rdy[9][6] = tile__recv_data__rdy[6][4];
-  assign tile__recv_data__val[6][4] = tile__send_data__val[9][6];
-  assign tile__recv_data__msg[11][7] = tile__send_data__msg[6][5];
-  assign tile__send_data__rdy[6][5] = tile__recv_data__rdy[11][7];
-  assign tile__recv_data__val[11][7] = tile__send_data__val[6][5];
-  assign tile__recv_data__msg[6][5] = tile__send_data__msg[11][7];
-  assign tile__send_data__rdy[11][7] = tile__recv_data__rdy[6][5];
-  assign tile__recv_data__val[6][5] = tile__send_data__val[11][7];
-  assign tile__recv_data__msg[10][6] = tile__send_data__msg[7][4];
-  assign tile__send_data__rdy[7][4] = tile__recv_data__rdy[10][6];
-  assign tile__recv_data__val[10][6] = tile__send_data__val[7][4];
-  assign tile__recv_data__msg[7][4] = tile__send_data__msg[10][6];
-  assign tile__send_data__rdy[10][6] = tile__recv_data__rdy[7][4];
-  assign tile__recv_data__val[7][4] = tile__send_data__val[10][6];
-  assign tile__recv_data__msg[13][7] = tile__send_data__msg[8][5];
-  assign tile__send_data__rdy[8][5] = tile__recv_data__rdy[13][7];
-  assign tile__recv_data__val[13][7] = tile__send_data__val[8][5];
-  assign tile__recv_data__msg[8][5] = tile__send_data__msg[13][7];
-  assign tile__send_data__rdy[13][7] = tile__recv_data__rdy[8][5];
-  assign tile__recv_data__val[8][5] = tile__send_data__val[13][7];
-  assign tile__recv_data__msg[12][6] = tile__send_data__msg[9][4];
-  assign tile__send_data__rdy[9][4] = tile__recv_data__rdy[12][6];
-  assign tile__recv_data__val[12][6] = tile__send_data__val[9][4];
-  assign tile__recv_data__msg[9][4] = tile__send_data__msg[12][6];
-  assign tile__send_data__rdy[12][6] = tile__recv_data__rdy[9][4];
-  assign tile__recv_data__val[9][4] = tile__send_data__val[12][6];
-  assign tile__recv_data__msg[14][7] = tile__send_data__msg[9][5];
-  assign tile__send_data__rdy[9][5] = tile__recv_data__rdy[14][7];
-  assign tile__recv_data__val[14][7] = tile__send_data__val[9][5];
-  assign tile__recv_data__msg[9][5] = tile__send_data__msg[14][7];
-  assign tile__send_data__rdy[14][7] = tile__recv_data__rdy[9][5];
-  assign tile__recv_data__val[9][5] = tile__send_data__val[14][7];
-  assign tile__recv_data__msg[13][6] = tile__send_data__msg[10][4];
-  assign tile__send_data__rdy[10][4] = tile__recv_data__rdy[13][6];
-  assign tile__recv_data__val[13][6] = tile__send_data__val[10][4];
-  assign tile__recv_data__msg[10][4] = tile__send_data__msg[13][6];
-  assign tile__send_data__rdy[13][6] = tile__recv_data__rdy[10][4];
-  assign tile__recv_data__val[10][4] = tile__send_data__val[13][6];
-  assign tile__recv_data__msg[15][7] = tile__send_data__msg[10][5];
-  assign tile__send_data__rdy[10][5] = tile__recv_data__rdy[15][7];
-  assign tile__recv_data__val[15][7] = tile__send_data__val[10][5];
-  assign tile__recv_data__msg[10][5] = tile__send_data__msg[15][7];
-  assign tile__send_data__rdy[15][7] = tile__recv_data__rdy[10][5];
-  assign tile__recv_data__val[10][5] = tile__send_data__val[15][7];
-  assign tile__recv_data__msg[14][6] = tile__send_data__msg[11][4];
-  assign tile__send_data__rdy[11][4] = tile__recv_data__rdy[14][6];
-  assign tile__recv_data__val[14][6] = tile__send_data__val[11][4];
-  assign tile__recv_data__msg[11][4] = tile__send_data__msg[14][6];
-  assign tile__send_data__rdy[14][6] = tile__recv_data__rdy[11][4];
-  assign tile__recv_data__val[11][4] = tile__send_data__val[14][6];
   assign tile__recv_data__val[0][2] = 1'd0;
   assign tile__recv_data__msg[0][2] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[0][4] = 1'd0;
-  assign tile__recv_data__msg[0][4] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[0][6] = 1'd0;
-  assign tile__recv_data__msg[0][6] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[0][7] = 1'd0;
-  assign tile__recv_data__msg[0][7] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign tile__send_data__rdy[0][2] = 1'd0;
-  assign tile__send_data__rdy[0][4] = 1'd0;
-  assign tile__send_data__rdy[0][6] = 1'd0;
-  assign tile__send_data__rdy[0][7] = 1'd0;
-  assign tile__recv_data__val[1][6] = 1'd0;
-  assign tile__recv_data__msg[1][6] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[1][7] = 1'd0;
-  assign tile__recv_data__msg[1][7] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__send_data__rdy[1][6] = 1'd0;
-  assign tile__send_data__rdy[1][7] = 1'd0;
-  assign tile__recv_data__val[2][6] = 1'd0;
-  assign tile__recv_data__msg[2][6] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[2][7] = 1'd0;
-  assign tile__recv_data__msg[2][7] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__send_data__rdy[2][6] = 1'd0;
-  assign tile__send_data__rdy[2][7] = 1'd0;
   assign tile__recv_data__val[3][3] = 1'd0;
   assign tile__recv_data__msg[3][3] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[3][5] = 1'd0;
-  assign tile__recv_data__msg[3][5] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[3][6] = 1'd0;
-  assign tile__recv_data__msg[3][6] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[3][7] = 1'd0;
-  assign tile__recv_data__msg[3][7] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign tile__send_data__rdy[3][3] = 1'd0;
-  assign tile__send_data__rdy[3][5] = 1'd0;
-  assign tile__send_data__rdy[3][6] = 1'd0;
-  assign tile__send_data__rdy[3][7] = 1'd0;
-  assign tile__recv_data__val[4][4] = 1'd0;
-  assign tile__recv_data__msg[4][4] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[4][7] = 1'd0;
-  assign tile__recv_data__msg[4][7] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__send_data__rdy[4][4] = 1'd0;
-  assign tile__send_data__rdy[4][7] = 1'd0;
   assign tile__to_mem_raddr__rdy[5] = 1'd0;
   assign tile__from_mem_rdata__val[5] = 1'd0;
   assign tile__from_mem_rdata__msg[5] = { 32'd0, 1'd0, 1'd0, 1'd0 };
@@ -18766,24 +19419,12 @@ module CgraTemplateRTL_single
   assign tile__to_mem_wdata__rdy[6] = 1'd0;
   assign tile__recv_data__val[7][3] = 1'd0;
   assign tile__recv_data__msg[7][3] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[7][5] = 1'd0;
-  assign tile__recv_data__msg[7][5] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[7][6] = 1'd0;
-  assign tile__recv_data__msg[7][6] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign tile__send_data__rdy[7][3] = 1'd0;
-  assign tile__send_data__rdy[7][5] = 1'd0;
-  assign tile__send_data__rdy[7][6] = 1'd0;
   assign tile__to_mem_raddr__rdy[7] = 1'd0;
   assign tile__from_mem_rdata__val[7] = 1'd0;
   assign tile__from_mem_rdata__msg[7] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign tile__to_mem_waddr__rdy[7] = 1'd0;
   assign tile__to_mem_wdata__rdy[7] = 1'd0;
-  assign tile__recv_data__val[8][4] = 1'd0;
-  assign tile__recv_data__msg[8][4] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[8][7] = 1'd0;
-  assign tile__recv_data__msg[8][7] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__send_data__rdy[8][4] = 1'd0;
-  assign tile__send_data__rdy[8][7] = 1'd0;
   assign tile__to_mem_raddr__rdy[9] = 1'd0;
   assign tile__from_mem_rdata__val[9] = 1'd0;
   assign tile__from_mem_rdata__msg[9] = { 32'd0, 1'd0, 1'd0, 1'd0 };
@@ -18796,13 +19437,7 @@ module CgraTemplateRTL_single
   assign tile__to_mem_wdata__rdy[10] = 1'd0;
   assign tile__recv_data__val[11][3] = 1'd0;
   assign tile__recv_data__msg[11][3] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[11][5] = 1'd0;
-  assign tile__recv_data__msg[11][5] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[11][6] = 1'd0;
-  assign tile__recv_data__msg[11][6] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign tile__send_data__rdy[11][3] = 1'd0;
-  assign tile__send_data__rdy[11][5] = 1'd0;
-  assign tile__send_data__rdy[11][6] = 1'd0;
   assign tile__to_mem_raddr__rdy[11] = 1'd0;
   assign tile__from_mem_rdata__val[11] = 1'd0;
   assign tile__from_mem_rdata__msg[11] = { 32'd0, 1'd0, 1'd0, 1'd0 };
@@ -18810,25 +19445,10 @@ module CgraTemplateRTL_single
   assign tile__to_mem_wdata__rdy[11] = 1'd0;
   assign tile__recv_data__val[12][0] = 1'd0;
   assign tile__recv_data__msg[12][0] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[12][4] = 1'd0;
-  assign tile__recv_data__msg[12][4] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[12][5] = 1'd0;
-  assign tile__recv_data__msg[12][5] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[12][7] = 1'd0;
-  assign tile__recv_data__msg[12][7] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign tile__send_data__rdy[12][0] = 1'd0;
-  assign tile__send_data__rdy[12][4] = 1'd0;
-  assign tile__send_data__rdy[12][5] = 1'd0;
-  assign tile__send_data__rdy[12][7] = 1'd0;
   assign tile__recv_data__val[13][0] = 1'd0;
   assign tile__recv_data__msg[13][0] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[13][4] = 1'd0;
-  assign tile__recv_data__msg[13][4] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[13][5] = 1'd0;
-  assign tile__recv_data__msg[13][5] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign tile__send_data__rdy[13][0] = 1'd0;
-  assign tile__send_data__rdy[13][4] = 1'd0;
-  assign tile__send_data__rdy[13][5] = 1'd0;
   assign tile__to_mem_raddr__rdy[13] = 1'd0;
   assign tile__from_mem_rdata__val[13] = 1'd0;
   assign tile__from_mem_rdata__msg[13] = { 32'd0, 1'd0, 1'd0, 1'd0 };
@@ -18836,13 +19456,7 @@ module CgraTemplateRTL_single
   assign tile__to_mem_wdata__rdy[13] = 1'd0;
   assign tile__recv_data__val[14][0] = 1'd0;
   assign tile__recv_data__msg[14][0] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[14][4] = 1'd0;
-  assign tile__recv_data__msg[14][4] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[14][5] = 1'd0;
-  assign tile__recv_data__msg[14][5] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign tile__send_data__rdy[14][0] = 1'd0;
-  assign tile__send_data__rdy[14][4] = 1'd0;
-  assign tile__send_data__rdy[14][5] = 1'd0;
   assign tile__to_mem_raddr__rdy[14] = 1'd0;
   assign tile__from_mem_rdata__val[14] = 1'd0;
   assign tile__from_mem_rdata__msg[14] = { 32'd0, 1'd0, 1'd0, 1'd0 };
@@ -18852,17 +19466,8 @@ module CgraTemplateRTL_single
   assign tile__recv_data__msg[15][0] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign tile__recv_data__val[15][3] = 1'd0;
   assign tile__recv_data__msg[15][3] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[15][4] = 1'd0;
-  assign tile__recv_data__msg[15][4] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[15][5] = 1'd0;
-  assign tile__recv_data__msg[15][5] = { 32'd0, 1'd0, 1'd0, 1'd0 };
-  assign tile__recv_data__val[15][6] = 1'd0;
-  assign tile__recv_data__msg[15][6] = { 32'd0, 1'd0, 1'd0, 1'd0 };
   assign tile__send_data__rdy[15][0] = 1'd0;
   assign tile__send_data__rdy[15][3] = 1'd0;
-  assign tile__send_data__rdy[15][4] = 1'd0;
-  assign tile__send_data__rdy[15][5] = 1'd0;
-  assign tile__send_data__rdy[15][6] = 1'd0;
   assign tile__to_mem_raddr__rdy[15] = 1'd0;
   assign tile__from_mem_rdata__val[15] = 1'd0;
   assign tile__from_mem_rdata__msg[15] = { 32'd0, 1'd0, 1'd0, 1'd0 };

@@ -10,26 +10,26 @@ module CgraTemplateRTL_single_wrapper (
   input  logic        clk,
   input  logic        reset,
   input  logic        recv_from_cpu_pkt_val,
-  input  logic [205:0] recv_from_cpu_pkt_msg,
+  input  logic [190:0] recv_from_cpu_pkt_msg,
   output logic        recv_from_cpu_pkt_rdy,
   output logic        send_to_cpu_pkt_val,
-  output logic [205:0] send_to_cpu_pkt_msg,
+  output logic [190:0] send_to_cpu_pkt_msg,
   input  logic        send_to_cpu_pkt_rdy,
   input  logic        recv_from_inter_cgra_noc_val,
-  input  logic [209:0] recv_from_inter_cgra_noc_msg,
+  input  logic [194:0] recv_from_inter_cgra_noc_msg,
   output logic        recv_from_inter_cgra_noc_rdy,
   output logic        send_to_inter_cgra_noc_val,
-  output logic [209:0] send_to_inter_cgra_noc_msg,
+  output logic [194:0] send_to_inter_cgra_noc_msg,
   input  logic        send_to_inter_cgra_noc_rdy,
-  input  logic cgra_id,
+  input  logic [1:0] cgra_id,
   input  logic [6:0] address_lower,
   input  logic [6:0] address_upper
 );
 
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 w_recv_from_cpu_pkt_msg;
-  IntraCgraPacket_1_1x1_16_8_2_CgraPayload__8d59259eb3b519c3 w_send_to_cpu_pkt_msg;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d w_recv_from_inter_cgra_noc_msg;
-  InterCgraPacket_1_1x1_16_8_4_CgraPayload__ef7dd5a776fdbf0d w_send_to_inter_cgra_noc_msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e w_recv_from_cpu_pkt_msg;
+  IntraCgraPacket_4_4x1_16_8_2_CgraPayload__2b9fbb103b90600e w_send_to_cpu_pkt_msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b w_recv_from_inter_cgra_noc_msg;
+  InterCgraPacket_4_4x1_16_8_4_CgraPayload__fb6ce35b973e559b w_send_to_inter_cgra_noc_msg;
 
 
   assign w_recv_from_cpu_pkt_msg = recv_from_cpu_pkt_msg;

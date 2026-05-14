@@ -117,6 +117,7 @@ object CGRACmd {
   // The wrapper forwards raw packets and only interprets commands needed for
   // host-side busy/completion tracking.
   def launch(width: Int): UInt = 0.U(width.W)
+  def loadResponse(width: Int): UInt = 11.U(width.W)
   def complete(width: Int): UInt = 14.U(width.W)
   def resume(width: Int): UInt = 15.U(width.W)
 }
@@ -134,6 +135,7 @@ object CGRACmd {
 //   8 = SET_EXPECTED_COMPLETES: rs1=number of CMD_COMPLETE packets to wait for
 //   9 = RESULT:       Return the last 32-bit CMD_COMPLETE payload
 //   10 = RAW_PKT_TOP: Send bits above 192 and trigger transmit when needed
+//   11 = LOAD_RESULT: Block until a CMD_LOAD_RESPONSE arrives, then return data
 //
 // ============================================================================
 
@@ -198,9 +200,10 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val isSetExpectedCompletes = funct === 8.U
   val isResult    = funct === 9.U
   val isRawPktTop = funct === 10.U
+  val isLoadResult = funct === 11.U
 
   // ---- State Machine ----
-  val s_idle :: s_send_pkt :: s_wait_complete :: s_resp :: Nil = Enum(4)
+  val s_idle :: s_send_pkt :: s_wait_complete :: s_wait_load_response :: s_resp :: Nil = Enum(5)
   val state = RegInit(s_idle)
 
   // Status registers
@@ -226,6 +229,11 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   // Most CGRA kernels return scalar data in the payload bits of CMD_COMPLETE.
   val lastCompleteData = RegInit(0.U(params.dataPayloadWidth.W))
+
+  // CPU-triggered readback uses CMD_LOAD_REQUEST and returns CMD_LOAD_RESPONSE
+  // through the same send_to_cpu_pkt channel as CMD_COMPLETE.
+  val loadRespValid = RegInit(false.B)
+  val lastLoadData = RegInit(0.U(params.dataPayloadWidth.W))
 
   // Response registers
   val respValid = RegInit(false.B)
@@ -273,6 +281,15 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       respData := lastCompleteData
       respValid := true.B
       state := s_resp
+    } .elsewhen (isLoadResult) {
+      when (loadRespValid) {
+        respData := lastLoadData
+        loadRespValid := false.B
+        respValid := true.B
+        state := s_resp
+      } .otherwise {
+        state := s_wait_load_response
+      }
     } .elsewhen (isWait) {
       when (expectedCompleteCount === 0.U || cgraComplete) {
         respData := 1.U
@@ -321,6 +338,13 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     state := s_resp
   }
 
+  when (state === s_wait_load_response && loadRespValid) {
+    respData := lastLoadData
+    loadRespValid := false.B
+    respValid := true.B
+    state := s_resp
+  }
+
   // ---- Monitor CGRA output (send_to_cpu_pkt) ----
   cgra.io.send_to_cpu_pkt_rdy := true.B  // Always ready to receive from CGRA
 
@@ -337,6 +361,9 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
           expectedCompleteCount := 0.U
         }
       }
+    } .elsewhen (recvCmd === CGRACmd.loadResponse(params.cmdWidth)) {
+      lastLoadData := recvPkt(pktDataPayloadMsb, pktDataPayloadLsb)
+      loadRespValid := true.B
     }
   }
 
