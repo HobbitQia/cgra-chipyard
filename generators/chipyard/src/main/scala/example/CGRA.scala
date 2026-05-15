@@ -117,6 +117,7 @@ object CGRACmd {
   // The wrapper forwards raw packets and only interprets commands needed for
   // host-side busy/completion tracking.
   def launch(width: Int): UInt = 0.U(width.W)
+  def loadRequest(width: Int): UInt = 10.U(width.W)
   def loadResponse(width: Int): UInt = 11.U(width.W)
   def complete(width: Int): UInt = 14.U(width.W)
   def resume(width: Int): UInt = 15.U(width.W)
@@ -232,6 +233,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   // CPU-triggered readback uses CMD_LOAD_REQUEST and returns CMD_LOAD_RESPONSE
   // through the same send_to_cpu_pkt channel as CMD_COMPLETE.
+  val expectLoadResponse = RegInit(false.B)
   val loadRespValid = RegInit(false.B)
   val lastLoadData = RegInit(0.U(params.dataPayloadWidth.W))
 
@@ -246,10 +248,16 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val pktCmdLsb = params.payloadWidth - params.cmdWidth
   val pktDataPayloadMsb = pktCmdLsb - 1
   val pktDataPayloadLsb = pktDataPayloadMsb - params.dataPayloadWidth + 1
+  val pktTileIdWidth = log2Ceil(params.numTiles + 1)
+  val pktDstTileMsb = params.intraPktWidth - pktTileIdWidth - 1
+  val pktDstTileLsb = params.intraPktWidth - (2 * pktTileIdWidth)
+  val cpuTileId = params.numTiles.U(pktTileIdWidth.W)
   require(params.payloadWidth <= params.intraPktWidth,
     s"payloadWidth ${params.payloadWidth} exceeds intraPktWidth ${params.intraPktWidth}")
   require(pktDataPayloadLsb >= 0,
     s"data payload does not fit payloadWidth=${params.payloadWidth}, cmdWidth=${params.cmdWidth}")
+  require(pktDstTileLsb >= params.payloadWidth,
+    s"dst tile field does not fit intraPktWidth=${params.intraPktWidth}, numTiles=${params.numTiles}")
 
   def acceptAssembledPkt(assembledPkt: UInt): Unit = {
     val assembledCmd = assembledPkt(pktCmdMsb, pktCmdLsb)
@@ -258,6 +266,10 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     when (assembledCmd === CGRACmd.launch(params.cmdWidth) ||
           assembledCmd === CGRACmd.resume(params.cmdWidth)) {
       noteLaunchIssued()
+    }
+    when (assembledCmd === CGRACmd.loadRequest(params.cmdWidth)) {
+      loadRespValid := false.B
+      expectLoadResponse := true.B
     }
     state := s_send_pkt
   }
@@ -351,6 +363,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   when (cgra.io.send_to_cpu_pkt_val) {
     val recvPkt = cgra.io.send_to_cpu_pkt_msg
     val recvCmd = recvPkt(pktCmdMsb, pktCmdLsb)
+    val recvDstTile = recvPkt(pktDstTileMsb, pktDstTileLsb)
     when (recvCmd === CGRACmd.complete(params.cmdWidth)) {
       when (expectedCompleteCount =/= 0.U) {
         lastCompleteData := recvPkt(pktDataPayloadMsb, pktDataPayloadLsb)
@@ -361,9 +374,11 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
           expectedCompleteCount := 0.U
         }
       }
-    } .elsewhen (recvCmd === CGRACmd.loadResponse(params.cmdWidth)) {
+    } .elsewhen (recvCmd === CGRACmd.loadResponse(params.cmdWidth) &&
+                 recvDstTile === cpuTileId && expectLoadResponse) {
       lastLoadData := recvPkt(pktDataPayloadMsb, pktDataPayloadLsb)
       loadRespValid := true.B
+      expectLoadResponse := false.B
     }
   }
 
