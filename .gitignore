@@ -35,3 +35,5 @@ tests/build/
 # Keep local generated RTL out of the Chipyard repository.
 /generators/chipyard/src/main/resources/vsrc/CgraTemplateRTL_single__pickled.v
 /generators/chipyard/src/main/resources/vsrc/CgraTemplateRTL_single_wrapper.v
+/generators/chipyard/src/main/resources/vsrc/MeshMultiCgraTemplateRTL_multi__pickled.v
+/generators/chipyard/src/main/resources/vsrc/MeshMultiCgraTemplateRTL_multi_wrapper.v
