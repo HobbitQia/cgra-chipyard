@@ -187,7 +187,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   cgra.io.send_data_on_boundary_west.foreach(_.foreach(tieOffSend))
 
   // ---- RoCC Command Interface ----
-  val cmd = Queue(io.cmd)
+  val cmd = Queue(io.cmd, entries = 2)
 
   val funct = cmd.bits.inst.funct
   val rs1   = cmd.bits.rs1
@@ -204,7 +204,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val isLoadResult = funct === 11.U
 
   // ---- State Machine ----
-  val s_idle :: s_send_pkt :: s_wait_complete :: s_wait_load_response :: s_resp :: Nil = Enum(5)
+  val s_idle :: s_wait_complete :: s_wait_load_response :: s_resp :: Nil = Enum(4)
   val state = RegInit(s_idle)
 
   // Status registers
@@ -214,8 +214,6 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val expectedCompleteCount = RegInit(0.U(16.W))
 
   // Packet assembly registers
-  val pktValid = RegInit(false.B)
-  val pktData  = RegInit(0.U(params.intraPktWidth.W))
   val rawPktLo  = RegInit(0.U(64.W))
   val rawPktMid = RegInit(0.U(64.W))
   val rawPktHi = RegInit(0.U(64.W))
@@ -259,10 +257,22 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   require(pktDstTileLsb >= params.payloadWidth,
     s"dst tile field does not fit intraPktWidth=${params.intraPktWidth}, numTiles=${params.numTiles}")
 
+  val packetFifoEntries = 8
+  val packetFifo = Module(new Queue(UInt(params.intraPktWidth.W), entries = packetFifoEntries))
+  packetFifo.io.enq.valid := false.B
+  packetFifo.io.enq.bits := 0.U
+
+  cgra.io.recv_from_cpu_pkt_val := packetFifo.io.deq.valid
+  cgra.io.recv_from_cpu_pkt_msg := packetFifo.io.deq.bits
+  packetFifo.io.deq.ready := cgra.io.recv_from_cpu_pkt_rdy
+
+  val packetFifoEmpty = !packetFifo.io.deq.valid
+  val completesPacket = if (needsRawPktTop) isRawPktTop else isRawPktHi
+
   def acceptAssembledPkt(assembledPkt: UInt): Unit = {
     val assembledCmd = assembledPkt(pktCmdMsb, pktCmdLsb)
-    pktData := assembledPkt
-    pktValid := true.B
+    packetFifo.io.enq.valid := true.B
+    packetFifo.io.enq.bits := assembledPkt
     when (assembledCmd === CGRACmd.launch(params.cmdWidth) ||
           assembledCmd === CGRACmd.resume(params.cmdWidth)) {
       noteLaunchIssued()
@@ -271,7 +281,6 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       loadRespValid := false.B
       expectLoadResponse := true.B
     }
-    state := s_send_pkt
   }
 
   def noteLaunchIssued(): Unit = {
@@ -282,7 +291,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   }
 
   // ---- Packet Construction Logic ----
-  when (state === s_idle && cmd.valid) {
+  when (state === s_idle && cmd.fire) {
     respRd := cmd.bits.inst.rd
 
     when (isStatus) {
@@ -303,7 +312,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         state := s_wait_load_response
       }
     } .elsewhen (isWait) {
-      when (expectedCompleteCount === 0.U || cgraComplete) {
+      when (packetFifoEmpty && (expectedCompleteCount === 0.U || cgraComplete)) {
         respData := 1.U
         respValid := true.B
         state := s_resp
@@ -332,21 +341,17 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     }
   }
 
-  // ---- Send packet to CGRA ----
-  cgra.io.recv_from_cpu_pkt_val := pktValid && (state === s_send_pkt)
-  cgra.io.recv_from_cpu_pkt_msg := pktData
-
-  when (state === s_send_pkt) {
-    when (cgra.io.recv_from_cpu_pkt_rdy && pktValid) {
-      pktValid := false.B
-      state := s_idle
-    }
+  when (packetFifo.io.enq.valid) {
+    assert(packetFifo.io.enq.ready)
   }
 
   // ---- Wait for completion ----
-  when (state === s_wait_complete && (expectedCompleteCount === 0.U || cgraComplete)) {
+  when (state === s_wait_complete &&
+        packetFifoEmpty &&
+        (expectedCompleteCount === 0.U || cgraComplete)) {
     respData := 1.U
     respValid := true.B
+    cgraBusy := false.B
     state := s_resp
   }
 
@@ -383,7 +388,8 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   }
 
   // ---- RoCC Command Ready ----
-  cmd.ready := (state === s_idle) && !respValid
+  cmd.ready := (state === s_idle) && !respValid &&
+               (!completesPacket || packetFifo.io.enq.ready)
 
   // ---- RoCC Response Interface ----
   io.resp.valid     := respValid
@@ -396,7 +402,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   }
 
   // ---- RoCC Busy / Interrupt ----
-  io.busy := cmd.valid || cgraBusy || pktValid || (state =/= s_idle)
+  io.busy := cmd.valid || cgraBusy || packetFifo.io.deq.valid || (state =/= s_idle)
   io.interrupt := false.B
 
   // ---- Unused memory interface ----
