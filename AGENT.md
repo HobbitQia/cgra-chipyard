@@ -22,6 +22,35 @@ Do not use the old 2x2 `CgraRTL_2x2` resources as the active reference for this
 flow. Do not source CGRA shape, interface, memory, or FU availability from
 kernel YAMLs.
 
+## Current OpenFPGA MMIO Demo State
+
+The OpenFPGA demo is attached as a TileLink MMIO peripheral, not as a RoCC
+accelerator. The top-level repository owns the YAML config and generation flow;
+Chipyard consumes the generated wrapper, manifest, and Scala metadata.
+
+The current integration is centered on:
+
+- `generators/chipyard/src/main/scala/example/OpenFPGA.scala`
+- `generators/chipyard/src/main/scala/example/OpenFPGAGenerated.scala`
+- `generators/chipyard/src/main/scala/config/OpenFPGAConfigGenerated.scala`
+- `generators/chipyard/src/main/resources/vsrc/openfpga_and2/OpenFPGAAnd2Wrapper.v`
+- `generators/chipyard/src/main/resources/vsrc/openfpga_and2/openfpga_and2_manifest.v`
+
+The verified config is `OpenFPGADemoRocketConfig`, generated from the top-level
+`configs/openfpga/openfpga_and2.yaml`. The peripheral exposes control, status,
+frame-based `CFG_WORD`, packed `USER_INPUT`, and packed `USER_OUTPUT` registers.
+The `USER_INPUT`/`USER_OUTPUT` field layout and FPGA GPIO pad map are derived
+from the OpenFPGA formal verification netlist, not from YAML fields. The
+baremetal test streams prepacked bitstream words; it should not assemble config
+packets at runtime.
+
+The generated OpenFPGA manifest intentionally uses OpenFPGA cell-library
+`inv.v`, `buf4.v`, and `tap_buf4.v` models instead of the generated
+`inv_buf_passgate.v`, because the latter contains tri-state-aware expressions
+that Verilator rejects. Do not reintroduce the removed Verilator shim backend or
+a generated Verilator replacement tree unless the top-level OpenFPGA policy
+changes.
+
 ## RoCC Wrapper Behavior
 
 The CGRA is attached as a RoCC accelerator via `custom0`.
@@ -83,6 +112,15 @@ Other supported tests are tracked in the top-level `README.md` and `AGENT.md`.
 
 Do not hand-edit these generated files unless deliberately debugging generator
 output. Regenerate from the top-level layered YAML configs instead.
+
+`scripts/openfpga/generate.py` updates these Chipyard-side files:
+
+- `generators/chipyard/src/main/resources/vsrc/openfpga_and2/`
+- `generators/chipyard/src/main/scala/example/OpenFPGAGenerated.scala`
+- `generators/chipyard/src/main/scala/config/OpenFPGAConfigGenerated.scala`
+
+Do not hand-edit generated OpenFPGA collateral as a lasting fix. Regenerate from
+the top-level OpenFPGA YAML config and derived formal-netlist interface instead.
 
 ## Important Constraints
 

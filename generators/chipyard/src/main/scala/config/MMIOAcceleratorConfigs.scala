@@ -48,4 +48,3 @@ class StreamingFIRRocketConfig extends Config (
   new freechips.rocketchip.rocket.WithNHugeCores(1) ++
   new chipyard.config.AbstractConfig)
 // DOC include end: StreamingFIRRocketConfig
-
