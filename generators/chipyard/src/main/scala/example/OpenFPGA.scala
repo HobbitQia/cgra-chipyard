@@ -20,18 +20,26 @@ case class OpenFPGADemoParams(
   inputWidth: Int = OpenFPGAGenerated.InputWidth,
   outputWidth: Int = OpenFPGAGenerated.OutputWidth
 ) {
-  require(cfgWordWidth == cfgAddrWidth + cfgDataWidth)
-  require(cfgAddrWidth > 0)
-  require(cfgDataWidth > 0)
-  require(cfgWordWidth > 0 && cfgWordWidth <= 32)
-  require(inputWidth > 0 && inputWidth <= 32)
-  require(outputWidth > 0 && outputWidth <= 32)
-  require(bitstreamLength > 0 && bitstreamLength <= 0xffff)
+  require(cfgWordWidth > 0 && cfgWordWidth <= 32,
+    s"current MMIO CFG_WORD backend supports config word widths 1..32 bits, got $cfgWordWidth")
+  require(cfgAddrWidth > 0, "frame_based CFG address width must be positive")
+  require(cfgDataWidth > 0, "frame_based CFG data width must be positive")
+  require(cfgWordWidth == cfgAddrWidth + cfgDataWidth,
+    s"frame_based CFG word width $cfgWordWidth must equal address $cfgAddrWidth plus data $cfgDataWidth")
+  require(inputWidth > 0 && inputWidth <= 32,
+    s"current single-register MMIO USER_INPUT backend supports widths 1..32 bits, got $inputWidth")
+  require(outputWidth > 0 && outputWidth <= 32,
+    s"current single-register MMIO USER_OUTPUT backend supports widths 1..32 bits, got $outputWidth")
+  require(bitstreamLength > 0, "OpenFPGA generated bitstreamLength must be positive")
+
+  val cfgCountWidth: Int = math.max(1, log2Ceil(bitstreamLength + 1))
+  require(cfgCountWidth <= 30,
+    s"current 32-bit STATUS register backend supports cfgCount widths <= 30 bits, got $cfgCountWidth")
 }
 
 case object OpenFPGADemoKey extends Field[Option[OpenFPGADemoParams]](None)
 
-class OpenFPGAWrapperIO(params: OpenFPGADemoParams) extends Bundle {
+class OpenFPGAFrameWrapperIO(params: OpenFPGADemoParams) extends Bundle {
   val clock = Input(Clock())
   val reset = Input(Bool())
   val cfg_we = Input(Bool())
@@ -41,15 +49,15 @@ class OpenFPGAWrapperIO(params: OpenFPGADemoParams) extends Bundle {
   val user_output = Output(UInt(params.outputWidth.W))
 }
 
-class OpenFPGABlackBox(params: OpenFPGADemoParams) extends BlackBox with HasBlackBoxPath {
-  val io = IO(new OpenFPGAWrapperIO(params))
+class OpenFPGAFrameBlackBox(params: OpenFPGADemoParams) extends BlackBox with HasBlackBoxPath {
+  val io = IO(new OpenFPGAFrameWrapperIO(params))
   override def desiredName: String = OpenFPGAGenerated.WrapperModule
   addPath(OpenFPGAGenerated.WrapperPath)
 }
 
 class OpenFPGATL(params: OpenFPGADemoParams, beatBytes: Int)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
-  val device = new SimpleDevice(OpenFPGAGenerated.PeripheralName, Seq(OpenFPGAGenerated.Compatible))
+  val device = new SimpleDevice(OpenFPGAGenerated.DtsNodeName, Seq(OpenFPGAGenerated.Compatible))
   val node = TLRegisterNode(
     Seq(AddressSet(params.address, params.size - 1)),
     device,
@@ -59,8 +67,6 @@ class OpenFPGATL(params: OpenFPGADemoParams, beatBytes: Int)(implicit p: Paramet
   override lazy val module = new OpenFPGAImpl
   class OpenFPGAImpl extends Impl {
     withClockAndReset(clock, reset) {
-      val wrapper = Module(new OpenFPGABlackBox(params))
-
       val cfgWrite = Wire(Decoupled(UInt(params.cfgWordWidth.W)))
       cfgWrite.ready := false.B
 
@@ -68,8 +74,9 @@ class OpenFPGATL(params: OpenFPGADemoParams, beatBytes: Int)(implicit p: Paramet
       controlWrite.ready := true.B
 
       val userInput = RegInit(0.U(params.inputWidth.W))
+      val userOutput = Wire(UInt(params.outputWidth.W))
       val cfgWord = RegInit(0.U(params.cfgWordWidth.W))
-      val cfgCount = RegInit(0.U(16.W))
+      val cfgCount = RegInit(0.U(params.cfgCountWidth.W))
       val programmed = RegInit(false.B)
       val cfgArm = RegInit(false.B)
       val cfgWe = RegInit(false.B)
@@ -80,16 +87,19 @@ class OpenFPGATL(params: OpenFPGADemoParams, beatBytes: Int)(implicit p: Paramet
         cfgArm := false.B
       }
 
-      cfgWrite.ready := !cfgArm && !cfgWe
-      when (cfgWrite.fire) {
-        cfgWord := cfgWrite.bits
-        cfgArm := true.B
-        when (cfgCount =/= 0xffff.U) {
+      when (cfgWe) {
+        when (cfgCount < params.bitstreamLength.U) {
           cfgCount := cfgCount + 1.U
         }
         when ((cfgCount + 1.U) >= params.bitstreamLength.U) {
           programmed := true.B
         }
+      }
+
+      cfgWrite.ready := !cfgArm && !cfgWe
+      when (cfgWrite.fire) {
+        cfgWord := cfgWrite.bits
+        cfgArm := true.B
       }
 
       when (controlWrite.fire && controlWrite.bits(0)) {
@@ -100,23 +110,28 @@ class OpenFPGATL(params: OpenFPGADemoParams, beatBytes: Int)(implicit p: Paramet
         cfgWe := false.B
       }
 
+      val fabricReset = reset.asBool || !programmed
+
+      val wrapper = Module(new OpenFPGAFrameBlackBox(params))
       wrapper.io.clock := clock
-      wrapper.io.reset := reset.asBool
+      wrapper.io.reset := fabricReset
       wrapper.io.cfg_we := cfgWe
       wrapper.io.cfg_address := cfgWord(params.cfgWordWidth - 1, params.cfgDataWidth)
       wrapper.io.cfg_data := cfgWord(params.cfgDataWidth - 1, 0)
       wrapper.io.user_input := userInput
+      userOutput := wrapper.io.user_output
 
       val cfgActive = cfgArm || cfgWe
-      val statusPaddingWidth = 32 - 16 - 2
-      val status = Cat(cfgCount, 0.U(statusPaddingWidth.W), cfgActive, programmed)
+      val statusPaddingWidth = 32 - params.cfgCountWidth - 2
+      val statusPadding = if (statusPaddingWidth == 0) 0.U(0.W) else 0.U(statusPaddingWidth.W)
+      val status = Cat(cfgCount, statusPadding, cfgActive, programmed)
 
       node.regmap(
         0x00 -> Seq(RegField.w(32, controlWrite)),
         0x08 -> Seq(RegField.r(32, status)),
         0x10 -> Seq(RegField.w(params.cfgWordWidth, cfgWrite)),
         0x20 -> Seq(RegField(params.inputWidth, userInput)),
-        0x28 -> Seq(RegField.r(params.outputWidth, wrapper.io.user_output))
+        0x28 -> Seq(RegField.r(params.outputWidth, userOutput))
       )
     }
   }

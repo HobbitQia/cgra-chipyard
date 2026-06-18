@@ -4,27 +4,28 @@ package chipyard.example
 case class OpenFPGAUserField(name: String, width: Int, lsb: Int)
 
 object OpenFPGAGenerated {
-  val Name = "openfpga_and2"
-  val ApplicationName = "and2"
-  val ConfigName = "OpenFPGADemoRocketConfig"
-  val PeripheralName = "openfpga_and2"
-  val Compatible = "ucbbar,openfpga-and2"
-  val WrapperModule = "OpenFPGAAnd2Wrapper"
-  val WrapperPath = "/home/jjqin/CGRA-SoC/chipyard/generators/chipyard/src/main/resources/vsrc/openfpga_and2/OpenFPGAAnd2Wrapper.v"
+  val Name = "openfpga_gcd6_k4_frame"
+  val ApplicationName = "gcd6"
+  val ConfigName = "OpenFPGAGcd6K4FrameRocketConfig"
+  val PeripheralName = "openfpga_gcd6_k4_frame"
+  val DtsNodeName = "openfpga-gcd6-k4-frame"
+  val Compatible = "ucbbar,openfpga-gcd6-k4-frame"
+  val WrapperModule = "OpenFPGAGcd6K4FrameWrapper"
+  val WrapperPath = "/home/jjqin/CGRA-SoC/chipyard/generators/chipyard/src/main/resources/vsrc/openfpga_gcd6_k4_frame/OpenFPGAGcd6K4FrameWrapper.v"
 
   val BaseAddress = BigInt("10050000", 16)
   val Size = BigInt("1000", 16)
 
-  val BitstreamLength = 1502
-  val CfgWordWidth = 15
-  val CfgAddrWidth = 14
+  val BitstreamLength = 4757
+  val CfgWordWidth = 18
+  val CfgAddrWidth = 17
   val CfgDataWidth = 1
 
   val InputRegisterName = "USER_INPUT"
-  val InputWidth = 2
-  val InputFields = Seq(OpenFPGAUserField("a", 1, 0), OpenFPGAUserField("b", 1, 1))
+  val InputWidth = 14
+  val InputFields = Seq(OpenFPGAUserField("reset", 1, 0), OpenFPGAUserField("start", 1, 1), OpenFPGAUserField("a_0_", 1, 2), OpenFPGAUserField("a_1_", 1, 3), OpenFPGAUserField("a_2_", 1, 4), OpenFPGAUserField("a_3_", 1, 5), OpenFPGAUserField("a_4_", 1, 6), OpenFPGAUserField("a_5_", 1, 7), OpenFPGAUserField("b_0_", 1, 8), OpenFPGAUserField("b_1_", 1, 9), OpenFPGAUserField("b_2_", 1, 10), OpenFPGAUserField("b_3_", 1, 11), OpenFPGAUserField("b_4_", 1, 12), OpenFPGAUserField("b_5_", 1, 13))
 
   val OutputRegisterName = "USER_OUTPUT"
-  val OutputWidth = 1
-  val OutputFields = Seq(OpenFPGAUserField("c", 1, 0))
+  val OutputWidth = 7
+  val OutputFields = Seq(OpenFPGAUserField("done", 1, 0), OpenFPGAUserField("result_0_", 1, 1), OpenFPGAUserField("result_1_", 1, 2), OpenFPGAUserField("result_2_", 1, 3), OpenFPGAUserField("result_3_", 1, 4), OpenFPGAUserField("result_4_", 1, 5), OpenFPGAUserField("result_5_", 1, 6))
 }
