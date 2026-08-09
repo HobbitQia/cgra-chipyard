@@ -10,6 +10,8 @@ import org.chipsalliance.cde.config.{Config}
 class CGRARocketConfig extends Config(
   new chipyard.config.WithCGRA() ++
   new freechips.rocketchip.rocket.WithNBigCores(1) ++
+  // CGRA DMA currently supports only a 128-bit system-bus beat.
+  new chipyard.config.WithSystemBusWidth(128) ++
   new chipyard.config.AbstractConfig)
 
 object CGRAMinimalGemminiRocketConfig {
@@ -28,7 +30,7 @@ object CGRAMinimalGemminiRocketConfig {
     mvin_scale_acc_args = None,
     mvin_scale_shared = false,
     acc_scale_args = None,
-    acc_read_full_width = false,
+    acc_read_full_width = true,
     acc_read_small_width = true,
     ex_read_from_acc = false,
     ex_write_to_spad = false,

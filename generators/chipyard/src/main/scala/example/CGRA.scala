@@ -6,10 +6,47 @@ import chisel3.util._
 import org.chipsalliance.cde.config.{Parameters, Field, Config}
 import freechips.rocketchip.tile._
 import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.tilelink._
 
 // ============================================================================
 // CGRA Parameters
 // ============================================================================
+
+case class CGRAPacketLayout(
+  cmdLsb: Int = 0,
+  dataPayloadLsb: Int = 0,
+  dataPredicateLsb: Int = 0,
+  dataAddrLsb: Int = 0,
+  opaqueLsb: Int = 0,
+  dstTileLsb: Int = 0
+)
+
+case class CGRADMAParams(
+  enabled: Boolean = false,
+  dramAddrWidth: Int = 0,
+  dramDataWidth: Int = 0,
+  dramMaskWidth: Int = 0,
+  spmAddrWidth: Int = 0,
+  nbytesWidth: Int = 0,
+  tagWidth: Int = 0,
+  spmWords: Int = 0,
+  writeReqAddrLsb: Int = 0,
+  writeReqDataLsb: Int = 0,
+  writeReqMaskLsb: Int = 0,
+  descriptorSpmLsb: Int = 0,
+  descriptorNbytesLsb: Int = 0,
+  descriptorTagLsb: Int = 0,
+  descriptorWidth: Int = 0,
+  cmdConfigDramAddrLo: Int = 0,
+  cmdConfigDramAddrHi: Int = 0,
+  cmdConfigSpmAddr: Int = 0,
+  cmdConfigBytes: Int = 0,
+  cmdConfigTag: Int = 0,
+  cmdMvin: Int = 0,
+  cmdMvout: Int = 0,
+  cmdDone: Int = 0,
+  packetTemplates: Seq[BigInt] = Seq.empty
+)
 
 case class CGRAParams(
   // IntraCgraPkt bit width (from PyMTL3 generated Verilog)
@@ -38,6 +75,9 @@ case class CGRAParams(
   addressUpper: Int = 31,
   // Whether the generated PyMTL top exposes multi-CGRA boundary data ports
   hasBoundaryPorts: Boolean = true,
+  // Generated packet and DMA protocol layouts
+  packetLayout: CGRAPacketLayout = CGRAPacketLayout(),
+  dma: CGRADMAParams = CGRADMAParams(),
   // Generated Verilog resources
   topModuleName: String = "CgraRTL_2x2",
   wrapperModuleName: String = "CgraRTL_2x2_wrapper",
@@ -84,6 +124,40 @@ class CGRABlackBox(params: CGRAParams) extends BlackBox with HasBlackBoxResource
     val send_to_inter_cgra_noc_msg = Output(UInt(params.interPktWidth.W))
     val send_to_inter_cgra_noc_rdy = Input(Bool())
 
+    // Integrated CGRA DMA external-memory interface. The generator requires
+    // the full group; no individual signal is optional within a DMA build.
+    val send_to_dram_rd_req_val =
+      if (params.dma.enabled) Some(Output(Bool())) else None
+    val send_to_dram_rd_req_addr =
+      if (params.dma.enabled) Some(Output(UInt(params.dma.dramAddrWidth.W))) else None
+    val send_to_dram_rd_req_rdy =
+      if (params.dma.enabled) Some(Input(Bool())) else None
+
+    val recv_from_dram_rd_resp_val =
+      if (params.dma.enabled) Some(Input(Bool())) else None
+    val recv_from_dram_rd_resp_data =
+      if (params.dma.enabled) Some(Input(UInt(params.dma.dramDataWidth.W))) else None
+    val recv_from_dram_rd_resp_rdy =
+      if (params.dma.enabled) Some(Output(Bool())) else None
+
+    val send_to_dram_wr_req_val =
+      if (params.dma.enabled) Some(Output(Bool())) else None
+    val send_to_dram_wr_req_addr =
+      if (params.dma.enabled) Some(Output(UInt(params.dma.dramAddrWidth.W))) else None
+    val send_to_dram_wr_req_data =
+      if (params.dma.enabled) Some(Output(UInt(params.dma.dramDataWidth.W))) else None
+    val send_to_dram_wr_req_mask =
+      if (params.dma.enabled) Some(Output(UInt(params.dma.dramMaskWidth.W))) else None
+    val send_to_dram_wr_req_rdy =
+      if (params.dma.enabled) Some(Input(Bool())) else None
+
+    val recv_from_dram_wr_resp_val =
+      if (params.dma.enabled) Some(Input(Bool())) else None
+    val recv_from_dram_wr_resp_msg =
+      if (params.dma.enabled) Some(Input(Bool())) else None
+    val recv_from_dram_wr_resp_rdy =
+      if (params.dma.enabled) Some(Output(Bool())) else None
+
     // Boundary data ports. Single-CGRA CgraTemplateRTL builds omit them.
     val recv_data_on_boundary_south =
       if (params.hasBoundaryPorts) Some(Vec(params.xTiles, new CgraRecvChannel(params.dataWidth))) else None
@@ -113,14 +187,172 @@ class CGRABlackBox(params: CGRAParams) extends BlackBox with HasBlackBoxResource
   addResource(params.wrapperResource)
 }
 
-object CGRACmd {
-  // The wrapper forwards raw packets and only interprets commands needed for
-  // host-side busy/completion tracking.
-  def launch(width: Int): UInt = 0.U(width.W)
-  def loadRequest(width: Int): UInt = 10.U(width.W)
-  def loadResponse(width: Int): UInt = 11.U(width.W)
-  def complete(width: Int): UInt = 14.U(width.W)
-  def resume(width: Int): UInt = 15.U(width.W)
+// ============================================================================
+// Dedicated physical-address-only TileLink DMA master
+// ============================================================================
+
+class CGRADmaWriteRequest(params: CGRAParams) extends Bundle {
+  val address = UInt(params.dma.dramAddrWidth.W)
+  val data = UInt(params.dma.dramDataWidth.W)
+  val mask = UInt(params.dma.dramMaskWidth.W)
+}
+
+class CGRATileLinkDmaAdapterIO(params: CGRAParams) extends Bundle {
+  val readReq = Flipped(Decoupled(UInt(params.dma.dramAddrWidth.W)))
+  val readResp = Decoupled(UInt(params.dma.dramDataWidth.W))
+  val writeReq = Flipped(Decoupled(new CGRADmaWriteRequest(params)))
+  val writeResp = Decoupled(Bool())
+  val busy = Output(Bool())
+}
+
+class CGRATileLinkDmaAdapter(params: CGRAParams)(implicit p: Parameters)
+    extends LazyModule {
+  val node = TLClientNode(Seq(TLMasterPortParameters.v1(Seq(TLClientParameters(
+    name = "cgra-dma",
+    sourceId = IdRange(0, 1),
+    requestFifo = true)))))
+
+  override lazy val module = new CGRATileLinkDmaAdapterImp(this, params)
+}
+
+class CGRATileLinkDmaAdapterImp(
+    outer: CGRATileLinkDmaAdapter,
+    params: CGRAParams)(implicit p: Parameters)
+    extends LazyModuleImp(outer) {
+    val io = IO(new CGRATileLinkDmaAdapterIO(params))
+    val (tl, edge) = outer.node.out(0)
+
+    val negotiatedDataWidth = tl.a.bits.data.getWidth
+    require(negotiatedDataWidth == params.dma.dramDataWidth &&
+            negotiatedDataWidth == 128,
+      s"CGRA DMA requires a negotiated 128-bit TileLink beat, got $negotiatedDataWidth bits")
+
+    val addressWidth = tl.a.bits.address.getWidth
+    val beatBytes = params.dma.dramDataWidth / 8
+    val lgBeatBytes = log2Ceil(beatBytes)
+    val fullMask = Fill(params.dma.dramMaskWidth, 1.U(1.W))
+
+    val idle :: sendA :: waitD :: holdRead :: holdWrite :: Nil = Enum(5)
+    val state = RegInit(idle)
+    val requestIsWrite = RegInit(false.B)
+    val requestAddress = Reg(UInt(params.dma.dramAddrWidth.W))
+    val requestData = Reg(UInt(params.dma.dramDataWidth.W))
+    val requestMask = Reg(UInt(params.dma.dramMaskWidth.W))
+    val readResponseData = Reg(UInt(params.dma.dramDataWidth.W))
+
+    io.readReq.ready := state === idle && !io.writeReq.valid
+    io.writeReq.ready := state === idle && !io.readReq.valid
+    io.readResp.valid := state === holdRead
+    io.readResp.bits := readResponseData
+    io.writeResp.valid := state === holdWrite
+    io.writeResp.bits := false.B
+    io.busy := state =/= idle
+
+    when (io.readReq.valid && io.writeReq.valid) {
+      assert(false.B,
+        "CGRA DMA asserted read and write DRAM requests simultaneously")
+    }
+
+    when (io.readReq.fire) {
+      assert(io.readReq.bits(lgBeatBytes - 1, 0) === 0.U,
+        "CGRA DMA read address must be 16-byte aligned")
+      if (params.dma.dramAddrWidth > addressWidth) {
+        assert(!io.readReq.bits(params.dma.dramAddrWidth - 1, addressWidth).orR,
+          "CGRA DMA read physical address exceeds TileLink address width")
+      }
+      requestIsWrite := false.B
+      requestAddress := io.readReq.bits
+      state := sendA
+    }
+
+    when (io.writeReq.fire) {
+      assert(io.writeReq.bits.address(lgBeatBytes - 1, 0) === 0.U,
+        "CGRA DMA write address must be 16-byte aligned")
+      assert(io.writeReq.bits.mask.orR,
+        "CGRA DMA write byte mask must contain at least one enabled byte")
+      if (params.dma.dramAddrWidth > addressWidth) {
+        assert(!io.writeReq.bits.address(
+          params.dma.dramAddrWidth - 1, addressWidth).orR,
+          "CGRA DMA write physical address exceeds TileLink address width")
+      }
+      requestIsWrite := true.B
+      requestAddress := io.writeReq.bits.address
+      requestData := io.writeReq.bits.data
+      requestMask := io.writeReq.bits.mask
+      state := sendA
+    }
+
+    val tlAddress = requestAddress(addressWidth - 1, 0)
+    val (getLegal, get) = edge.Get(
+      fromSource = 0.U,
+      toAddress = tlAddress,
+      lgSize = lgBeatBytes.U)
+    val (putFullLegal, putFull) = edge.Put(
+      fromSource = 0.U,
+      toAddress = tlAddress,
+      lgSize = lgBeatBytes.U,
+      data = requestData)
+    val (putPartialLegal, putPartial) = edge.Put(
+      fromSource = 0.U,
+      toAddress = tlAddress,
+      lgSize = lgBeatBytes.U,
+      data = requestData,
+      mask = requestMask)
+    val writeIsFull = requestMask === fullMask
+    val selectedWrite = Mux(writeIsFull, putFull, putPartial)
+    val requestLegal = Mux(requestIsWrite,
+      Mux(writeIsFull, putFullLegal, putPartialLegal), getLegal)
+
+    tl.a.valid := state === sendA
+    tl.a.bits := Mux(requestIsWrite, selectedWrite, get)
+    when (tl.a.valid) {
+      assert(requestLegal,
+        "CGRA DMA request is unsupported by the selected TileLink manager")
+    }
+    when (tl.a.fire) {
+      state := waitD
+    }
+
+    tl.d.ready := state === waitD
+    when (tl.d.fire) {
+      val expectedOpcode = Mux(
+        requestIsWrite, TLMessages.AccessAck, TLMessages.AccessAckData)
+      val responseOk = tl.d.bits.source === 0.U &&
+        tl.d.bits.opcode === expectedOpcode &&
+        !tl.d.bits.denied && !tl.d.bits.corrupt && edge.done(tl.d)
+      assert(tl.d.bits.source === 0.U,
+        "CGRA DMA TileLink D response source mismatch")
+      assert(tl.d.bits.opcode === expectedOpcode,
+        "CGRA DMA TileLink D response opcode mismatch")
+      assert(!tl.d.bits.denied,
+        "CGRA DMA TileLink D response was denied")
+      assert(!tl.d.bits.corrupt,
+        "CGRA DMA TileLink D response was corrupt")
+      assert(edge.done(tl.d),
+        "CGRA DMA TileLink D response did not end the transaction")
+      when (responseOk) {
+        when (requestIsWrite) {
+          state := holdWrite
+        } .otherwise {
+          readResponseData := tl.d.bits.data
+          state := holdRead
+        }
+      }
+    }
+
+    when (io.readResp.fire || io.writeResp.fire) {
+      state := idle
+    }
+
+    // This is a TL-UL client: it never probes, releases, or grants ownership.
+    tl.b.ready := true.B
+    tl.c.valid := false.B
+    tl.c.bits := DontCare
+    tl.e.valid := false.B
+    tl.e.bits := DontCare
+    when (tl.b.valid) {
+      assert(false.B, "CGRA DMA received an unexpected TileLink B probe")
+    }
 }
 
 // ============================================================================
@@ -142,11 +374,41 @@ object CGRACmd {
 
 class CGRAAccelerator(opcodes: OpcodeSet, params: CGRAParams = CGRAGenerated.params)(implicit p: Parameters)
     extends LazyRoCC(opcodes) {
+  val dmaAdapter = LazyModule(new CGRATileLinkDmaAdapter(params))
+  override val tlNode: TLNode = dmaAdapter.node
   override lazy val module = new CGRAAcceleratorImp(this, params)
 }
 
 class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p: Parameters)
     extends LazyRoCCModuleImp(outer) with HasCoreParameters {
+
+  require(params.dma.enabled, "default single-CGRA SoC requires generated DMA ports")
+  require(params.dma.packetTemplates.length == 7,
+    s"DMA protocol requires seven generated templates (five config plus MVIN/MVOUT), got ${params.dma.packetTemplates.length}")
+  require(params.dma.descriptorWidth <= xLen,
+    s"DMA descriptor width ${params.dma.descriptorWidth} exceeds xLen=$xLen")
+  require(params.dma.dramAddrWidth == xLen,
+    s"DMA DRAM address width ${params.dma.dramAddrWidth} must equal xLen=$xLen")
+  require(params.dma.descriptorSpmLsb == 0,
+    "DMA descriptor must start with the SPM word address")
+  require(params.dma.descriptorNbytesLsb == params.dma.spmAddrWidth,
+    "DMA descriptor nbytes offset does not follow SPM address")
+  require(params.dma.descriptorTagLsb == params.dma.spmAddrWidth + params.dma.nbytesWidth,
+    "DMA descriptor tag offset does not follow nbytes")
+  require(params.dma.dramAddrWidth == 2 * params.dataPayloadWidth,
+    "six-packet DMA protocol requires two packet payloads for the DRAM address")
+  require(params.dma.nbytesWidth <= params.dataPayloadWidth,
+    "DMA nbytes does not fit the generated packet data payload")
+  require(params.dma.tagWidth <= params.dataPayloadWidth,
+    "DMA tag does not fit the generated packet data payload")
+  require(params.dataPayloadWidth % 8 == 0,
+    "CGRA data payload must contain a whole number of bytes")
+  require(params.dma.dramDataWidth % params.dataPayloadWidth == 0,
+    "DMA DRAM beat must contain a whole number of CGRA words")
+  require(params.dma.dramMaskWidth == params.dma.dramDataWidth / 8,
+    "DMA mask must contain one bit per DRAM byte")
+  require(params.dma.dramDataWidth == 128,
+    "Phase-1 CGRA DMA requires a 128-bit DRAM interface")
 
   // ---- CGRA BlackBox instantiation ----
   val cgra = Module(new CGRABlackBox(params))
@@ -159,6 +421,38 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   cgra.io.cgra_id       := 0.U  // Single CGRA, ID = 0
   cgra.io.address_lower := params.addressLower.U
   cgra.io.address_upper := params.addressUpper.U
+
+  val dmaRdReqVal = cgra.io.send_to_dram_rd_req_val.get
+  val dmaRdReqAddr = cgra.io.send_to_dram_rd_req_addr.get
+  val dmaRdReqRdy = cgra.io.send_to_dram_rd_req_rdy.get
+  val dmaRdRespVal = cgra.io.recv_from_dram_rd_resp_val.get
+  val dmaRdRespData = cgra.io.recv_from_dram_rd_resp_data.get
+  val dmaRdRespRdy = cgra.io.recv_from_dram_rd_resp_rdy.get
+  val dmaWrReqVal = cgra.io.send_to_dram_wr_req_val.get
+  val dmaWrReqAddr = cgra.io.send_to_dram_wr_req_addr.get
+  val dmaWrReqData = cgra.io.send_to_dram_wr_req_data.get
+  val dmaWrReqMask = cgra.io.send_to_dram_wr_req_mask.get
+  val dmaWrReqRdy = cgra.io.send_to_dram_wr_req_rdy.get
+  val dmaWrRespVal = cgra.io.recv_from_dram_wr_resp_val.get
+  val dmaWrRespMsg = cgra.io.recv_from_dram_wr_resp_msg.get
+  val dmaWrRespRdy = cgra.io.recv_from_dram_wr_resp_rdy.get
+  val dmaAdapter = outer.dmaAdapter.module.io
+
+  dmaAdapter.readReq.valid := dmaRdReqVal
+  dmaAdapter.readReq.bits := dmaRdReqAddr
+  dmaRdReqRdy := dmaAdapter.readReq.ready
+  dmaRdRespVal := dmaAdapter.readResp.valid
+  dmaRdRespData := dmaAdapter.readResp.bits
+  dmaAdapter.readResp.ready := dmaRdRespRdy
+
+  dmaAdapter.writeReq.valid := dmaWrReqVal
+  dmaAdapter.writeReq.bits.address := dmaWrReqAddr
+  dmaAdapter.writeReq.bits.data := dmaWrReqData
+  dmaAdapter.writeReq.bits.mask := dmaWrReqMask
+  dmaWrReqRdy := dmaAdapter.writeReq.ready
+  dmaWrRespVal := dmaAdapter.writeResp.valid
+  dmaWrRespMsg := dmaAdapter.writeResp.bits
+  dmaAdapter.writeResp.ready := dmaWrRespRdy
 
   // ---- Tie off unused ports ----
 
@@ -191,20 +485,25 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   val funct = cmd.bits.inst.funct
   val rs1   = cmd.bits.rs1
+  val rs2   = cmd.bits.rs2
 
   // Funct7 command encoding
-  val isStatus    = funct === 2.U
-  val isWait      = funct === 4.U
-  val isRawPktLo  = funct === 5.U
-  val isRawPktMid = funct === 6.U
-  val isRawPktHi  = funct === 7.U
-  val isSetExpectedCompletes = funct === 8.U
-  val isResult    = funct === 9.U
-  val isRawPktTop = funct === 10.U
-  val isLoadResult = funct === 11.U
+  val isStatus    = funct === CGRARoCCGenerated.STATUS.U
+  val isWait      = funct === CGRARoCCGenerated.WAIT.U
+  val isRawPktLo  = funct === CGRARoCCGenerated.RAW_PKT_LO.U
+  val isRawPktMid = funct === CGRARoCCGenerated.RAW_PKT_MID.U
+  val isRawPktHi  = funct === CGRARoCCGenerated.RAW_PKT_HI.U
+  val isSetExpectedCompletes = funct === CGRARoCCGenerated.SET_EXPECTED_COMPLETES.U
+  val isResult    = funct === CGRARoCCGenerated.RESULT.U
+  val isRawPktTop = funct === CGRARoCCGenerated.RAW_PKT_TOP.U
+  val isLoadResult = funct === CGRARoCCGenerated.LOAD_RESULT.U
+  val isDmaMvin = funct === CGRARoCCGenerated.DMA_MVIN_ASYNC.U
+  val isDmaMvout = funct === CGRARoCCGenerated.DMA_MVOUT_ASYNC.U
+  val isDmaIssue = isDmaMvin || isDmaMvout
+  val isDmaWait = funct === CGRARoCCGenerated.DMA_WAIT.U
 
   // ---- State Machine ----
-  val s_idle :: s_wait_complete :: s_wait_load_response :: s_resp :: Nil = Enum(4)
+  val s_idle :: s_wait_complete :: s_wait_load_response :: s_wait_dma :: s_resp :: Nil = Enum(5)
   val state = RegInit(s_idle)
 
   // Status registers
@@ -240,22 +539,23 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val respData  = RegInit(0.U(xLen.W))
   val respRd    = Reg(chiselTypeOf(io.resp.bits.rd))
 
-  // PyMTL packs payload at the LSB side of IntraCgraPkt. Within the payload,
-  // cmd is the MSB field and data immediately follows it.
-  val pktCmdMsb = params.payloadWidth - 1
-  val pktCmdLsb = params.payloadWidth - params.cmdWidth
-  val pktDataPayloadMsb = pktCmdLsb - 1
-  val pktDataPayloadLsb = pktDataPayloadMsb - params.dataPayloadWidth + 1
+  // All packet field locations come from the generated PyMTL typedef layout.
+  val pktCmdLsb = params.packetLayout.cmdLsb
+  val pktCmdMsb = pktCmdLsb + params.cmdWidth - 1
+  val pktDataPayloadLsb = params.packetLayout.dataPayloadLsb
+  val pktDataPayloadMsb = pktDataPayloadLsb + params.dataPayloadWidth - 1
+  val pktOpaqueLsb = params.packetLayout.opaqueLsb
+  val pktOpaqueMsb = pktOpaqueLsb + params.dma.tagWidth - 1
   val pktTileIdWidth = log2Ceil(params.numTiles + 1)
-  val pktDstTileMsb = params.intraPktWidth - pktTileIdWidth - 1
-  val pktDstTileLsb = params.intraPktWidth - (2 * pktTileIdWidth)
+  val pktDstTileLsb = params.packetLayout.dstTileLsb
+  val pktDstTileMsb = pktDstTileLsb + pktTileIdWidth - 1
   val cpuTileId = params.numTiles.U(pktTileIdWidth.W)
   require(params.payloadWidth <= params.intraPktWidth,
     s"payloadWidth ${params.payloadWidth} exceeds intraPktWidth ${params.intraPktWidth}")
-  require(pktDataPayloadLsb >= 0,
-    s"data payload does not fit payloadWidth=${params.payloadWidth}, cmdWidth=${params.cmdWidth}")
-  require(pktDstTileLsb >= params.payloadWidth,
-    s"dst tile field does not fit intraPktWidth=${params.intraPktWidth}, numTiles=${params.numTiles}")
+  require(pktCmdMsb < params.intraPktWidth && pktDataPayloadMsb < params.intraPktWidth,
+    "generated command/data payload fields exceed the packet width")
+  require(pktOpaqueMsb < params.intraPktWidth && pktDstTileMsb < params.intraPktWidth,
+    "generated opaque/destination fields exceed the packet width")
 
   val packetFifoEntries = 8
   val packetFifo = Module(new Queue(UInt(params.intraPktWidth.W), entries = packetFifoEntries))
@@ -273,11 +573,11 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     val assembledCmd = assembledPkt(pktCmdMsb, pktCmdLsb)
     packetFifo.io.enq.valid := true.B
     packetFifo.io.enq.bits := assembledPkt
-    when (assembledCmd === CGRACmd.launch(params.cmdWidth) ||
-          assembledCmd === CGRACmd.resume(params.cmdWidth)) {
+    when (assembledCmd === CGRACmdGenerated.CMD_LAUNCH.U(params.cmdWidth.W) ||
+          assembledCmd === CGRACmdGenerated.CMD_RESUME.U(params.cmdWidth.W)) {
       noteLaunchIssued()
     }
-    when (assembledCmd === CGRACmd.loadRequest(params.cmdWidth)) {
+    when (assembledCmd === CGRACmdGenerated.CMD_LOAD_REQUEST.U(params.cmdWidth.W)) {
       loadRespValid := false.B
       expectLoadResponse := true.B
     }
@@ -290,11 +590,134 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     cgraComplete := false.B
   }
 
+  // ---- Semantic DMA command packet sequencer ----
+  val dmaSeqActive = RegInit(false.B)
+  val dmaSeqPhase = RegInit(0.U(3.W))
+  val dmaSeqDramAddr = Reg(UInt(params.dma.dramAddrWidth.W))
+  val dmaSeqDescriptor = Reg(UInt(params.dma.descriptorWidth.W))
+  val dmaSeqIsMvin = RegInit(false.B)
+  val dmaInFlight = RegInit(false.B)
+  val dmaDoneValid = RegInit(false.B)
+  val dmaDoneTag = Reg(UInt(params.dma.tagWidth.W))
+  val dmaWaitExpectedTag = Reg(UInt(params.dma.tagWidth.W))
+
+  val issueSpmAddr = rs2(
+    params.dma.descriptorSpmLsb + params.dma.spmAddrWidth - 1,
+    params.dma.descriptorSpmLsb)
+  val issueNbytes = rs2(
+    params.dma.descriptorNbytesLsb + params.dma.nbytesWidth - 1,
+    params.dma.descriptorNbytesLsb)
+  val issueTag = rs2(
+    params.dma.descriptorTagLsb + params.dma.tagWidth - 1,
+    params.dma.descriptorTagLsb)
+  val cgraWordBytes = params.dataPayloadWidth / 8
+  val cgraWordByteShift = log2Ceil(cgraWordBytes)
+  val dmaBeatBytes = params.dma.dramDataWidth / 8
+  val dmaBeatByteShift = log2Ceil(dmaBeatBytes)
+  require((1 << cgraWordByteShift) == cgraWordBytes,
+    s"CGRA word bytes must be a power of two, got $cgraWordBytes")
+  require((1 << dmaBeatByteShift) == dmaBeatBytes,
+    s"DMA beat bytes must be a power of two, got $dmaBeatBytes")
+
+  val dmaPacketTemplates = VecInit(
+    params.dma.packetTemplates.map(_.U(params.intraPktWidth.W)))
+  val dmaSeqPacket = Wire(UInt(params.intraPktWidth.W))
+  dmaSeqPacket := 0.U
+  switch (dmaSeqPhase) {
+    is (0.U) {
+      dmaSeqPacket := dmaPacketTemplates(0) |
+        (dmaSeqDramAddr(params.dataPayloadWidth - 1, 0) << params.packetLayout.dataPayloadLsb)
+    }
+    is (1.U) {
+      dmaSeqPacket := dmaPacketTemplates(1) |
+        (dmaSeqDramAddr(params.dma.dramAddrWidth - 1, params.dataPayloadWidth) <<
+          params.packetLayout.dataPayloadLsb)
+    }
+    is (2.U) {
+      dmaSeqPacket := dmaPacketTemplates(2) |
+        (dmaSeqDescriptor(params.dma.spmAddrWidth - 1, 0) << params.packetLayout.dataAddrLsb)
+    }
+    is (3.U) {
+      dmaSeqPacket := dmaPacketTemplates(3) |
+        (dmaSeqDescriptor(
+          params.dma.descriptorNbytesLsb + params.dma.nbytesWidth - 1,
+          params.dma.descriptorNbytesLsb) << params.packetLayout.dataPayloadLsb)
+    }
+    is (4.U) {
+      dmaSeqPacket := dmaPacketTemplates(4) |
+        (dmaSeqDescriptor(
+          params.dma.descriptorTagLsb + params.dma.tagWidth - 1,
+          params.dma.descriptorTagLsb) << params.packetLayout.dataPayloadLsb)
+    }
+    is (5.U) {
+      dmaSeqPacket := Mux(dmaSeqIsMvin, dmaPacketTemplates(5), dmaPacketTemplates(6))
+    }
+  }
+
+  when (dmaSeqActive) {
+    packetFifo.io.enq.valid := true.B
+    packetFifo.io.enq.bits := dmaSeqPacket
+  }
+
+  when (dmaSeqActive && packetFifo.io.enq.fire) {
+    when (dmaSeqPhase === 5.U) {
+      dmaSeqActive := false.B
+      dmaSeqPhase := 0.U
+    } .otherwise {
+      dmaSeqPhase := dmaSeqPhase + 1.U
+    }
+  }
+
   // ---- Packet Construction Logic ----
   when (state === s_idle && cmd.fire) {
     respRd := cmd.bits.inst.rd
 
-    when (isStatus) {
+    when (isDmaIssue) {
+      val issueWords = issueNbytes >> cgraWordByteShift
+      val issueSpmEnd = issueSpmAddr +& issueWords
+      val issueDramEnd = rs1 +& issueNbytes
+      assert(!dmaInFlight && !dmaDoneValid && !dmaSeqActive,
+        "only one DMA command may be outstanding")
+      assert(!dmaAdapter.busy,
+        "new DMA command issued while the TileLink adapter is active")
+      if (params.dma.descriptorWidth < xLen) {
+        assert(!rs2(xLen - 1, params.dma.descriptorWidth).orR,
+          "DMA descriptor has nonzero bits outside the generated layout")
+      }
+      assert(issueNbytes =/= 0.U, "DMA byte count must be nonzero")
+      assert(issueNbytes(dmaBeatByteShift - 1, 0) === 0.U,
+        "DMA byte count must be a multiple of 16 bytes")
+      assert(issueSpmEnd <= params.dma.spmWords.U,
+        "DMA descriptor exceeds the software-visible SPM range")
+      assert(rs1(dmaBeatByteShift - 1, 0) === 0.U,
+        "DMA DRAM address must be 16-byte aligned")
+      assert(!issueDramEnd(xLen), "DMA address plus length overflows xLen")
+
+      dmaSeqDramAddr := rs1
+      dmaSeqDescriptor := rs2(params.dma.descriptorWidth - 1, 0)
+      dmaSeqIsMvin := isDmaMvin
+      dmaSeqPhase := 0.U
+      dmaSeqActive := true.B
+      dmaInFlight := true.B
+    } .elsewhen (isDmaWait) {
+      assert(dmaInFlight || dmaDoneValid,
+        "DMA_WAIT issued without an in-flight or completed DMA command")
+      if (params.dma.tagWidth < xLen) {
+        assert(!rs1(xLen - 1, params.dma.tagWidth).orR,
+          "DMA_WAIT expected tag exceeds the generated tag width")
+      }
+      dmaWaitExpectedTag := rs1(params.dma.tagWidth - 1, 0)
+      when (dmaDoneValid) {
+        assert(dmaDoneTag === rs1(params.dma.tagWidth - 1, 0),
+          "DMA_WAIT observed a completion tag mismatch")
+        respData := dmaDoneTag
+        dmaDoneValid := false.B
+        respValid := true.B
+        state := s_resp
+      } .otherwise {
+        state := s_wait_dma
+      }
+    } .elsewhen (isStatus) {
       respData := Cat(0.U((xLen - 17).W), completeCount, cgraComplete)
       respValid := true.B
       state := s_resp
@@ -341,10 +764,6 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     }
   }
 
-  when (packetFifo.io.enq.valid) {
-    assert(packetFifo.io.enq.ready)
-  }
-
   // ---- Wait for completion ----
   when (state === s_wait_complete &&
         packetFifoEmpty &&
@@ -362,6 +781,15 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     state := s_resp
   }
 
+  when (state === s_wait_dma && dmaDoneValid) {
+    assert(dmaDoneTag === dmaWaitExpectedTag,
+      "DMA_WAIT observed a completion tag mismatch")
+    respData := dmaDoneTag
+    dmaDoneValid := false.B
+    respValid := true.B
+    state := s_resp
+  }
+
   // ---- Monitor CGRA output (send_to_cpu_pkt) ----
   cgra.io.send_to_cpu_pkt_rdy := true.B  // Always ready to receive from CGRA
 
@@ -369,7 +797,23 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     val recvPkt = cgra.io.send_to_cpu_pkt_msg
     val recvCmd = recvPkt(pktCmdMsb, pktCmdLsb)
     val recvDstTile = recvPkt(pktDstTileMsb, pktDstTileLsb)
-    when (recvCmd === CGRACmd.complete(params.cmdWidth)) {
+    when (recvCmd === CGRACmdGenerated.CMD_DMA_DONE.U(params.cmdWidth.W)) {
+      val payloadTag = recvPkt(pktDataPayloadLsb + params.dma.tagWidth - 1,
+                               pktDataPayloadLsb)
+      val opaqueTag = recvPkt(pktOpaqueMsb, pktOpaqueLsb)
+      assert(dmaInFlight, "CMD_DMA_DONE observed without an in-flight DMA")
+      assert(!dmaDoneValid, "CMD_DMA_DONE would overwrite an unconsumed completion")
+      assert(payloadTag === opaqueTag,
+        "CMD_DMA_DONE opaque and payload tags differ")
+      if (params.dataPayloadWidth > params.dma.tagWidth) {
+        assert(!recvPkt(pktDataPayloadMsb,
+                        pktDataPayloadLsb + params.dma.tagWidth).orR,
+          "CMD_DMA_DONE payload contains non-tag bits")
+      }
+      dmaDoneTag := payloadTag
+      dmaDoneValid := true.B
+      dmaInFlight := false.B
+    } .elsewhen (recvCmd === CGRACmdGenerated.CMD_COMPLETE.U(params.cmdWidth.W)) {
       when (expectedCompleteCount =/= 0.U) {
         lastCompleteData := recvPkt(pktDataPayloadMsb, pktDataPayloadLsb)
         completeCount := completeCount + 1.U
@@ -379,7 +823,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
           expectedCompleteCount := 0.U
         }
       }
-    } .elsewhen (recvCmd === CGRACmd.loadResponse(params.cmdWidth) &&
+    } .elsewhen (recvCmd === CGRACmdGenerated.CMD_LOAD_RESPONSE.U(params.cmdWidth.W) &&
                  recvDstTile === cpuTileId && expectLoadResponse) {
       lastLoadData := recvPkt(pktDataPayloadMsb, pktDataPayloadLsb)
       loadRespValid := true.B
@@ -388,8 +832,11 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   }
 
   // ---- RoCC Command Ready ----
-  cmd.ready := (state === s_idle) && !respValid &&
-               (!completesPacket || packetFifo.io.enq.ready)
+  val dmaIssueReady = !dmaInFlight && !dmaDoneValid && !dmaSeqActive &&
+                      !dmaAdapter.busy
+  cmd.ready := (state === s_idle) && !respValid && !dmaSeqActive &&
+               (!completesPacket || packetFifo.io.enq.ready) &&
+               (!isDmaIssue || dmaIssueReady)
 
   // ---- RoCC Response Interface ----
   io.resp.valid     := respValid
@@ -402,9 +849,16 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   }
 
   // ---- RoCC Busy / Interrupt ----
-  io.busy := cmd.valid || cgraBusy || packetFifo.io.deq.valid || (state =/= s_idle)
+  io.busy := cmd.valid || cgraBusy || packetFifo.io.deq.valid ||
+             dmaSeqActive || dmaInFlight || dmaAdapter.busy ||
+             (state =/= s_idle)
   io.interrupt := false.B
 
-  // ---- Unused memory interface ----
+  // LazyRoCC always exposes io.mem, but CGRA DMA never uses the DCache path.
   io.mem.req.valid := false.B
+  io.mem.req.bits := 0.U.asTypeOf(io.mem.req.bits)
+  io.mem.s1_kill := false.B
+  io.mem.s1_data := 0.U.asTypeOf(io.mem.s1_data)
+  io.mem.s2_kill := false.B
+  io.mem.keep_clock_enabled := false.B
 }
