@@ -41,9 +41,37 @@ object CGRAMinimalGemminiRocketConfig {
     dma_buswidth = 128)
 }
 
+object CGRAMinimalGemminiExternalSpadValidationRocketConfig {
+  val externalSpadBase: BigInt = 0x60000000L
+  val externalSpadSize: Int = 64 * 1024
+  val telemetryBase: BigInt = externalSpadBase + externalSpadSize
+
+  val gemminiConfig = CGRAMinimalGemminiRocketConfig.minimalGemminiConfig.copy(
+    use_shared_ext_mem = true,
+    use_tl_ext_mem = true,
+    tl_ext_mem_base = externalSpadBase,
+    sp_singleported = false,
+    spad_read_delay = 4,
+    acc_sub_banks = 1,
+    headerFileName = "gemmini_params_issue4_t1.h")
+}
+
 class CGRAMinimalGemminiRocketConfig extends Config(
   new chipyard.config.WithCGRA() ++
   new gemmini.DefaultGemminiConfig(CGRAMinimalGemminiRocketConfig.minimalGemminiConfig) ++
+  new freechips.rocketchip.rocket.WithNBigCores(1) ++
+  new chipyard.config.WithSystemBusWidth(128) ++
+  new chipyard.config.AbstractConfig)
+
+class CGRAMinimalGemminiExternalSpadValidationRocketConfig extends Config(
+  new chipyard.example.WithGemminiExternalSpadValidation(
+    chipyard.example.GemminiExternalSpadValidationParams(
+      baseAddress = CGRAMinimalGemminiExternalSpadValidationRocketConfig.externalSpadBase,
+      sizeBytes = CGRAMinimalGemminiExternalSpadValidationRocketConfig.externalSpadSize,
+      telemetryAddress = CGRAMinimalGemminiExternalSpadValidationRocketConfig.telemetryBase)) ++
+  new chipyard.config.WithCGRA() ++
+  new gemmini.DefaultGemminiConfig(
+    CGRAMinimalGemminiExternalSpadValidationRocketConfig.gemminiConfig) ++
   new freechips.rocketchip.rocket.WithNBigCores(1) ++
   new chipyard.config.WithSystemBusWidth(128) ++
   new chipyard.config.AbstractConfig)
