@@ -20,7 +20,9 @@ case class GemminiExternalSpadParams(
   outputSlotCount: Int,
   outputSlotSizeBytes: Int,
   telemetryAddress: Option[BigInt] = None,
-  systemReadResponseStallCycles: Int = 0) {
+  systemReadResponseStallCycles: Int = 0,
+  publicationResponseStallFinalAck: Boolean = false,
+  publicationResponseStallCycles: Int = 0) {
   val fullWidthRowBytes: Int = spadRowBytes * fullWidthRowStride
   val matrixDimension: Int = outputSlotSizeBytes / fullWidthRowBytes
   val outputReservedBytes: Int = outputSlotCount * outputSlotSizeBytes
@@ -126,6 +128,11 @@ class GemminiExternalSpadMemory(
   })
   require(params.systemReadResponseStallCycles >= 0)
   require(params.systemReadResponseStallCycles == 0 || params.telemetryAddress.isDefined)
+  require(params.publicationResponseStallCycles >= 0)
+  require(params.publicationResponseStallFinalAck ==
+    (params.publicationResponseStallCycles != 0))
+  require(params.publicationResponseStallCycles == 0 ||
+    params.telemetryAddress.isDefined)
 
   require(params.baseAddress == gemminiConfig.tl_ext_mem_base)
   require(params.sizeBytes == gemminiSpadBytes)
@@ -184,6 +191,12 @@ class GemminiExternalSpadMemory(
 
   private val readXbar = TLXbar()
   private val writeXbar = TLXbar()
+  private val producerAdapterParams =
+    GemminiSpadProducerAdapterParams.production
+  val publicationMonitor = LazyModule(new GemminiSpadPublicationMonitor(
+    producerAdapterParams,
+    params.publicationResponseStallFinalAck,
+    params.publicationResponseStallCycles))
 
   readManager := readXbar
   readXbar := systemReadNode
@@ -192,8 +205,8 @@ class GemminiExternalSpadMemory(
   writeManager := writeXbar
   writeXbar :=* TLWidthWidget(gemminiBeatBytes) :=* TLBuffer() :=*
     gemminiAccelerator.spad_write_nodes
-  writeXbar := TLWidthWidget(gemminiBeatBytes) := TLBuffer() :=
-    gemminiAccelerator.spad.spad_writer.get.node
+  writeXbar := publicationMonitor.node := TLWidthWidget(gemminiBeatBytes) :=
+    TLBuffer() := gemminiAccelerator.spad.spad_writer.get.node
 
   override lazy val module = new MemoryImpl
   class MemoryImpl extends Impl {
@@ -205,6 +218,25 @@ class GemminiExternalSpadMemory(
       val lineOffsetBits = log2Ceil(writeBeatBytes)
       val readBeatIndexBits = log2Ceil(writeBeatBytes / readBeatBytes)
       val mem = SyncReadMem(lineCount, Vec(writeBeatBytes, UInt(8.W)))
+
+      val transferEndpoint = Module(new SpmTransferEndpoint(
+        SpmTransferEndpointParams.production))
+      val producerAdapter = Module(new GemminiSpadProducerAdapter(
+        producerAdapterParams))
+      transferEndpoint.io.requestOut <> producerAdapter.io.requestIn
+      transferEndpoint.io.readyIn <> producerAdapter.io.readyOut
+      producerAdapter.io.writerA <> publicationMonitor.module.io.writerA
+      producerAdapter.io.writerD <> publicationMonitor.module.io.writerD
+      publicationMonitor.module.io.stallResponse :=
+        producerAdapter.io.finalRowOutstanding
+
+      transferEndpoint.io.readStartIn.valid := false.B
+      transferEndpoint.io.readStartIn.bits := 0.U.asTypeOf(
+        new SpmTransferIdentity)
+      transferEndpoint.io.releaseIn.valid := false.B
+      transferEndpoint.io.releaseIn.bits := 0.U.asTypeOf(
+        new SpmTransferIdentity)
+      transferEndpoint.io.errorOut.ready := true.B
 
       val readLineIndex = read.a.bits.address(
         lineOffsetBits + lineIndexBits - 1, lineOffsetBits)
@@ -328,18 +360,119 @@ class GemminiExternalSpadMemory(
           sameLineWriteWhileReadBlockedCount + 1.U
       }
 
-      telemetryNode.foreach(_.regmap(
-        0x00 -> Seq(RegField.r(32, writeCommitCount)),
-        0x08 -> Seq(RegField.r(32, writeAckCount)),
-        0x10 -> Seq(RegField.r(32, fullLineWriteCount)),
-        0x18 -> Seq(RegField.r(32, partialWriteCount)),
-        0x20 -> Seq(RegField.r(64, lastWriteAddress)),
-        0x28 -> Seq(RegField.r(64, lastWriteMask)),
-        0x30 -> Seq(RegField.r(1, sawOutstandingWrite)),
-        0x38 -> Seq(RegField.r(32, readCount)),
-        0x40 -> Seq(RegField.r(32, readResponseBackpressureCycleCount)),
-        0x48 -> Seq(RegField.r(32, sameLineWriteWhileReadBlockedCount)),
-        0x50 -> Seq(RegField.r(32, params.systemReadResponseStallCycles.U))))
+      telemetryNode match {
+        case Some(node) =>
+          // The following injection and observation controls exist only in the
+          // validation configuration. Production correctness consumes typed
+          // endpoint events and the dedicated writer monitor directly.
+          val validationRequestJobId = RegInit(0.U(32.W))
+          val validationRequestSlot = RegInit(0.U(32.W))
+          val validationRequestMaxBytes = RegInit(0.U(32.W))
+          val validationRequestSubmit = Wire(Decoupled(UInt(1.W)))
+          val validationRequestQueue = Module(new Queue(
+            new SpmTransferRequest, 1))
+          validationRequestQueue.io.enq.valid :=
+            validationRequestSubmit.valid &&
+              validationRequestSubmit.bits.asBool
+          validationRequestQueue.io.enq.bits.jobId := validationRequestJobId
+          validationRequestQueue.io.enq.bits.slot := validationRequestSlot
+          validationRequestQueue.io.enq.bits.maxBytes :=
+            validationRequestMaxBytes
+          validationRequestSubmit.ready := validationRequestQueue.io.enq.ready
+          transferEndpoint.io.requestIn <> validationRequestQueue.io.deq
+
+          val validationReadyAccept = RegInit(false.B)
+          transferEndpoint.io.readyOut.ready := validationReadyAccept
+
+          val readyDeliveryCount = RegInit(0.U(32.W))
+          val lastReadyJobId = RegInit(0.U(32.W))
+          val lastReadySlot = RegInit(0.U(32.W))
+          val lastReadyActualBytes = RegInit(0.U(32.W))
+          val lastReadyStatus = RegInit(0.U(32.W))
+          when(transferEndpoint.io.readyOut.fire) {
+            readyDeliveryCount := readyDeliveryCount + 1.U
+            lastReadyJobId := transferEndpoint.io.readyOut.bits.jobId
+            lastReadySlot := transferEndpoint.io.readyOut.bits.slot
+            lastReadyActualBytes :=
+              transferEndpoint.io.readyOut.bits.actualBytes
+            lastReadyStatus := transferEndpoint.io.readyOut.bits.status
+          }
+
+          val protocolErrorCount = RegInit(0.U(32.W))
+          val lastProtocolErrorReason = RegInit(0.U(32.W))
+          when(transferEndpoint.io.errorOut.fire) {
+            protocolErrorCount := protocolErrorCount + 1.U
+            lastProtocolErrorReason :=
+              transferEndpoint.io.errorOut.bits.reason
+          }
+
+          node.regmap(
+            0x00 -> Seq(RegField.r(32, writeCommitCount)),
+            0x08 -> Seq(RegField.r(32, writeAckCount)),
+            0x10 -> Seq(RegField.r(32, fullLineWriteCount)),
+            0x18 -> Seq(RegField.r(32, partialWriteCount)),
+            0x20 -> Seq(RegField.r(64, lastWriteAddress)),
+            0x28 -> Seq(RegField.r(64, lastWriteMask)),
+            0x30 -> Seq(RegField.r(1, sawOutstandingWrite)),
+            0x38 -> Seq(RegField.r(32, readCount)),
+            0x40 -> Seq(RegField.r(32,
+              readResponseBackpressureCycleCount)),
+            0x48 -> Seq(RegField.r(32,
+              sameLineWriteWhileReadBlockedCount)),
+            0x50 -> Seq(RegField.r(32,
+              params.systemReadResponseStallCycles.U)),
+            0x100 -> Seq(RegField(32, validationRequestJobId)),
+            0x108 -> Seq(RegField(32, validationRequestSlot)),
+            0x110 -> Seq(RegField(32, validationRequestMaxBytes)),
+            0x118 -> Seq(RegField.w(1, validationRequestSubmit)),
+            0x120 -> Seq(RegField(1, validationReadyAccept)),
+            0x128 -> Seq(RegField.r(1,
+              transferEndpoint.io.readyOut.valid)),
+            0x130 -> Seq(RegField.r(32,
+              transferEndpoint.io.readyOut.bits.jobId)),
+            0x138 -> Seq(RegField.r(32,
+              transferEndpoint.io.readyOut.bits.slot)),
+            0x140 -> Seq(RegField.r(32,
+              transferEndpoint.io.readyOut.bits.actualBytes)),
+            0x148 -> Seq(RegField.r(32,
+              transferEndpoint.io.readyOut.bits.status)),
+            0x150 -> Seq(RegField.r(32, readyDeliveryCount)),
+            0x158 -> Seq(RegField.r(32, lastReadyJobId)),
+            0x160 -> Seq(RegField.r(32, lastReadySlot)),
+            0x168 -> Seq(RegField.r(32, lastReadyActualBytes)),
+            0x170 -> Seq(RegField.r(32, lastReadyStatus)),
+            0x178 -> Seq(RegField.r(1, producerAdapter.io.active)),
+            0x180 -> Seq(RegField.r(32,
+              producerAdapter.io.issuedBytes)),
+            0x188 -> Seq(RegField.r(32,
+              producerAdapter.io.acknowledgedBytes)),
+            0x190 -> Seq(RegField.r(1,
+              producerAdapter.io.rowOutstanding)),
+            0x198 -> Seq(RegField.r(32,
+              publicationMonitor.module.io.aFireCount)),
+            0x1a0 -> Seq(RegField.r(32,
+              publicationMonitor.module.io.dFireCount)),
+            0x1a8 -> Seq(RegField.r(1,
+              publicationMonitor.module.io.dBlocked)),
+            0x1b0 -> Seq(RegField.r(32,
+              publicationMonitor.module.io.dBlockedCycleCount)),
+            0x1b8 -> Seq(RegField.r(64,
+              publicationMonitor.module.io.lastAAddress)),
+            0x1c0 -> Seq(RegField.r(32, protocolErrorCount)),
+            0x1c8 -> Seq(RegField.r(32, lastProtocolErrorReason)),
+            0x1d0 -> Seq(RegField.r(32,
+              params.matrixDimension.U)),
+            0x1d8 -> Seq(RegField.r(32,
+              params.publicationResponseStallCycles.U)),
+            0x1e0 -> Seq(RegField.r(1,
+              params.publicationResponseStallFinalAck.B)))
+
+        case None =>
+          transferEndpoint.io.requestIn.valid := false.B
+          transferEndpoint.io.requestIn.bits := 0.U.asTypeOf(
+            new SpmTransferRequest)
+          transferEndpoint.io.readyOut.ready := false.B
+      }
     }
   }
 }
@@ -362,6 +495,7 @@ trait CanHaveGemminiExternalSpad {
       gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float]]
     val memory = LazyModule(new GemminiExternalSpadMemory(accelerator, params))
     memory.clockNode := pbus.fixedClockNode
+    memory.publicationMonitor.clockNode := pbus.fixedClockNode
 
     if (params.systemReadResponseStallCycles > 0) {
       val staller = LazyModule(new GemminiExternalSpadReadResponseStaller(

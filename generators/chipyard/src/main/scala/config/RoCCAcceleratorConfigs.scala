@@ -62,7 +62,9 @@ object CGRAMinimalGemminiExternalSpadValidationRocketConfig {
     CGRAMinimalGemminiRocketConfig.externalSpadParams.sizeBytes
   val externalSpadParams = CGRAMinimalGemminiRocketConfig.externalSpadParams.copy(
     telemetryAddress = Some(telemetryBase),
-    systemReadResponseStallCycles = 4096)
+    systemReadResponseStallCycles = 4096,
+    publicationResponseStallFinalAck = true,
+    publicationResponseStallCycles = 4096)
 
   val gemminiConfig = CGRAMinimalGemminiRocketConfig.minimalGemminiConfig.copy(
     headerFileName = "gemmini_params_issue4_t1.h")
