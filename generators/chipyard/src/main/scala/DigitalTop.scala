@@ -38,7 +38,7 @@ class DigitalTop(implicit p: Parameters) extends ChipyardSystem
   with constellation.soc.CanHaveGlobalNoC // Support instantiating a global NoC interconnect
   with rerocc.CanHaveReRoCCTiles // Support tiles that instantiate rerocc-attached accelerators
   with testchipip.ctc.CanHavePeripheryCTC // Support optional CTC link
-  with chipyard.example.CanHaveGemminiExternalSpadValidation // Issue #4 T1 external-SPAD validation only
+  with chipyard.example.CanHaveGemminiExternalSpad // Gemmini external-SPAD backing and system read path
 {
   override lazy val module = new DigitalTopModule(this)
 }
