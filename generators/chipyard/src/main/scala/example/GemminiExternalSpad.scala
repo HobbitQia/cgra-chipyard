@@ -9,6 +9,7 @@ import freechips.rocketchip.resources.SimpleDevice
 import freechips.rocketchip.subsystem.{BaseSubsystem, InstantiatesHierarchicalElements, PBUS}
 import freechips.rocketchip.tile.RocketTile
 import freechips.rocketchip.tilelink._
+import freechips.rocketchip.util.{AsyncQueueParams, FromAsyncBundle, ToAsyncBundle}
 import org.chipsalliance.cde.config.{Config, Field, Parameters}
 import org.chipsalliance.diplomacy.lazymodule.LazyModule
 
@@ -181,6 +182,8 @@ class GemminiExternalSpadMemory(
     minLatency = 1)))
 
   val systemReadNode = TLIdentityNode()
+  val consumerNode = BundleBridgeSource(() =>
+    new CgraConsumerAsyncLink(CgraConsumerPullAdapterParams.production))
   val telemetryNode = params.telemetryAddress.map { telemetryAddress =>
     TLRegisterNode(
       address = Seq(AddressSet(telemetryAddress, 0xfff)),
@@ -223,6 +226,8 @@ class GemminiExternalSpadMemory(
         SpmTransferEndpointParams.production))
       val producerAdapter = Module(new GemminiSpadProducerAdapter(
         producerAdapterParams))
+      val consumerAdapter = Module(new CgraConsumerPullAdapter(
+        CgraConsumerPullAdapterParams.production))
       transferEndpoint.io.requestOut <> producerAdapter.io.requestIn
       transferEndpoint.io.readyIn <> producerAdapter.io.readyOut
       producerAdapter.io.writerA <> publicationMonitor.module.io.writerA
@@ -230,12 +235,13 @@ class GemminiExternalSpadMemory(
       publicationMonitor.module.io.stallResponse :=
         producerAdapter.io.finalRowOutstanding
 
-      transferEndpoint.io.readStartIn.valid := false.B
-      transferEndpoint.io.readStartIn.bits := 0.U.asTypeOf(
-        new SpmTransferIdentity)
-      transferEndpoint.io.releaseIn.valid := false.B
-      transferEndpoint.io.releaseIn.bits := 0.U.asTypeOf(
-        new SpmTransferIdentity)
+      val consumerLink = consumerNode.out(0)._1
+      consumerLink.dmaCommand <> ToAsyncBundle(
+        consumerAdapter.io.dmaCommandOut, AsyncQueueParams.singleton())
+      consumerAdapter.io.dmaReadStartIn <>
+        FromAsyncBundle(consumerLink.readStart)
+      consumerAdapter.io.dmaDoneIn <>
+        FromAsyncBundle(consumerLink.dmaDone)
       transferEndpoint.io.errorOut.ready := true.B
 
       val readLineIndex = read.a.bits.address(
@@ -379,10 +385,100 @@ class GemminiExternalSpadMemory(
           validationRequestQueue.io.enq.bits.maxBytes :=
             validationRequestMaxBytes
           validationRequestSubmit.ready := validationRequestQueue.io.enq.ready
-          transferEndpoint.io.requestIn <> validationRequestQueue.io.deq
 
           val validationReadyAccept = RegInit(false.B)
-          transferEndpoint.io.readyOut.ready := validationReadyAccept
+          val validationConsumerEnable = RegInit(false.B)
+
+          transferEndpoint.io.requestIn.valid := Mux(
+            validationConsumerEnable,
+            consumerAdapter.io.requestOut.valid,
+            validationRequestQueue.io.deq.valid)
+          transferEndpoint.io.requestIn.bits := Mux(
+            validationConsumerEnable,
+            consumerAdapter.io.requestOut.bits,
+            validationRequestQueue.io.deq.bits)
+          consumerAdapter.io.requestOut.ready :=
+            transferEndpoint.io.requestIn.ready && validationConsumerEnable
+          validationRequestQueue.io.deq.ready :=
+            transferEndpoint.io.requestIn.ready && !validationConsumerEnable
+
+          consumerAdapter.io.readyIn.valid :=
+            transferEndpoint.io.readyOut.valid && validationConsumerEnable
+          consumerAdapter.io.readyIn.bits := transferEndpoint.io.readyOut.bits
+          transferEndpoint.io.readyOut.ready := Mux(
+            validationConsumerEnable,
+            consumerAdapter.io.readyIn.ready,
+            validationReadyAccept)
+
+          transferEndpoint.io.readStartIn.valid :=
+            consumerAdapter.io.readStartOut.valid && validationConsumerEnable
+          transferEndpoint.io.readStartIn.bits :=
+            consumerAdapter.io.readStartOut.bits
+          consumerAdapter.io.readStartOut.ready :=
+            transferEndpoint.io.readStartIn.ready && validationConsumerEnable
+          transferEndpoint.io.releaseIn.valid :=
+            consumerAdapter.io.releaseOut.valid && validationConsumerEnable
+          transferEndpoint.io.releaseIn.bits := consumerAdapter.io.releaseOut.bits
+          consumerAdapter.io.releaseOut.ready :=
+            transferEndpoint.io.releaseIn.ready && validationConsumerEnable
+
+          val validationPullJobId = RegInit(0.U(32.W))
+          val validationPullSlot = RegInit(0.U(32.W))
+          val validationPullBytes = RegInit(0.U(32.W))
+          val validationPullSpmWordAddress = RegInit(0.U(32.W))
+          val validationPullDmaTag = RegInit(0.U(32.W))
+          val validationPullSubmit = Wire(Decoupled(UInt(1.W)))
+          val validationPullQueue = Module(new Queue(
+            new CgraConsumerPullDescriptor(
+              CgraConsumerPullAdapterParams.production), 1))
+          validationPullQueue.io.enq.valid :=
+            validationPullSubmit.valid &&
+              validationPullSubmit.bits.asBool && validationConsumerEnable
+          validationPullQueue.io.enq.bits.jobId := validationPullJobId
+          validationPullQueue.io.enq.bits.slot := validationPullSlot
+          validationPullQueue.io.enq.bits.bytes := validationPullBytes
+          validationPullQueue.io.enq.bits.spmWordAddress :=
+            validationPullSpmWordAddress
+          validationPullQueue.io.enq.bits.dmaTag := validationPullDmaTag
+          validationPullSubmit.ready :=
+            validationPullQueue.io.enq.ready && validationConsumerEnable
+          consumerAdapter.io.descriptorIn <> validationPullQueue.io.deq
+
+          val validationCompletionAccept = RegInit(false.B)
+          consumerAdapter.io.completionOut.ready := validationCompletionAccept
+          val consumerCompletionCount = RegInit(0.U(32.W))
+          val lastConsumerCompletion = Reg(
+            new CgraConsumerCompletion(
+              CgraConsumerPullAdapterParams.production))
+          when(consumerAdapter.io.completionOut.fire) {
+            consumerCompletionCount := consumerCompletionCount + 1.U
+            lastConsumerCompletion := consumerAdapter.io.completionOut.bits
+          }
+          val consumerErrorCount = RegInit(0.U(32.W))
+          val lastConsumerErrorReason = RegInit(0.U(32.W))
+          consumerAdapter.io.errorOut.ready := true.B
+          when(consumerAdapter.io.errorOut.fire) {
+            consumerErrorCount := consumerErrorCount + 1.U
+            lastConsumerErrorReason := consumerAdapter.io.errorOut.bits.reason
+          }
+
+          // Validation-only causal telemetry. The producer count advances
+          // only after its final writer-D-derived READY is accepted by T3.
+          // A consumer DMA command without a preceding such event is sticky
+          // evidence of an early issue; software need not race a fixed D
+          // stall window to establish the ordering.
+          val successfulProducerReadyCount = RegInit(0.U(32.W))
+          val consumerEarlyDmaIssueCount = RegInit(0.U(32.W))
+          when(producerAdapter.io.readyOut.fire &&
+            producerAdapter.io.readyOut.bits.status ===
+              SpmTransferProtocol.ProducerStatus.Success) {
+            successfulProducerReadyCount := successfulProducerReadyCount + 1.U
+          }
+          when(consumerAdapter.io.dmaCommandOut.fire &&
+            consumerAdapter.io.dmaCommandCount >=
+              successfulProducerReadyCount) {
+            consumerEarlyDmaIssueCount := consumerEarlyDmaIssueCount + 1.U
+          }
 
           val readyDeliveryCount = RegInit(0.U(32.W))
           val lastReadyJobId = RegInit(0.U(32.W))
@@ -465,13 +561,69 @@ class GemminiExternalSpadMemory(
             0x1d8 -> Seq(RegField.r(32,
               params.publicationResponseStallCycles.U)),
             0x1e0 -> Seq(RegField.r(1,
-              params.publicationResponseStallFinalAck.B)))
+              params.publicationResponseStallFinalAck.B)),
+            0x200 -> Seq(RegField(1, validationConsumerEnable)),
+            0x208 -> Seq(RegField(32, validationPullJobId)),
+            0x210 -> Seq(RegField(32, validationPullSlot)),
+            0x218 -> Seq(RegField(32, validationPullBytes)),
+            0x220 -> Seq(RegField(32, validationPullSpmWordAddress)),
+            0x228 -> Seq(RegField(32, validationPullDmaTag)),
+            0x230 -> Seq(RegField.w(1, validationPullSubmit)),
+            0x238 -> Seq(RegField(1, validationCompletionAccept)),
+            0x240 -> Seq(RegField.r(1,
+              consumerAdapter.io.completionOut.valid)),
+            0x248 -> Seq(RegField.r(32,
+              consumerAdapter.io.completionOut.bits.jobId)),
+            0x250 -> Seq(RegField.r(32,
+              consumerAdapter.io.completionOut.bits.slot)),
+            0x258 -> Seq(RegField.r(32,
+              consumerAdapter.io.completionOut.bits.actualBytes)),
+            0x260 -> Seq(RegField.r(32,
+              consumerAdapter.io.completionOut.bits.dmaTag)),
+            0x268 -> Seq(RegField.r(32,
+              consumerAdapter.io.completionOut.bits.consumerStatus)),
+            0x270 -> Seq(RegField.r(32,
+              consumerAdapter.io.completionOut.bits.producerStatus)),
+            0x278 -> Seq(RegField.r(32, consumerCompletionCount)),
+            0x280 -> Seq(RegField.r(32, lastConsumerCompletion.jobId)),
+            0x288 -> Seq(RegField.r(32, lastConsumerCompletion.slot)),
+            0x290 -> Seq(RegField.r(32, lastConsumerCompletion.actualBytes)),
+            0x298 -> Seq(RegField.r(32, lastConsumerCompletion.dmaTag)),
+            0x2a0 -> Seq(RegField.r(32,
+              lastConsumerCompletion.consumerStatus)),
+            0x2a8 -> Seq(RegField.r(32,
+              lastConsumerCompletion.producerStatus)),
+            0x2b0 -> Seq(RegField.r(1, consumerAdapter.io.active)),
+            0x2b8 -> Seq(RegField.r(1, consumerAdapter.io.dmaIssued)),
+            0x2c0 -> Seq(RegField.r(1,
+              consumerAdapter.io.readStartDelivered)),
+            0x2c8 -> Seq(RegField.r(1,
+              consumerAdapter.io.dmaDoneSeen)),
+            0x2d0 -> Seq(RegField.r(32, consumerErrorCount)),
+            0x2d8 -> Seq(RegField.r(32, lastConsumerErrorReason)),
+            0x2e0 -> Seq(RegField.r(32, consumerAdapter.io.requestCount)),
+            0x2e8 -> Seq(RegField.r(32, consumerAdapter.io.dmaCommandCount)),
+            0x2f0 -> Seq(RegField.r(32, consumerAdapter.io.readStartCount)),
+            0x2f8 -> Seq(RegField.r(32, consumerAdapter.io.dmaDoneCount)),
+            0x300 -> Seq(RegField.r(32, consumerAdapter.io.releaseCount)),
+            0x308 -> Seq(RegField.r(32,
+              transferEndpoint.io.slots(0).state.pad(32))),
+            0x310 -> Seq(RegField.r(32,
+              transferEndpoint.io.slots(1).state.pad(32))),
+            0x318 -> Seq(RegField.r(32, successfulProducerReadyCount)),
+            0x320 -> Seq(RegField.r(32, consumerEarlyDmaIssueCount)))
 
         case None =>
-          transferEndpoint.io.requestIn.valid := false.B
-          transferEndpoint.io.requestIn.bits := 0.U.asTypeOf(
-            new SpmTransferRequest)
-          transferEndpoint.io.readyOut.ready := false.B
+          transferEndpoint.io.requestIn <> consumerAdapter.io.requestOut
+          consumerAdapter.io.readyIn <> transferEndpoint.io.readyOut
+          transferEndpoint.io.readStartIn <> consumerAdapter.io.readStartOut
+          transferEndpoint.io.releaseIn <> consumerAdapter.io.releaseOut
+          consumerAdapter.io.descriptorIn.valid := false.B
+          consumerAdapter.io.descriptorIn.bits := 0.U.asTypeOf(
+            new CgraConsumerPullDescriptor(
+              CgraConsumerPullAdapterParams.production))
+          consumerAdapter.io.completionOut.ready := false.B
+          consumerAdapter.io.errorOut.ready := true.B
       }
     }
   }
@@ -493,7 +645,18 @@ trait CanHaveGemminiExternalSpad {
 
     val accelerator = gemminis.head.asInstanceOf[
       gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float]]
+    val cgras = totalTiles.values.toSeq.flatMap {
+      case tile: RocketTile => tile.roccs.collect {
+        case accelerator: CGRAAccelerator => accelerator
+      }
+      case _ => Nil
+    }
+    require(cgras.size == 1,
+      s"external SPAD consumer requires exactly one CGRA, found ${cgras.size}")
+    require(cgras.head.consumerNode.isDefined,
+      "external SPAD consumer requires the typed CGRA bridge")
     val memory = LazyModule(new GemminiExternalSpadMemory(accelerator, params))
+    cgras.head.consumerNode.get := memory.consumerNode
     memory.clockNode := pbus.fixedClockNode
     memory.publicationMonitor.clockNode := pbus.fixedClockNode
 

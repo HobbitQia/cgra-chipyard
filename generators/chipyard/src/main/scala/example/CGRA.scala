@@ -7,6 +7,7 @@ import org.chipsalliance.cde.config.{Parameters, Field, Config}
 import freechips.rocketchip.tile._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.tilelink._
+import freechips.rocketchip.util.{AsyncQueueParams, FromAsyncBundle, ToAsyncBundle}
 
 // ============================================================================
 // CGRA Parameters
@@ -203,6 +204,7 @@ class CGRATileLinkDmaAdapterIO(params: CGRAParams) extends Bundle {
   val writeReq = Flipped(Decoupled(new CGRADmaWriteRequest(params)))
   val writeResp = Decoupled(Bool())
   val busy = Output(Bool())
+  val readRequestAccepted = Output(Bool())
 }
 
 class CGRATileLinkDmaAdapter(params: CGRAParams)(implicit p: Parameters)
@@ -247,6 +249,7 @@ class CGRATileLinkDmaAdapterImp(
     io.writeResp.valid := state === holdWrite
     io.writeResp.bits := false.B
     io.busy := state =/= idle
+    io.readRequestAccepted := tl.a.fire && !requestIsWrite
 
     when (io.readReq.valid && io.writeReq.valid) {
       assert(false.B,
@@ -376,6 +379,8 @@ class CGRAAccelerator(opcodes: OpcodeSet, params: CGRAParams = CGRAGenerated.par
     extends LazyRoCC(opcodes) {
   val dmaAdapter = if (params.dma.enabled)
     Some(LazyModule(new CGRATileLinkDmaAdapter(params))) else None
+  val consumerNode = if (params.dma.enabled && p(GemminiExternalSpadKey).isDefined)
+    Some(BundleBridgeSink[CgraConsumerAsyncLink]()) else None
   override val tlNode: TLNode = dmaAdapter.map(_.node).getOrElse(TLIdentityNode())
   override lazy val module = new CGRAAcceleratorImp(this, params)
 }
@@ -443,6 +448,38 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     dmaAdapter.writeResp.ready := cgra.io.recv_from_dram_wr_resp_rdy.get
   }
   val dmaAdapterBusy = outer.dmaAdapter.map(_.module.io.busy).getOrElse(false.B)
+  val dmaReadRequestAccepted = outer.dmaAdapter
+    .map(_.module.io.readRequestAccepted).getOrElse(false.B)
+
+  private val consumerParams = CgraConsumerPullAdapterParams.production
+  if (outer.consumerNode.isDefined) {
+    require(params.dma.enabled)
+    require(params.dma.spmAddrWidth == consumerParams.spmAddressWidth)
+    require(params.dma.tagWidth == consumerParams.dmaTagWidth)
+    require(params.dma.dramAddrWidth == consumerParams.dramAddressWidth)
+    require(params.dma.spmWords == consumerParams.spmWords)
+  }
+  val automaticDmaCommand = Wire(
+    Decoupled(new CgraAutomaticDmaCommand(consumerParams)))
+  val automaticReadStartOut = Wire(
+    Decoupled(new CgraAutomaticDmaEvent(consumerParams)))
+  val automaticDmaDoneOut = Wire(
+    Decoupled(new CgraAutomaticDmaEvent(consumerParams)))
+  outer.consumerNode match {
+    case Some(node) =>
+      val link = node.in(0)._1
+      automaticDmaCommand <> FromAsyncBundle(link.dmaCommand)
+      link.readStart <> ToAsyncBundle(
+        automaticReadStartOut, AsyncQueueParams.singleton())
+      link.dmaDone <> ToAsyncBundle(
+        automaticDmaDoneOut, AsyncQueueParams.singleton())
+    case None =>
+      automaticDmaCommand.valid := false.B
+      automaticDmaCommand.bits := 0.U.asTypeOf(
+        new CgraAutomaticDmaCommand(consumerParams))
+      automaticReadStartOut.ready := true.B
+      automaticDmaDoneOut.ready := true.B
+  }
 
   // ---- Tie off unused ports ----
 
@@ -644,6 +681,28 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val dmaDoneValid = RegInit(false.B)
   val dmaDoneTag = Reg(UInt(xLen.W))
   val dmaWaitExpectedTag = Reg(UInt(xLen.W))
+  val dmaOwnerAutomatic = RegInit(false.B)
+  val automaticJobId = Reg(UInt(SpmTransferProtocol.JobIdWidth.W))
+  val automaticSlot = Reg(UInt(SpmTransferProtocol.SlotIdWidth.W))
+  val automaticTag = Reg(UInt(consumerParams.dmaTagWidth.W))
+  val automaticReadObserved = RegInit(false.B)
+  val automaticReadStartPending = RegInit(false.B)
+  val automaticDmaDonePending = RegInit(false.B)
+
+  automaticReadStartOut.valid := automaticReadStartPending
+  automaticReadStartOut.bits.jobId := automaticJobId
+  automaticReadStartOut.bits.slot := automaticSlot
+  automaticReadStartOut.bits.dmaTag := automaticTag
+  automaticDmaDoneOut.valid := automaticDmaDonePending
+  automaticDmaDoneOut.bits.jobId := automaticJobId
+  automaticDmaDoneOut.bits.slot := automaticSlot
+  automaticDmaDoneOut.bits.dmaTag := automaticTag
+  when(automaticReadStartOut.fire) {
+    automaticReadStartPending := false.B
+  }
+  when(automaticDmaDoneOut.fire) {
+    automaticDmaDonePending := false.B
+  }
 
   if (params.dma.enabled) {
     val issueSpmAddr = rs2(
@@ -663,6 +722,14 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
     val dmaPacketTemplates = VecInit(
       params.dma.packetTemplates.map(_.U(params.intraPktWidth.W)))
+    val automaticDescriptor = WireInit(0.U(xLen.W))
+    automaticDescriptor :=
+      (automaticDmaCommand.bits.spmWordAddress <<
+        params.dma.descriptorSpmLsb) |
+      (automaticDmaCommand.bits.bytes <<
+        params.dma.descriptorNbytesLsb) |
+      (automaticDmaCommand.bits.dmaTag <<
+        params.dma.descriptorTagLsb)
     val dmaSeqPacket = Wire(UInt(params.intraPktWidth.W))
     dmaSeqPacket := 0.U
     switch (dmaSeqPhase) {
@@ -740,6 +807,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         dmaSeqPhase := 0.U
         dmaSeqActive := true.B
         dmaInFlight := true.B
+        dmaOwnerAutomatic := false.B
       } .elsewhen (isDmaWait) {
         assert(dmaInFlight || dmaDoneValid,
           "DMA_WAIT issued without an in-flight or completed DMA command")
@@ -761,6 +829,50 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       } .otherwise {
         handleNonDmaCommand()
       }
+    }
+
+    when(automaticDmaCommand.fire) {
+      val automaticWords =
+        automaticDmaCommand.bits.bytes >> cgraWordByteShift
+      val automaticSpmEnd =
+        automaticDmaCommand.bits.spmWordAddress +& automaticWords
+      val automaticAddressEnd =
+        automaticDmaCommand.bits.sourceAddress +&
+          automaticDmaCommand.bits.bytes
+      assert(!dmaInFlight && !dmaDoneValid && !dmaSeqActive,
+        "automatic CGRA DMA requires an idle semantic sequencer")
+      assert(!dmaAdapterBusy,
+        "automatic CGRA DMA issued while the TileLink adapter is active")
+      assert(!automaticReadStartPending && !automaticDmaDonePending,
+        "automatic CGRA DMA would overwrite an undelivered event")
+      assert(automaticDmaCommand.bits.jobId =/= 0.U,
+        "automatic CGRA DMA job ID must be nonzero")
+      assert(automaticDmaCommand.bits.slot < consumerParams.slotCount.U,
+        "automatic CGRA DMA slot is invalid")
+      assert(automaticDmaCommand.bits.bytes =/= 0.U,
+        "automatic CGRA DMA byte count must be nonzero")
+      assert(automaticDmaCommand.bits.bytes(
+        dmaBeatByteShift - 1, 0) === 0.U,
+        "automatic CGRA DMA byte count must be a multiple of 16 bytes")
+      assert(automaticSpmEnd <= params.dma.spmWords.U,
+        "automatic CGRA DMA exceeds the generated SPM range")
+      assert(automaticDmaCommand.bits.sourceAddress(
+        dmaBeatByteShift - 1, 0) === 0.U,
+        "automatic CGRA DMA source address must be 16-byte aligned")
+      assert(!automaticAddressEnd(params.dma.dramAddrWidth),
+        "automatic CGRA DMA address plus length overflows")
+
+      dmaSeqDramAddr := automaticDmaCommand.bits.sourceAddress
+      dmaSeqDescriptor := automaticDescriptor
+      dmaSeqIsMvin := true.B
+      dmaSeqPhase := 0.U
+      dmaSeqActive := true.B
+      dmaInFlight := true.B
+      dmaOwnerAutomatic := true.B
+      automaticJobId := automaticDmaCommand.bits.jobId
+      automaticSlot := automaticDmaCommand.bits.slot
+      automaticTag := automaticDmaCommand.bits.dmaTag
+      automaticReadObserved := false.B
     }
   } else {
     when (state === s_idle && cmd.fire) {
@@ -793,6 +905,16 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     dmaDoneValid := false.B
     respValid := true.B
     state := s_resp
+  }
+
+  // readStart is tied to the first real TileLink Get acceptance, not to
+  // descriptor acceptance or semantic packet enqueue.
+  when(dmaReadRequestAccepted && dmaInFlight && dmaOwnerAutomatic &&
+    !automaticReadObserved) {
+    assert(!automaticReadStartPending,
+      "automatic CGRA DMA read-start event buffer is occupied")
+    automaticReadObserved := true.B
+    automaticReadStartPending := true.B
   }
 
   // ---- Monitor CGRA output (send_to_cpu_pkt) ----
@@ -828,7 +950,6 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
                                  pktDataPayloadLsb)
         val opaqueTag = recvPkt(pktOpaqueMsb, pktOpaqueLsb)
         assert(dmaInFlight, "CMD_DMA_DONE observed without an in-flight DMA")
-        assert(!dmaDoneValid, "CMD_DMA_DONE would overwrite an unconsumed completion")
         assert(payloadTag === opaqueTag,
           "CMD_DMA_DONE opaque and payload tags differ")
         if (params.dataPayloadWidth > params.dma.tagWidth) {
@@ -836,9 +957,22 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
                           pktDataPayloadLsb + params.dma.tagWidth).orR,
             "CMD_DMA_DONE payload contains non-tag bits")
         }
-        dmaDoneTag := payloadTag
-        dmaDoneValid := true.B
-        dmaInFlight := false.B
+        when(dmaOwnerAutomatic) {
+          assert(payloadTag === automaticTag,
+            "automatic CMD_DMA_DONE tag does not match its retained owner")
+          assert(automaticReadObserved,
+            "automatic CMD_DMA_DONE arrived before any real DMA read")
+          assert(!automaticDmaDonePending,
+            "automatic CMD_DMA_DONE would overwrite an undelivered event")
+          automaticDmaDonePending := true.B
+          dmaInFlight := false.B
+        }.otherwise {
+          assert(!dmaDoneValid,
+            "CMD_DMA_DONE would overwrite an unconsumed CPU completion")
+          dmaDoneTag := payloadTag
+          dmaDoneValid := true.B
+          dmaInFlight := false.B
+        }
       } .otherwise {
         handleRegularCgraResponse(recvPkt, recvCmd)
       }
@@ -849,7 +983,10 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   // ---- RoCC Command Ready ----
   val dmaIssueReady = !dmaInFlight && !dmaDoneValid && !dmaSeqActive &&
-                      !dmaAdapterBusy
+                      !dmaAdapterBusy && !automaticReadStartPending &&
+                      !automaticDmaDonePending
+  automaticDmaCommand.ready := dmaIssueReady && state === s_idle &&
+                               !respValid && !cmd.valid
   cmd.ready := (state === s_idle) && !respValid && !dmaSeqActive &&
                (!completesPacket || packetFifo.io.enq.ready) &&
                (!isDmaIssue || dmaIssueReady)
