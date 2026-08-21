@@ -5,6 +5,9 @@ package chipyard.example
 object GemminiExternalSpadGenerated {
   val baseAddress: BigInt = BigInt("60000000", 16)
   val sizeBytes: Int = 65536
+  val productionControlAddress: BigInt = BigInt("60011000", 16)
+  val validationTelemetryAddress: BigInt = BigInt("60010000", 16)
+  val controlPageSizeBytes: Int = 4096
   val spadRowBytes: Int = 16
   val fullWidthRowStride: Int = 4
   val fullWidthRowBytes: Int = 64
@@ -18,6 +21,13 @@ object GemminiExternalSpadGenerated {
 
   require(sizeBytes > 0 && (sizeBytes & (sizeBytes - 1)) == 0)
   require((baseAddress & (sizeBytes - 1)) == 0)
+  require(controlPageSizeBytes > 0 &&
+    (controlPageSizeBytes & (controlPageSizeBytes - 1)) == 0)
+  require((productionControlAddress & (controlPageSizeBytes - 1)) == 0)
+  require((validationTelemetryAddress & (controlPageSizeBytes - 1)) == 0)
+  require(productionControlAddress != validationTelemetryAddress)
+  require(productionControlAddress >= baseAddress + sizeBytes)
+  require(validationTelemetryAddress >= baseAddress + sizeBytes)
   require(outputReservedBytes == outputSlotCount * outputSlotSizeBytes)
   require(outputReservedBase == baseAddress + sizeBytes - outputReservedBytes)
   require(outputSlotBases.size == outputSlotCount)
@@ -28,4 +38,100 @@ object GemminiExternalSpadGenerated {
   require(outputSlotRows.zip(outputSlotBases).forall { case (row, address) =>
     baseAddress + row * spadRowBytes == address
   })
+}
+
+object CgraTransferControlGenerated {
+  val baseAddress: BigInt = GemminiExternalSpadGenerated.productionControlAddress
+  val pageSizeBytes: Int = GemminiExternalSpadGenerated.controlPageSizeBytes
+  private val ControlRegistersMaxOffset: Int = 0x2c8
+  val PULL_JOB_ID: Int = 0x000
+  val PULL_SLOT: Int = 0x008
+  val PULL_BYTES: Int = 0x010
+  val PULL_SPM_WORD_ADDRESS: Int = 0x018
+  val PULL_DMA_TAG: Int = 0x020
+  val PULL_SUBMIT: Int = 0x028
+  val LAUNCH_JOB_ID: Int = 0x040
+  val LAUNCH_SLOT: Int = 0x048
+  val LAUNCH_BYTES: Int = 0x050
+  val LAUNCH_SPM_WORD_ADDRESS: Int = 0x058
+  val LAUNCH_DMA_TAG: Int = 0x060
+  val LAUNCH_PACKET_COUNT: Int = 0x068
+  val LAUNCH_SUBMIT: Int = 0x070
+  val PACKET_LO: Int = 0x080
+  val PACKET_MID: Int = 0x088
+  val PACKET_HI: Int = 0x090
+  val PACKET_TOP: Int = 0x098
+  val PACKET_SUBMIT: Int = 0x0a0
+  val LAUNCH_RESULT_VALID: Int = 0x100
+  val LAUNCH_RESULT_POP: Int = 0x108
+  val LAUNCH_RESULT_JOB_ID: Int = 0x110
+  val LAUNCH_RESULT_SLOT: Int = 0x118
+  val LAUNCH_RESULT_REQUESTED_BYTES: Int = 0x120
+  val LAUNCH_RESULT_ACTUAL_BYTES: Int = 0x128
+  val LAUNCH_RESULT_SPM_WORD_ADDRESS: Int = 0x130
+  val LAUNCH_RESULT_DMA_TAG: Int = 0x138
+  val LAUNCH_RESULT_PACKET_COUNT: Int = 0x140
+  val LAUNCH_RESULT_STATUS: Int = 0x148
+  val LAUNCH_ERROR_VALID: Int = 0x180
+  val LAUNCH_ERROR_POP: Int = 0x188
+  val LAUNCH_ERROR_JOB_ID: Int = 0x190
+  val LAUNCH_ERROR_SLOT: Int = 0x198
+  val LAUNCH_ERROR_REQUESTED_BYTES: Int = 0x1a0
+  val LAUNCH_ERROR_ACTUAL_BYTES: Int = 0x1a8
+  val LAUNCH_ERROR_SPM_WORD_ADDRESS: Int = 0x1b0
+  val LAUNCH_ERROR_DMA_TAG: Int = 0x1b8
+  val LAUNCH_ERROR_OPERATION: Int = 0x1c0
+  val LAUNCH_ERROR_REASON: Int = 0x1c8
+  val COMPUTE_RESULT_VALID: Int = 0x200
+  val COMPUTE_RESULT_POP: Int = 0x208
+  val COMPUTE_RESULT_JOB_ID: Int = 0x210
+  val COMPUTE_RESULT_SLOT: Int = 0x218
+  val COMPUTE_RESULT_REQUESTED_BYTES: Int = 0x220
+  val COMPUTE_RESULT_ACTUAL_BYTES: Int = 0x228
+  val COMPUTE_RESULT_SPM_WORD_ADDRESS: Int = 0x230
+  val COMPUTE_RESULT_DMA_TAG: Int = 0x238
+  val COMPUTE_RESULT_PACKET_COUNT: Int = 0x240
+  val COMPUTE_RESULT_DATA: Int = 0x248
+  val COMPUTE_RESULT_STATUS: Int = 0x250
+  val COMPUTE_ERROR_VALID: Int = 0x280
+  val COMPUTE_ERROR_POP: Int = 0x288
+  val COMPUTE_ERROR_JOB_ID: Int = 0x290
+  val COMPUTE_ERROR_SLOT: Int = 0x298
+  val COMPUTE_ERROR_REQUESTED_BYTES: Int = 0x2a0
+  val COMPUTE_ERROR_ACTUAL_BYTES: Int = 0x2a8
+  val COMPUTE_ERROR_SPM_WORD_ADDRESS: Int = 0x2b0
+  val COMPUTE_ERROR_DMA_TAG: Int = 0x2b8
+  val COMPUTE_ERROR_OPERATION: Int = 0x2c0
+  val COMPUTE_ERROR_REASON: Int = 0x2c8
+  val LaunchStatusLaunchAccepted: Int = 0
+  val LaunchStatusInvalidJob: Int = 1
+  val LaunchStatusInvalidSlot: Int = 2
+  val LaunchStatusInvalidLength: Int = 3
+  val LaunchStatusSpmRange: Int = 4
+  val LaunchStatusInvalidPacketCount: Int = 5
+  val LaunchStatusConsumerFailure: Int = 6
+  val LaunchStatusProducerFailure: Int = 7
+  val LaunchStatusIdentityMismatch: Int = 8
+  val LaunchStatusInvalidPacket: Int = 9
+  val ComputeStatusSuccess: Int = 0
+  val LaunchErrorOperationHeader: Int = 0
+  val LaunchErrorOperationPacket: Int = 1
+  val LaunchErrorOperationCompletion: Int = 2
+  val LaunchErrorOperationPull: Int = 3
+  val LaunchErrorReasonUnexpectedEvent: Int = 1
+  val LaunchErrorReasonDuplicateEvent: Int = 2
+  val LaunchErrorReasonIdentityMismatch: Int = 3
+  val LaunchErrorReasonLengthMismatch: Int = 4
+  val LaunchErrorReasonNonLaunchPacket: Int = 5
+  val LaunchErrorReasonMalformedCompletion: Int = 6
+  val LaunchErrorReasonFieldOutOfRange: Int = 7
+  val ComputeErrorOperationLaunchResult: Int = 0
+  val ComputeErrorOperationComplete: Int = 1
+  val ComputeErrorReasonUnexpectedEvent: Int = 1
+  val ComputeErrorReasonIdentityMismatch: Int = 2
+  val ComputeErrorReasonCompleteBeforeLaunch: Int = 3
+  val ComputeErrorReasonDuplicateComplete: Int = 4
+  val ComputeErrorReasonDuplicateLaunchResult: Int = 5
+
+  require((ControlRegistersMaxOffset + 8) <= pageSizeBytes)
 }

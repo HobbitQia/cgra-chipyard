@@ -18,6 +18,8 @@ object CGRAMinimalGemminiRocketConfig {
   val externalSpadParams = chipyard.example.GemminiExternalSpadParams(
     baseAddress = chipyard.example.GemminiExternalSpadGenerated.baseAddress,
     sizeBytes = chipyard.example.GemminiExternalSpadGenerated.sizeBytes,
+    controlAddress =
+      chipyard.example.GemminiExternalSpadGenerated.productionControlAddress,
     spadRowBytes = chipyard.example.GemminiExternalSpadGenerated.spadRowBytes,
     fullWidthRowStride =
       chipyard.example.GemminiExternalSpadGenerated.fullWidthRowStride,
@@ -58,8 +60,8 @@ object CGRAMinimalGemminiRocketConfig {
 }
 
 object CGRAMinimalGemminiExternalSpadValidationRocketConfig {
-  val telemetryBase: BigInt = CGRAMinimalGemminiRocketConfig.externalSpadParams.baseAddress +
-    CGRAMinimalGemminiRocketConfig.externalSpadParams.sizeBytes
+  val telemetryBase: BigInt =
+    chipyard.example.GemminiExternalSpadGenerated.validationTelemetryAddress
   val externalSpadParams = CGRAMinimalGemminiRocketConfig.externalSpadParams.copy(
     telemetryAddress = Some(telemetryBase),
     systemReadResponseStallCycles = 4096,

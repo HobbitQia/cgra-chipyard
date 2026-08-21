@@ -5,34 +5,58 @@ import chisel3.util._
 
 object CgraLaunchStatus {
   val Width = 32
-  val LaunchAccepted = 0.U(Width.W)
-  val InvalidJob = 1.U(Width.W)
-  val InvalidSlot = 2.U(Width.W)
-  val InvalidLength = 3.U(Width.W)
-  val SpmRange = 4.U(Width.W)
-  val InvalidPacketCount = 5.U(Width.W)
-  val ConsumerFailure = 6.U(Width.W)
-  val ProducerFailure = 7.U(Width.W)
-  val IdentityMismatch = 8.U(Width.W)
-  val InvalidPacket = 9.U(Width.W)
+  val LaunchAccepted =
+    CgraTransferControlGenerated.LaunchStatusLaunchAccepted.U(Width.W)
+  val InvalidJob =
+    CgraTransferControlGenerated.LaunchStatusInvalidJob.U(Width.W)
+  val InvalidSlot =
+    CgraTransferControlGenerated.LaunchStatusInvalidSlot.U(Width.W)
+  val InvalidLength =
+    CgraTransferControlGenerated.LaunchStatusInvalidLength.U(Width.W)
+  val SpmRange =
+    CgraTransferControlGenerated.LaunchStatusSpmRange.U(Width.W)
+  val InvalidPacketCount =
+    CgraTransferControlGenerated.LaunchStatusInvalidPacketCount.U(Width.W)
+  val ConsumerFailure =
+    CgraTransferControlGenerated.LaunchStatusConsumerFailure.U(Width.W)
+  val ProducerFailure =
+    CgraTransferControlGenerated.LaunchStatusProducerFailure.U(Width.W)
+  val IdentityMismatch =
+    CgraTransferControlGenerated.LaunchStatusIdentityMismatch.U(Width.W)
+  val InvalidPacket =
+    CgraTransferControlGenerated.LaunchStatusInvalidPacket.U(Width.W)
 }
 
 object CgraLaunchError {
   object Operation {
     val Width = 2
-    val Header = 0.U(Width.W)
-    val Packet = 1.U(Width.W)
-    val Completion = 2.U(Width.W)
+    val Header =
+      CgraTransferControlGenerated.LaunchErrorOperationHeader.U(Width.W)
+    val Packet =
+      CgraTransferControlGenerated.LaunchErrorOperationPacket.U(Width.W)
+    val Completion =
+      CgraTransferControlGenerated.LaunchErrorOperationCompletion.U(Width.W)
+    val Pull =
+      CgraTransferControlGenerated.LaunchErrorOperationPull.U(Width.W)
   }
 
   object Reason {
     val Width = 3
-    val UnexpectedEvent = 1.U(Width.W)
-    val DuplicateEvent = 2.U(Width.W)
-    val IdentityMismatch = 3.U(Width.W)
-    val LengthMismatch = 4.U(Width.W)
-    val NonLaunchPacket = 5.U(Width.W)
-    val MalformedCompletion = 6.U(Width.W)
+    val UnexpectedEvent =
+      CgraTransferControlGenerated.LaunchErrorReasonUnexpectedEvent.U(Width.W)
+    val DuplicateEvent =
+      CgraTransferControlGenerated.LaunchErrorReasonDuplicateEvent.U(Width.W)
+    val IdentityMismatch =
+      CgraTransferControlGenerated.LaunchErrorReasonIdentityMismatch.U(Width.W)
+    val LengthMismatch =
+      CgraTransferControlGenerated.LaunchErrorReasonLengthMismatch.U(Width.W)
+    val NonLaunchPacket =
+      CgraTransferControlGenerated.LaunchErrorReasonNonLaunchPacket.U(Width.W)
+    val MalformedCompletion =
+      CgraTransferControlGenerated.LaunchErrorReasonMalformedCompletion.U(
+        Width.W)
+    val FieldOutOfRange =
+      CgraTransferControlGenerated.LaunchErrorReasonFieldOutOfRange.U(Width.W)
   }
 }
 
@@ -141,6 +165,7 @@ class CgraComputeLaunchGate(params: CgraComputeLaunchGateParams)
       Decoupled(new CgraConsumerCompletion(
         CgraConsumerPullAdapterParams.production)))
     val packetOut = Decoupled(new CgraLaunchPacket(params))
+    val launchAccepted = Valid(new CgraLaunchResult(params))
     val resultOut = Decoupled(new CgraLaunchResult(params))
     val errorOut = Decoupled(new CgraLaunchProtocolError(params))
     val active = Output(Bool())
@@ -319,6 +344,16 @@ class CgraComputeLaunchGate(params: CgraComputeLaunchGateParams)
 
   io.packetOut.valid := draining
   io.packetOut.bits.packet := packetMemory(drainIndex)
+  io.launchAccepted.valid := io.packetOut.fire &&
+    drainIndex === header.packetCount - 1.U
+  io.launchAccepted.bits.jobId := header.jobId
+  io.launchAccepted.bits.slot := header.slot
+  io.launchAccepted.bits.requestedBytes := header.bytes
+  io.launchAccepted.bits.actualBytes := completion.actualBytes
+  io.launchAccepted.bits.spmWordAddress := header.spmWordAddress
+  io.launchAccepted.bits.dmaTag := header.dmaTag
+  io.launchAccepted.bits.packetCount := header.packetCount
+  io.launchAccepted.bits.status := CgraLaunchStatus.LaunchAccepted
 
   private def setResultFromHeader(status: UInt): Unit = {
     resultPending := true.B

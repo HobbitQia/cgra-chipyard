@@ -474,6 +474,10 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val launchResult = Wire(Decoupled(new CgraLaunchResult(launchParams)))
   val launchError = Wire(
     Decoupled(new CgraLaunchProtocolError(launchParams)))
+  val computeCompletion = Wire(
+    Decoupled(new CgraComputeCompletion(launchParams)))
+  val computeError = Wire(
+    Decoupled(new CgraComputeCompletionProtocolError(launchParams)))
   outer.consumerNode match {
     case Some(node) =>
       val link = node.in(0)._1
@@ -489,6 +493,10 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         launchResult, AsyncQueueParams.singleton())
       link.launchError <> ToAsyncBundle(
         launchError, AsyncQueueParams.singleton())
+      link.computeCompletion <> ToAsyncBundle(
+        computeCompletion, AsyncQueueParams.singleton())
+      link.computeError <> ToAsyncBundle(
+        computeError, AsyncQueueParams.singleton())
     case None =>
       automaticDmaCommand.valid := false.B
       automaticDmaCommand.bits := 0.U.asTypeOf(
@@ -513,16 +521,52 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       launchError.bits := 0.U.asTypeOf(
         new CgraLaunchProtocolError(launchParams))
       launchError.ready := true.B
+      computeCompletion.valid := false.B
+      computeCompletion.bits := 0.U.asTypeOf(
+        new CgraComputeCompletion(launchParams))
+      computeCompletion.ready := true.B
+      computeError.valid := false.B
+      computeError.bits := 0.U.asTypeOf(
+        new CgraComputeCompletionProtocolError(launchParams))
+      computeError.ready := true.B
   }
+
+  // The current CGRA response packet carries no job identity. Track whether a
+  // CPU-issued compute is already outstanding so an automatic owner cannot be
+  // reserved until that older untagged completion has retired.
+  val cpuComputeActive = RegInit(false.B)
+  val cpuLaunchAccepted = WireDefault(false.B)
 
   val launchGate = outer.consumerNode.map { _ =>
     val gate = Module(new CgraComputeLaunchGate(launchParams))
-    gate.io.headerIn <> launchHeader
     gate.io.packetIn <> launchPacket
     gate.io.completionIn <> consumerCompletion
-    launchResult <> gate.io.resultOut
     launchError <> gate.io.errorOut
     gate
+  }
+  val computeTracker = outer.consumerNode.map { _ =>
+    val tracker = Module(new CgraComputeCompletionTracker(launchParams))
+    val gate = launchGate.get
+
+    // Header acceptance atomically establishes the sole compute owner in the
+    // tracker and the matching retained sequence in the T6 gate.
+    gate.io.headerIn.valid := launchHeader.valid &&
+      tracker.io.reservationIn.ready && !cpuComputeActive &&
+        !cpuLaunchAccepted
+    gate.io.headerIn.bits := launchHeader.bits
+    tracker.io.reservationIn.valid := launchHeader.valid &&
+      gate.io.headerIn.ready && !cpuComputeActive && !cpuLaunchAccepted
+    tracker.io.reservationIn.bits := launchHeader.bits
+    launchHeader.ready := gate.io.headerIn.ready &&
+      tracker.io.reservationIn.ready && !cpuComputeActive &&
+        !cpuLaunchAccepted
+
+    tracker.io.launchResultIn <> gate.io.resultOut
+    tracker.io.launchAcceptedIn := gate.io.launchAccepted
+    launchResult <> tracker.io.launchResultOut
+    computeCompletion <> tracker.io.completionOut
+    computeError <> tracker.io.errorOut
+    tracker
   }
 
   // ---- Tie off unused ports ----
@@ -663,6 +707,19 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   val packetFifoEmpty = !packetFifo.io.deq.valid
   val completesPacket = if (needsRawPktTop) isRawPktTop else isRawPktHi
+  val completedCpuPacket = if (needsRawPktTop) {
+    Cat(rs1(rawPktTopWidth - 1, 0), rawPktHi, rawPktMid, rawPktLo)
+  } else {
+    Cat(rs1(rawPktHiWidth - 1, 0), rawPktMid, rawPktLo)
+  }
+  val completedCpuPacketCommand = completedCpuPacket(pktCmdMsb, pktCmdLsb)
+  val completesCpuLaunch = completesPacket &&
+    (completedCpuPacketCommand ===
+      CGRACmdGenerated.CMD_LAUNCH.U(params.cmdWidth.W) ||
+      completedCpuPacketCommand ===
+        CGRACmdGenerated.CMD_RESUME.U(params.cmdWidth.W))
+  val automaticComputeOwnerActive = computeTracker
+    .map(_.io.active).getOrElse(false.B)
 
   def acceptAssembledPkt(assembledPkt: UInt): Unit = {
     val assembledCmd = assembledPkt(pktCmdMsb, pktCmdLsb)
@@ -670,6 +727,8 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     cpuPacketCandidate.bits := assembledPkt
     when (assembledCmd === CGRACmdGenerated.CMD_LAUNCH.U(params.cmdWidth.W) ||
           assembledCmd === CGRACmdGenerated.CMD_RESUME.U(params.cmdWidth.W)) {
+      cpuLaunchAccepted := true.B
+      cpuComputeActive := true.B
       noteLaunchIssued()
     }
     when (assembledCmd === CGRACmdGenerated.CMD_LOAD_REQUEST.U(params.cmdWidth.W)) {
@@ -856,6 +915,12 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
           "only one DMA command may be outstanding")
         assert(!dmaAdapterBusy,
           "new DMA command issued while the TileLink adapter is active")
+        computeTracker.foreach { tracker =>
+          when(isDmaMvout) {
+            assert(!tracker.io.active || tracker.io.completed,
+              "CGRA DMA MVOUT issued before automatic compute completion")
+          }
+        }
         if (params.dma.descriptorWidth < xLen) {
           assert(!rs2(xLen - 1, params.dma.descriptorWidth).orR,
             "DMA descriptor has nonzero bits outside the generated layout")
@@ -986,7 +1051,23 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   }
 
   // ---- Monitor CGRA output (send_to_cpu_pkt) ----
-  cgra.io.send_to_cpu_pkt_rdy := true.B  // Always ready to receive from CGRA
+  val cgraResponsePacket = cgra.io.send_to_cpu_pkt_msg
+  val cgraResponseCommand = cgraResponsePacket(pktCmdMsb, pktCmdLsb)
+  val cgraResponseData = cgraResponsePacket(
+    pktDataPayloadMsb, pktDataPayloadLsb)
+  val automaticCompleteOwned = computeTracker.map { tracker =>
+    tracker.io.active &&
+      cgraResponseCommand === CGRACmdGenerated.CMD_COMPLETE.U(
+        params.cmdWidth.W)
+  }.getOrElse(false.B)
+  computeTracker.foreach { tracker =>
+    tracker.io.completeIn.valid := cgra.io.send_to_cpu_pkt_val &&
+      automaticCompleteOwned
+    tracker.io.completeIn.bits := cgraResponseData
+  }
+  cgra.io.send_to_cpu_pkt_rdy := computeTracker.map { tracker =>
+    Mux(automaticCompleteOwned, tracker.io.completeIn.ready, true.B)
+  }.getOrElse(true.B)
 
   def handleRegularCgraResponse(recvPkt: UInt, recvCmd: UInt): Unit = {
     val recvDstTile = recvPkt(pktDstTileMsb, pktDstTileLsb)
@@ -1008,9 +1089,9 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     }
   }
 
-  when (cgra.io.send_to_cpu_pkt_val) {
-    val recvPkt = cgra.io.send_to_cpu_pkt_msg
-    val recvCmd = recvPkt(pktCmdMsb, pktCmdLsb)
+  when (cgra.io.send_to_cpu_pkt_val && cgra.io.send_to_cpu_pkt_rdy) {
+    val recvPkt = cgraResponsePacket
+    val recvCmd = cgraResponseCommand
     if (params.dma.enabled) {
       val pktOpaqueMsb = pktOpaqueLsb + params.dma.tagWidth - 1
       when (recvCmd === CGRACmdGenerated.CMD_DMA_DONE.U(params.cmdWidth.W)) {
@@ -1042,9 +1123,23 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
           dmaInFlight := false.B
         }
       } .otherwise {
-        handleRegularCgraResponse(recvPkt, recvCmd)
+        when(recvCmd === CGRACmdGenerated.CMD_COMPLETE.U(params.cmdWidth.W) &&
+          !automaticCompleteOwned) {
+          cpuComputeActive := false.B
+        }
+        computeTracker match {
+          case Some(tracker) =>
+            when(!automaticCompleteOwned ||
+              (tracker.io.launched && !tracker.io.completed)) {
+              handleRegularCgraResponse(recvPkt, recvCmd)
+            }
+          case None => handleRegularCgraResponse(recvPkt, recvCmd)
+        }
       }
     } else {
+      when(recvCmd === CGRACmdGenerated.CMD_COMPLETE.U(params.cmdWidth.W)) {
+        cpuComputeActive := false.B
+      }
       handleRegularCgraResponse(recvPkt, recvCmd)
     }
   }
@@ -1057,7 +1152,8 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
                                !respValid && !cmd.valid
   cmd.ready := (state === s_idle) && !respValid && !dmaSeqActive &&
                (!completesPacket || cpuPacketCandidate.ready) &&
-               (!isDmaIssue || dmaIssueReady)
+               (!isDmaIssue || dmaIssueReady) &&
+               (!completesCpuLaunch || !automaticComputeOwnerActive)
 
   // ---- RoCC Response Interface ----
   io.resp.valid     := respValid

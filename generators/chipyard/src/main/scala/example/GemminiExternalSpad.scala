@@ -16,6 +16,7 @@ import org.chipsalliance.diplomacy.lazymodule.LazyModule
 case class GemminiExternalSpadParams(
   baseAddress: BigInt,
   sizeBytes: Int,
+  controlAddress: BigInt,
   spadRowBytes: Int,
   fullWidthRowStride: Int,
   outputSlotCount: Int,
@@ -137,6 +138,10 @@ class GemminiExternalSpadMemory(
 
   require(params.baseAddress == gemminiConfig.tl_ext_mem_base)
   require(params.sizeBytes == gemminiSpadBytes)
+  require(params.controlAddress ==
+    GemminiExternalSpadGenerated.productionControlAddress)
+  require(params.controlAddress >= params.baseAddress + params.sizeBytes)
+  require(params.telemetryAddress.forall(_ != params.controlAddress))
   require(params.spadRowBytes == gemminiSpadRowBytes)
   require(params.fullWidthRowBytes == gemminiFullWidthRowBytes)
   require(params.fullWidthRowStride ==
@@ -157,6 +162,9 @@ class GemminiExternalSpadMemory(
   private val telemetryDevice = new SimpleDevice(
     "gemmini-external-spad-validation-stats",
     Seq("ucbbar,gemmini-external-spad-validation-telemetry"))
+  private val controlDevice = new SimpleDevice(
+    "cgra-transfer-control",
+    Seq("ucbbar,cgra-transfer-control"))
 
   private val readManager = TLManagerNode(Seq(TLSlavePortParameters.v1(
     managers = Seq(TLSlaveParameters.v1(
@@ -191,6 +199,13 @@ class GemminiExternalSpadMemory(
       beatBytes = 8,
       concurrency = 1)
   }
+  val controlNode = TLRegisterNode(
+    address = Seq(AddressSet(
+      params.controlAddress,
+      GemminiExternalSpadGenerated.controlPageSizeBytes - 1)),
+    device = controlDevice,
+    beatBytes = 8,
+    concurrency = 1)
 
   private val readXbar = TLXbar()
   private val writeXbar = TLXbar()
@@ -254,6 +269,10 @@ class GemminiExternalSpadMemory(
         Decoupled(new CgraLaunchResult(launchParams)))
       val launchErrorFromCgra = Wire(
         Decoupled(new CgraLaunchProtocolError(launchParams)))
+      val computeCompletionFromCgra = Wire(
+        Decoupled(new CgraComputeCompletion(launchParams)))
+      val computeErrorFromCgra = Wire(Decoupled(
+        new CgraComputeCompletionProtocolError(launchParams)))
       consumerLink.completion <> ToAsyncBundle(
         completionToCgra, AsyncQueueParams.singleton())
       consumerLink.launchHeader <> ToAsyncBundle(
@@ -262,6 +281,9 @@ class GemminiExternalSpadMemory(
         launchPacketToCgra, AsyncQueueParams.singleton())
       launchResultFromCgra <> FromAsyncBundle(consumerLink.launchResult)
       launchErrorFromCgra <> FromAsyncBundle(consumerLink.launchError)
+      computeCompletionFromCgra <>
+        FromAsyncBundle(consumerLink.computeCompletion)
+      computeErrorFromCgra <> FromAsyncBundle(consumerLink.computeError)
       transferEndpoint.io.errorOut.ready := true.B
 
       val readLineIndex = read.a.bits.address(
@@ -386,6 +408,210 @@ class GemminiExternalSpadMemory(
           sameLineWriteWhileReadBlockedCount + 1.U
       }
 
+      // Production control ABI. Only typed metadata and full launch packets
+      // enter these bounded queues; payload data remains on the external-SPAD
+      // and CGRA DMA paths. Submit writes complete at queue acceptance and do
+      // not wait for publication, DMA, launch, or compute completion.
+      val controlQueues = Module(new CgraTransferControlQueues(launchParams))
+      val pullJobId = RegInit(0.U(32.W))
+      val pullSlot = RegInit(0.U(32.W))
+      val pullBytes = RegInit(0.U(32.W))
+      val pullSpmWordAddress = RegInit(0.U(32.W))
+      val pullDmaTag = RegInit(0.U(32.W))
+      val pullSubmit = Wire(Decoupled(UInt(1.W)))
+      controlQueues.io.descriptorSubmit.valid :=
+        pullSubmit.valid && pullSubmit.bits.asBool
+      controlQueues.io.descriptorSubmit.bits.jobId := pullJobId
+      controlQueues.io.descriptorSubmit.bits.slot := pullSlot
+      controlQueues.io.descriptorSubmit.bits.bytes := pullBytes
+      controlQueues.io.descriptorSubmit.bits.spmWordAddress :=
+        pullSpmWordAddress
+      controlQueues.io.descriptorSubmit.bits.dmaTag := pullDmaTag
+      pullSubmit.ready := controlQueues.io.descriptorSubmit.ready
+
+      val launchJobId = RegInit(0.U(32.W))
+      val launchSlot = RegInit(0.U(32.W))
+      val launchBytes = RegInit(0.U(32.W))
+      val launchSpmWordAddress = RegInit(0.U(32.W))
+      val launchDmaTag = RegInit(0.U(32.W))
+      val launchPacketCount = RegInit(0.U(32.W))
+      val launchSubmit = Wire(Decoupled(UInt(1.W)))
+      controlQueues.io.launchHeaderSubmit.valid :=
+        launchSubmit.valid && launchSubmit.bits.asBool
+      controlQueues.io.launchHeaderSubmit.bits.jobId := launchJobId
+      controlQueues.io.launchHeaderSubmit.bits.slot := launchSlot
+      controlQueues.io.launchHeaderSubmit.bits.bytes := launchBytes
+      controlQueues.io.launchHeaderSubmit.bits.spmWordAddress :=
+        launchSpmWordAddress
+      controlQueues.io.launchHeaderSubmit.bits.dmaTag := launchDmaTag
+      controlQueues.io.launchHeaderSubmit.bits.packetCount :=
+        launchPacketCount
+      launchSubmit.ready := controlQueues.io.launchHeaderSubmit.ready
+
+      val launchPacketLo = RegInit(0.U(64.W))
+      val launchPacketMid = RegInit(0.U(64.W))
+      val launchPacketHi = RegInit(0.U(64.W))
+      val launchPacketTop = RegInit(0.U(64.W))
+      val launchPacketSubmit = Wire(Decoupled(UInt(1.W)))
+      val launchPacketBits = Cat(
+        launchPacketTop, launchPacketHi, launchPacketMid, launchPacketLo)
+      controlQueues.io.launchPacketSubmit.valid :=
+        launchPacketSubmit.valid && launchPacketSubmit.bits.asBool
+      controlQueues.io.launchPacketSubmit.bits.packet :=
+        launchPacketBits(launchParams.packetWidth - 1, 0)
+      launchPacketSubmit.ready := controlQueues.io.launchPacketSubmit.ready
+
+      val launchResultPop = Wire(Decoupled(UInt(1.W)))
+      val launchResultSnapshot = RegInit(0.U.asTypeOf(
+        new CgraLaunchResult(launchParams)))
+      launchResultPop.ready := Mux(
+        launchResultPop.bits.asBool,
+        controlQueues.io.launchResultOut.valid,
+        true.B)
+      controlQueues.io.launchResultOut.ready :=
+        launchResultPop.valid && launchResultPop.bits.asBool
+      when(controlQueues.io.launchResultOut.fire) {
+        launchResultSnapshot := controlQueues.io.launchResultOut.bits
+      }
+
+      val launchErrorPop = Wire(Decoupled(UInt(1.W)))
+      val launchErrorSnapshot = RegInit(0.U.asTypeOf(
+        new CgraTransferControlProtocolError))
+      launchErrorPop.ready := Mux(
+        launchErrorPop.bits.asBool,
+        controlQueues.io.launchErrorOut.valid,
+        true.B)
+      controlQueues.io.launchErrorOut.ready :=
+        launchErrorPop.valid && launchErrorPop.bits.asBool
+      when(controlQueues.io.launchErrorOut.fire) {
+        launchErrorSnapshot := controlQueues.io.launchErrorOut.bits
+      }
+
+      val computeResultPop = Wire(Decoupled(UInt(1.W)))
+      val computeResultSnapshot = RegInit(0.U.asTypeOf(
+        new CgraComputeCompletion(launchParams)))
+      computeResultPop.ready := Mux(
+        computeResultPop.bits.asBool,
+        controlQueues.io.computeCompletionOut.valid,
+        true.B)
+      controlQueues.io.computeCompletionOut.ready :=
+        computeResultPop.valid && computeResultPop.bits.asBool
+      when(controlQueues.io.computeCompletionOut.fire) {
+        computeResultSnapshot := controlQueues.io.computeCompletionOut.bits
+      }
+
+      val computeErrorPop = Wire(Decoupled(UInt(1.W)))
+      val computeErrorSnapshot = RegInit(0.U.asTypeOf(
+        new CgraComputeCompletionProtocolError(launchParams)))
+      computeErrorPop.ready := Mux(
+        computeErrorPop.bits.asBool,
+        controlQueues.io.computeErrorOut.valid,
+        true.B)
+      controlQueues.io.computeErrorOut.ready :=
+        computeErrorPop.valid && computeErrorPop.bits.asBool
+      when(controlQueues.io.computeErrorOut.fire) {
+        computeErrorSnapshot := controlQueues.io.computeErrorOut.bits
+      }
+
+      import CgraTransferControlGenerated._
+      controlNode.regmap(
+        PULL_JOB_ID -> Seq(RegField(32, pullJobId)),
+        PULL_SLOT -> Seq(RegField(32, pullSlot)),
+        PULL_BYTES -> Seq(RegField(32, pullBytes)),
+        PULL_SPM_WORD_ADDRESS -> Seq(RegField(32, pullSpmWordAddress)),
+        PULL_DMA_TAG -> Seq(RegField(32, pullDmaTag)),
+        PULL_SUBMIT -> Seq(RegField.w(1, pullSubmit)),
+        LAUNCH_JOB_ID -> Seq(RegField(32, launchJobId)),
+        LAUNCH_SLOT -> Seq(RegField(32, launchSlot)),
+        LAUNCH_BYTES -> Seq(RegField(32, launchBytes)),
+        LAUNCH_SPM_WORD_ADDRESS -> Seq(RegField(32, launchSpmWordAddress)),
+        LAUNCH_DMA_TAG -> Seq(RegField(32, launchDmaTag)),
+        LAUNCH_PACKET_COUNT -> Seq(RegField(32, launchPacketCount)),
+        LAUNCH_SUBMIT -> Seq(RegField.w(1, launchSubmit)),
+        PACKET_LO -> Seq(RegField(64, launchPacketLo)),
+        PACKET_MID -> Seq(RegField(64, launchPacketMid)),
+        PACKET_HI -> Seq(RegField(64, launchPacketHi)),
+        PACKET_TOP -> Seq(RegField(64, launchPacketTop)),
+        PACKET_SUBMIT -> Seq(RegField.w(1, launchPacketSubmit)),
+        LAUNCH_RESULT_VALID -> Seq(RegField.r(1,
+          controlQueues.io.launchResultOut.valid)),
+        LAUNCH_RESULT_POP -> Seq(RegField.w(1, launchResultPop)),
+        LAUNCH_RESULT_JOB_ID -> Seq(RegField.r(32,
+          launchResultSnapshot.jobId)),
+        LAUNCH_RESULT_SLOT -> Seq(RegField.r(32,
+          launchResultSnapshot.slot)),
+        LAUNCH_RESULT_REQUESTED_BYTES -> Seq(RegField.r(32,
+          launchResultSnapshot.requestedBytes)),
+        LAUNCH_RESULT_ACTUAL_BYTES -> Seq(RegField.r(32,
+          launchResultSnapshot.actualBytes)),
+        LAUNCH_RESULT_SPM_WORD_ADDRESS -> Seq(RegField.r(32,
+          launchResultSnapshot.spmWordAddress)),
+        LAUNCH_RESULT_DMA_TAG -> Seq(RegField.r(32,
+          launchResultSnapshot.dmaTag)),
+        LAUNCH_RESULT_PACKET_COUNT -> Seq(RegField.r(32,
+          launchResultSnapshot.packetCount)),
+        LAUNCH_RESULT_STATUS -> Seq(RegField.r(32,
+          launchResultSnapshot.status)),
+        LAUNCH_ERROR_VALID -> Seq(RegField.r(1,
+          controlQueues.io.launchErrorOut.valid)),
+        LAUNCH_ERROR_POP -> Seq(RegField.w(1, launchErrorPop)),
+        LAUNCH_ERROR_JOB_ID -> Seq(RegField.r(32,
+          launchErrorSnapshot.jobId)),
+        LAUNCH_ERROR_SLOT -> Seq(RegField.r(32,
+          launchErrorSnapshot.slot)),
+        LAUNCH_ERROR_REQUESTED_BYTES -> Seq(RegField.r(32,
+          launchErrorSnapshot.requestedBytes)),
+        LAUNCH_ERROR_ACTUAL_BYTES -> Seq(RegField.r(32,
+          launchErrorSnapshot.actualBytes)),
+        LAUNCH_ERROR_SPM_WORD_ADDRESS -> Seq(RegField.r(32,
+          launchErrorSnapshot.spmWordAddress)),
+        LAUNCH_ERROR_DMA_TAG -> Seq(RegField.r(32,
+          launchErrorSnapshot.dmaTag)),
+        LAUNCH_ERROR_OPERATION -> Seq(RegField.r(32,
+          launchErrorSnapshot.operation)),
+        LAUNCH_ERROR_REASON -> Seq(RegField.r(32,
+          launchErrorSnapshot.reason)),
+        COMPUTE_RESULT_VALID -> Seq(RegField.r(1,
+          controlQueues.io.computeCompletionOut.valid)),
+        COMPUTE_RESULT_POP -> Seq(RegField.w(1, computeResultPop)),
+        COMPUTE_RESULT_JOB_ID -> Seq(RegField.r(32,
+          computeResultSnapshot.jobId)),
+        COMPUTE_RESULT_SLOT -> Seq(RegField.r(32,
+          computeResultSnapshot.slot)),
+        COMPUTE_RESULT_REQUESTED_BYTES -> Seq(RegField.r(32,
+          computeResultSnapshot.requestedBytes)),
+        COMPUTE_RESULT_ACTUAL_BYTES -> Seq(RegField.r(32,
+          computeResultSnapshot.actualBytes)),
+        COMPUTE_RESULT_SPM_WORD_ADDRESS -> Seq(RegField.r(32,
+          computeResultSnapshot.spmWordAddress)),
+        COMPUTE_RESULT_DMA_TAG -> Seq(RegField.r(32,
+          computeResultSnapshot.dmaTag)),
+        COMPUTE_RESULT_PACKET_COUNT -> Seq(RegField.r(32,
+          computeResultSnapshot.packetCount)),
+        COMPUTE_RESULT_DATA -> Seq(RegField.r(32,
+          computeResultSnapshot.completeData)),
+        COMPUTE_RESULT_STATUS -> Seq(RegField.r(32,
+          computeResultSnapshot.status)),
+        COMPUTE_ERROR_VALID -> Seq(RegField.r(1,
+          controlQueues.io.computeErrorOut.valid)),
+        COMPUTE_ERROR_POP -> Seq(RegField.w(1, computeErrorPop)),
+        COMPUTE_ERROR_JOB_ID -> Seq(RegField.r(32,
+          computeErrorSnapshot.jobId)),
+        COMPUTE_ERROR_SLOT -> Seq(RegField.r(32,
+          computeErrorSnapshot.slot)),
+        COMPUTE_ERROR_REQUESTED_BYTES -> Seq(RegField.r(32,
+          computeErrorSnapshot.requestedBytes)),
+        COMPUTE_ERROR_ACTUAL_BYTES -> Seq(RegField.r(32,
+          computeErrorSnapshot.actualBytes)),
+        COMPUTE_ERROR_SPM_WORD_ADDRESS -> Seq(RegField.r(32,
+          computeErrorSnapshot.spmWordAddress)),
+        COMPUTE_ERROR_DMA_TAG -> Seq(RegField.r(32,
+          computeErrorSnapshot.dmaTag)),
+        COMPUTE_ERROR_OPERATION -> Seq(RegField.r(32,
+          computeErrorSnapshot.operation)),
+        COMPUTE_ERROR_REASON -> Seq(RegField.r(32,
+          computeErrorSnapshot.reason)))
+
       telemetryNode match {
         case Some(node) =>
           // The following injection and observation controls exist only in the
@@ -462,26 +688,9 @@ class GemminiExternalSpadMemory(
           validationPullQueue.io.enq.bits.dmaTag := validationPullDmaTag
           validationPullSubmit.ready :=
             validationPullQueue.io.enq.ready && validationConsumerEnable
-          consumerAdapter.io.descriptorIn <> validationPullQueue.io.deq
 
           val validationCompletionAccept = RegInit(false.B)
           val validationLaunchGateEnable = RegInit(false.B)
-          completionToCgra.valid :=
-            consumerAdapter.io.completionOut.valid &&
-              validationCompletionAccept && validationLaunchGateEnable
-          completionToCgra.bits := consumerAdapter.io.completionOut.bits
-          consumerAdapter.io.completionOut.ready :=
-            validationCompletionAccept && Mux(
-              validationLaunchGateEnable, completionToCgra.ready, true.B)
-          val consumerCompletionCount = RegInit(0.U(32.W))
-          val lastConsumerCompletion = Reg(
-            new CgraConsumerCompletion(
-              CgraConsumerPullAdapterParams.production))
-          when(consumerAdapter.io.completionOut.fire) {
-            consumerCompletionCount := consumerCompletionCount + 1.U
-            lastConsumerCompletion := consumerAdapter.io.completionOut.bits
-          }
-
           val validationLaunchJobId = RegInit(0.U(32.W))
           val validationLaunchSlot = RegInit(0.U(32.W))
           val validationLaunchBytes = RegInit(0.U(32.W))
@@ -508,7 +717,44 @@ class GemminiExternalSpadMemory(
           validationLaunchSubmit.ready :=
             validationLaunchHeaderQueue.io.enq.ready &&
               validationLaunchGateEnable
-          launchHeaderToCgra <> validationLaunchHeaderQueue.io.deq
+
+          val controlSourceSelector = Module(
+            new CgraTransferControlSourceSelector(launchParams))
+          controlSourceSelector.io.productionDescriptorIn <>
+            controlQueues.io.descriptorOut
+          controlSourceSelector.io.validationDescriptorIn <>
+            validationPullQueue.io.deq
+          consumerAdapter.io.descriptorIn <>
+            controlSourceSelector.io.descriptorOut
+          controlSourceSelector.io.productionLaunchHeaderIn <>
+            controlQueues.io.launchHeaderOut
+          controlSourceSelector.io.validationLaunchHeaderIn <>
+            validationLaunchHeaderQueue.io.deq
+          launchHeaderToCgra <> controlSourceSelector.io.launchHeaderOut
+          controlSourceSelector.io.completionIn <>
+            consumerAdapter.io.completionOut
+
+          completionToCgra.valid :=
+            controlSourceSelector.io.productionCompletionOut.valid ||
+              (controlSourceSelector.io.validationCompletionOut.valid &&
+                validationCompletionAccept && validationLaunchGateEnable)
+          completionToCgra.bits := Mux(
+            controlSourceSelector.io.productionCompletionOut.valid,
+            controlSourceSelector.io.productionCompletionOut.bits,
+            controlSourceSelector.io.validationCompletionOut.bits)
+          controlSourceSelector.io.productionCompletionOut.ready :=
+            completionToCgra.ready
+          controlSourceSelector.io.validationCompletionOut.ready :=
+            validationCompletionAccept && Mux(
+              validationLaunchGateEnable, completionToCgra.ready, true.B)
+          val consumerCompletionCount = RegInit(0.U(32.W))
+          val lastConsumerCompletion = Reg(
+            new CgraConsumerCompletion(
+              CgraConsumerPullAdapterParams.production))
+          when(controlSourceSelector.io.completionIn.fire) {
+            consumerCompletionCount := consumerCompletionCount + 1.U
+            lastConsumerCompletion := controlSourceSelector.io.completionIn.bits
+          }
 
           val validationLaunchPacketLo = RegInit(0.U(64.W))
           val validationLaunchPacketMid = RegInit(0.U(64.W))
@@ -531,10 +777,30 @@ class GemminiExternalSpadMemory(
           validationLaunchPacketSubmit.ready :=
             validationLaunchPacketQueue.io.enq.ready &&
               validationLaunchGateEnable
-          launchPacketToCgra <> validationLaunchPacketQueue.io.deq
+          launchPacketToCgra.valid := Mux(
+            controlSourceSelector.io.productionSelected,
+            controlQueues.io.launchPacketOut.valid,
+            validationLaunchPacketQueue.io.deq.valid)
+          launchPacketToCgra.bits := Mux(
+            controlSourceSelector.io.productionSelected,
+            controlQueues.io.launchPacketOut.bits,
+            validationLaunchPacketQueue.io.deq.bits)
+          controlQueues.io.launchPacketOut.ready :=
+            launchPacketToCgra.ready &&
+              controlSourceSelector.io.productionSelected
+          validationLaunchPacketQueue.io.deq.ready :=
+            launchPacketToCgra.ready &&
+              !controlSourceSelector.io.productionSelected
 
           val validationLaunchResultAccept = RegInit(false.B)
-          launchResultFromCgra.ready := validationLaunchResultAccept
+          controlQueues.io.launchResultIn.valid :=
+            launchResultFromCgra.valid &&
+              controlSourceSelector.io.productionSelected
+          controlQueues.io.launchResultIn.bits := launchResultFromCgra.bits
+          launchResultFromCgra.ready := Mux(
+            controlSourceSelector.io.productionSelected,
+            controlQueues.io.launchResultIn.ready,
+            validationLaunchResultAccept)
           val launchResultCount = RegInit(0.U(32.W))
           val launchAcceptedPacketCount = RegInit(0.U(32.W))
           val completionCountAtLaunchResult = RegInit(0.U(32.W))
@@ -552,7 +818,14 @@ class GemminiExternalSpadMemory(
           }
 
           val validationLaunchErrorAccept = RegInit(true.B)
-          launchErrorFromCgra.ready := validationLaunchErrorAccept
+          controlQueues.io.launchErrorIn.valid :=
+            launchErrorFromCgra.valid &&
+              controlSourceSelector.io.productionSelected
+          controlQueues.io.launchErrorIn.bits := launchErrorFromCgra.bits
+          launchErrorFromCgra.ready := Mux(
+            controlSourceSelector.io.productionSelected,
+            controlQueues.io.launchErrorIn.ready,
+            validationLaunchErrorAccept)
           val launchErrorCount = RegInit(0.U(32.W))
           val lastLaunchError = Reg(
             new CgraLaunchProtocolError(launchParams))
@@ -560,6 +833,23 @@ class GemminiExternalSpadMemory(
             launchErrorCount := launchErrorCount + 1.U
             lastLaunchError := launchErrorFromCgra.bits
           }
+          controlQueues.io.computeCompletionIn.valid :=
+            computeCompletionFromCgra.valid &&
+              controlSourceSelector.io.productionSelected
+          controlQueues.io.computeCompletionIn.bits :=
+            computeCompletionFromCgra.bits
+          computeCompletionFromCgra.ready := Mux(
+            controlSourceSelector.io.productionSelected,
+            controlQueues.io.computeCompletionIn.ready,
+            true.B)
+          controlQueues.io.computeErrorIn.valid :=
+            computeErrorFromCgra.valid &&
+              controlSourceSelector.io.productionSelected
+          controlQueues.io.computeErrorIn.bits := computeErrorFromCgra.bits
+          computeErrorFromCgra.ready := Mux(
+            controlSourceSelector.io.productionSelected,
+            controlQueues.io.computeErrorIn.ready,
+            true.B)
           val consumerErrorCount = RegInit(0.U(32.W))
           val lastConsumerErrorReason = RegInit(0.U(32.W))
           consumerAdapter.io.errorOut.ready := true.B
@@ -769,19 +1059,16 @@ class GemminiExternalSpadMemory(
           consumerAdapter.io.readyIn <> transferEndpoint.io.readyOut
           transferEndpoint.io.readStartIn <> consumerAdapter.io.readStartOut
           transferEndpoint.io.releaseIn <> consumerAdapter.io.releaseOut
-          consumerAdapter.io.descriptorIn.valid := false.B
-          consumerAdapter.io.descriptorIn.bits := 0.U.asTypeOf(
-            new CgraConsumerPullDescriptor(
-              CgraConsumerPullAdapterParams.production))
+          consumerAdapter.io.descriptorIn <>
+            controlQueues.io.descriptorOut
           completionToCgra <> consumerAdapter.io.completionOut
-          launchHeaderToCgra.valid := false.B
-          launchHeaderToCgra.bits := 0.U.asTypeOf(
-            new CgraLaunchSequenceHeader(launchParams))
-          launchPacketToCgra.valid := false.B
-          launchPacketToCgra.bits := 0.U.asTypeOf(
-            new CgraLaunchPacket(launchParams))
-          launchResultFromCgra.ready := true.B
-          launchErrorFromCgra.ready := true.B
+          launchHeaderToCgra <> controlQueues.io.launchHeaderOut
+          launchPacketToCgra <> controlQueues.io.launchPacketOut
+          controlQueues.io.launchResultIn <> launchResultFromCgra
+          controlQueues.io.launchErrorIn <> launchErrorFromCgra
+          controlQueues.io.computeCompletionIn <>
+            computeCompletionFromCgra
+          controlQueues.io.computeErrorIn <> computeErrorFromCgra
           consumerAdapter.io.errorOut.ready := true.B
       }
     }
@@ -837,6 +1124,9 @@ trait CanHaveGemminiExternalSpad {
       pbus.coupleTo("gemmini-external-spad-validation-telemetry") {
         telemetryNode := TLFragmenter(pbus.beatBytes, pbus.blockBytes) := _
       }
+    }
+    pbus.coupleTo("cgra-transfer-control") {
+      memory.controlNode := TLFragmenter(pbus.beatBytes, pbus.blockBytes) := _
     }
     memory
   }

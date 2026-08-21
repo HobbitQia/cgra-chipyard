@@ -146,6 +146,10 @@ class CgraConsumerAsyncLink(params: CgraConsumerPullAdapterParams)
     new AsyncBundle(new CgraLaunchResult(launchParams), crossing))
   val launchError = Flipped(
     new AsyncBundle(new CgraLaunchProtocolError(launchParams), crossing))
+  val computeCompletion = Flipped(
+    new AsyncBundle(new CgraComputeCompletion(launchParams), crossing))
+  val computeError = Flipped(new AsyncBundle(
+    new CgraComputeCompletionProtocolError(launchParams), crossing))
 }
 
 /** Thin consumer-pull control adapter. Payload movement is delegated to the
