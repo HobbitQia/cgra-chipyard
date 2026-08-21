@@ -171,14 +171,18 @@ class CgraConsumerPullAdapterSpec extends AnyFlatSpec
     dut: CgraConsumerEndpointHarness,
     jobId: BigInt,
     slot: BigInt,
-    bytes: BigInt,
+    requestedBytes: BigInt,
+    actualBytes: BigInt,
+    spmWordAddress: BigInt,
     tag: BigInt,
     consumerStatus: UInt,
     producerStatus: BigInt): Unit = {
     waitFor(dut, dut.io.completionOut.valid)
     dut.io.completionOut.bits.jobId.expect(jobId.U)
     dut.io.completionOut.bits.slot.expect(slot.U)
-    dut.io.completionOut.bits.actualBytes.expect(bytes.U)
+    dut.io.completionOut.bits.requestedBytes.expect(requestedBytes.U)
+    dut.io.completionOut.bits.actualBytes.expect(actualBytes.U)
+    dut.io.completionOut.bits.spmWordAddress.expect(spmWordAddress.U)
     dut.io.completionOut.bits.dmaTag.expect(tag.U)
     dut.io.completionOut.bits.consumerStatus.expect(consumerStatus)
     dut.io.completionOut.bits.producerStatus.expect(producerStatus.U)
@@ -214,6 +218,7 @@ class CgraConsumerPullAdapterSpec extends AnyFlatSpec
       // two-entry completion queue preserves both exactly once.
       for (_ <- 0 until 3) {
         dut.io.completionOut.bits.jobId.expect(0x51.U)
+        dut.io.completionOut.bits.requestedBytes.expect(64.U)
         dut.io.completionOut.bits.actualBytes.expect(64.U)
         dut.clock.step()
       }
@@ -227,9 +232,9 @@ class CgraConsumerPullAdapterSpec extends AnyFlatSpec
       dut.io.slots(1).state.expect(SlotState.Free)
 
       expectCompletion(
-        dut, 0x51, 0, 64, 0x21, CgraConsumerStatus.Success, 0)
+        dut, 0x51, 0, 64, 64, 0, 0x21, CgraConsumerStatus.Success, 0)
       expectCompletion(
-        dut, 0x52, 1, 128, 0x22, CgraConsumerStatus.Success, 0)
+        dut, 0x52, 1, 128, 128, 32, 0x22, CgraConsumerStatus.Success, 0)
       dut.io.completionOut.valid.expect(false.B)
     }
   }
@@ -245,7 +250,8 @@ class CgraConsumerPullAdapterSpec extends AnyFlatSpec
       waitFor(dut, dut.io.completionOut.valid)
       dut.io.slots(1).state.expect(SlotState.Free)
       expectCompletion(
-        dut, 0x61, 1, 0, 0x31, CgraConsumerStatus.ProducerFailure, 7)
+        dut, 0x61, 1, 64, 0, 0, 0x31,
+        CgraConsumerStatus.ProducerFailure, 7)
     }
   }
 
@@ -272,7 +278,7 @@ class CgraConsumerPullAdapterSpec extends AnyFlatSpec
           dut.io.producerRequestOut.valid.expect(false.B)
           dut.io.dmaCommandOut.valid.expect(false.B)
           expectCompletion(
-            dut, jobId, slot, 0, 0x40 + index, status, 0)
+            dut, jobId, slot, bytes, 0, spm, 0x40 + index, status, 0)
       }
       dut.io.slots(0).state.expect(SpmTransferProtocol.SlotState.Free)
       dut.io.slots(1).state.expect(SpmTransferProtocol.SlotState.Free)
@@ -326,7 +332,7 @@ class CgraConsumerPullAdapterSpec extends AnyFlatSpec
       dut.io.consumerErrorOut.ready.poke(false.B)
       sendDmaEvent(dut, readStart = false, 0x71, 0, 0x51)
       expectCompletion(
-        dut, 0x71, 0, 64, 0x51, CgraConsumerStatus.Success, 0)
+        dut, 0x71, 0, 64, 64, 0, 0x51, CgraConsumerStatus.Success, 0)
     }
   }
 
@@ -430,7 +436,9 @@ class CgraConsumerPullAdapterSpec extends AnyFlatSpec
       assert(remaining > 0)
       dut.io.completionOut.bits.jobId.expect(0x91.U)
       dut.io.completionOut.bits.slot.expect(1.U)
+      dut.io.completionOut.bits.requestedBytes.expect(64.U)
       dut.io.completionOut.bits.actualBytes.expect(64.U)
+      dut.io.completionOut.bits.spmWordAddress.expect(16.U)
       dut.io.completionOut.bits.dmaTag.expect(0x73.U)
       dut.io.completionOut.bits.consumerStatus.expect(
         CgraConsumerStatus.Success)

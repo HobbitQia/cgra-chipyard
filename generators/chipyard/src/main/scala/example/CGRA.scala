@@ -465,6 +465,15 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     Decoupled(new CgraAutomaticDmaEvent(consumerParams)))
   val automaticDmaDoneOut = Wire(
     Decoupled(new CgraAutomaticDmaEvent(consumerParams)))
+  private val launchParams = CgraComputeLaunchGateParams.production
+  val consumerCompletion = Wire(
+    Decoupled(new CgraConsumerCompletion(consumerParams)))
+  val launchHeader = Wire(
+    Decoupled(new CgraLaunchSequenceHeader(launchParams)))
+  val launchPacket = Wire(Decoupled(new CgraLaunchPacket(launchParams)))
+  val launchResult = Wire(Decoupled(new CgraLaunchResult(launchParams)))
+  val launchError = Wire(
+    Decoupled(new CgraLaunchProtocolError(launchParams)))
   outer.consumerNode match {
     case Some(node) =>
       val link = node.in(0)._1
@@ -473,12 +482,47 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         automaticReadStartOut, AsyncQueueParams.singleton())
       link.dmaDone <> ToAsyncBundle(
         automaticDmaDoneOut, AsyncQueueParams.singleton())
+      consumerCompletion <> FromAsyncBundle(link.completion)
+      launchHeader <> FromAsyncBundle(link.launchHeader)
+      launchPacket <> FromAsyncBundle(link.launchPacket)
+      link.launchResult <> ToAsyncBundle(
+        launchResult, AsyncQueueParams.singleton())
+      link.launchError <> ToAsyncBundle(
+        launchError, AsyncQueueParams.singleton())
     case None =>
       automaticDmaCommand.valid := false.B
       automaticDmaCommand.bits := 0.U.asTypeOf(
         new CgraAutomaticDmaCommand(consumerParams))
       automaticReadStartOut.ready := true.B
       automaticDmaDoneOut.ready := true.B
+      consumerCompletion.valid := false.B
+      consumerCompletion.bits := 0.U.asTypeOf(
+        new CgraConsumerCompletion(consumerParams))
+      consumerCompletion.ready := true.B
+      launchHeader.valid := false.B
+      launchHeader.bits := 0.U.asTypeOf(
+        new CgraLaunchSequenceHeader(launchParams))
+      launchHeader.ready := true.B
+      launchPacket.valid := false.B
+      launchPacket.bits := 0.U.asTypeOf(new CgraLaunchPacket(launchParams))
+      launchPacket.ready := true.B
+      launchResult.valid := false.B
+      launchResult.bits := 0.U.asTypeOf(new CgraLaunchResult(launchParams))
+      launchResult.ready := true.B
+      launchError.valid := false.B
+      launchError.bits := 0.U.asTypeOf(
+        new CgraLaunchProtocolError(launchParams))
+      launchError.ready := true.B
+  }
+
+  val launchGate = outer.consumerNode.map { _ =>
+    val gate = Module(new CgraComputeLaunchGate(launchParams))
+    gate.io.headerIn <> launchHeader
+    gate.io.packetIn <> launchPacket
+    gate.io.completionIn <> consumerCompletion
+    launchResult <> gate.io.resultOut
+    launchError <> gate.io.errorOut
+    gate
   }
 
   // ---- Tie off unused ports ----
@@ -592,8 +636,26 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   val packetFifoEntries = 8
   val packetFifo = Module(new Queue(UInt(params.intraPktWidth.W), entries = packetFifoEntries))
-  packetFifo.io.enq.valid := false.B
-  packetFifo.io.enq.bits := 0.U
+  val packetInputArbiter = Module(
+    new CgraPacketFifoInputArbiter(params.intraPktWidth))
+  val cpuPacketCandidate = Wire(Decoupled(UInt(params.intraPktWidth.W)))
+  val dmaPacketCandidate = Wire(Decoupled(UInt(params.intraPktWidth.W)))
+  cpuPacketCandidate.valid := false.B
+  cpuPacketCandidate.bits := 0.U
+  dmaPacketCandidate.valid := false.B
+  dmaPacketCandidate.bits := 0.U
+  packetInputArbiter.io.cpuPacketIn <> cpuPacketCandidate
+  packetInputArbiter.io.dmaPacketIn <> dmaPacketCandidate
+  launchGate match {
+    case Some(gate) =>
+      packetInputArbiter.io.launchPacketIn.valid := gate.io.packetOut.valid
+      packetInputArbiter.io.launchPacketIn.bits := gate.io.packetOut.bits.packet
+      gate.io.packetOut.ready := packetInputArbiter.io.launchPacketIn.ready
+    case None =>
+      packetInputArbiter.io.launchPacketIn.valid := false.B
+      packetInputArbiter.io.launchPacketIn.bits := 0.U
+  }
+  packetFifo.io.enq <> packetInputArbiter.io.packetOut
 
   cgra.io.recv_from_cpu_pkt_val := packetFifo.io.deq.valid
   cgra.io.recv_from_cpu_pkt_msg := packetFifo.io.deq.bits
@@ -604,8 +666,8 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   def acceptAssembledPkt(assembledPkt: UInt): Unit = {
     val assembledCmd = assembledPkt(pktCmdMsb, pktCmdLsb)
-    packetFifo.io.enq.valid := true.B
-    packetFifo.io.enq.bits := assembledPkt
+    cpuPacketCandidate.valid := true.B
+    cpuPacketCandidate.bits := assembledPkt
     when (assembledCmd === CGRACmdGenerated.CMD_LAUNCH.U(params.cmdWidth.W) ||
           assembledCmd === CGRACmdGenerated.CMD_RESUME.U(params.cmdWidth.W)) {
       noteLaunchIssued()
@@ -621,6 +683,12 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       completeCount := 0.U
     }
     cgraComplete := false.B
+  }
+
+  launchGate.foreach { gate =>
+    when(gate.io.packetOut.fire) {
+      noteLaunchIssued()
+    }
   }
 
   def handleNonDmaCommand(): Unit = {
@@ -764,11 +832,11 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     }
 
     when (dmaSeqActive) {
-      packetFifo.io.enq.valid := true.B
-      packetFifo.io.enq.bits := dmaSeqPacket
+      dmaPacketCandidate.valid := true.B
+      dmaPacketCandidate.bits := dmaSeqPacket
     }
 
-    when (dmaSeqActive && packetFifo.io.enq.fire) {
+    when (dmaSeqActive && dmaPacketCandidate.fire) {
       when (dmaSeqPhase === 5.U) {
         dmaSeqActive := false.B
         dmaSeqPhase := 0.U
@@ -988,7 +1056,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   automaticDmaCommand.ready := dmaIssueReady && state === s_idle &&
                                !respValid && !cmd.valid
   cmd.ready := (state === s_idle) && !respValid && !dmaSeqActive &&
-               (!completesPacket || packetFifo.io.enq.ready) &&
+               (!completesPacket || cpuPacketCandidate.ready) &&
                (!isDmaIssue || dmaIssueReady)
 
   // ---- RoCC Response Interface ----

@@ -90,7 +90,9 @@ class CgraConsumerCompletion(params: CgraConsumerPullAdapterParams)
     extends Bundle {
   val jobId = UInt(SpmTransferProtocol.JobIdWidth.W)
   val slot = UInt(SpmTransferProtocol.SlotIdWidth.W)
+  val requestedBytes = UInt(SpmTransferProtocol.LengthWidth.W)
   val actualBytes = UInt(SpmTransferProtocol.LengthWidth.W)
+  val spmWordAddress = UInt(params.spmAddressWidth.W)
   val dmaTag = UInt(params.dmaTagWidth.W)
   val consumerStatus = UInt(CgraConsumerStatus.Width.W)
   val producerStatus = UInt(SpmTransferProtocol.StatusWidth.W)
@@ -128,11 +130,22 @@ class CgraAutomaticDmaEvent(params: CgraConsumerPullAdapterParams)
 class CgraConsumerAsyncLink(params: CgraConsumerPullAdapterParams)
     extends Bundle {
   private val crossing = AsyncQueueParams.singleton()
+  private val launchParams = CgraComputeLaunchGateParams.production
+  require(launchParams.spmAddressWidth == params.spmAddressWidth)
+  require(launchParams.dmaTagWidth == params.dmaTagWidth)
   val dmaCommand = new AsyncBundle(new CgraAutomaticDmaCommand(params), crossing)
   val readStart = Flipped(
     new AsyncBundle(new CgraAutomaticDmaEvent(params), crossing))
   val dmaDone = Flipped(
     new AsyncBundle(new CgraAutomaticDmaEvent(params), crossing))
+  val completion = new AsyncBundle(new CgraConsumerCompletion(params), crossing)
+  val launchHeader = new AsyncBundle(
+    new CgraLaunchSequenceHeader(launchParams), crossing)
+  val launchPacket = new AsyncBundle(new CgraLaunchPacket(launchParams), crossing)
+  val launchResult = Flipped(
+    new AsyncBundle(new CgraLaunchResult(launchParams), crossing))
+  val launchError = Flipped(
+    new AsyncBundle(new CgraLaunchProtocolError(launchParams), crossing))
 }
 
 /** Thin consumer-pull control adapter. Payload movement is delegated to the
@@ -228,7 +241,10 @@ class CgraConsumerPullAdapter(params: CgraConsumerPullAdapterParams)
       completionQueue.io.enq.valid := true.B
       completionQueue.io.enq.bits.jobId := io.descriptorIn.bits.jobId
       completionQueue.io.enq.bits.slot := io.descriptorIn.bits.slot
+      completionQueue.io.enq.bits.requestedBytes := io.descriptorIn.bits.bytes
       completionQueue.io.enq.bits.actualBytes := 0.U
+      completionQueue.io.enq.bits.spmWordAddress :=
+        io.descriptorIn.bits.spmWordAddress
       completionQueue.io.enq.bits.dmaTag := io.descriptorIn.bits.dmaTag
       completionQueue.io.enq.bits.consumerStatus := descriptorStatus
       completionQueue.io.enq.bits.producerStatus := 0.U
@@ -408,7 +424,9 @@ class CgraConsumerPullAdapter(params: CgraConsumerPullAdapterParams)
     completionQueue.io.enq.valid := true.B
     completionQueue.io.enq.bits.jobId := descriptor.jobId
     completionQueue.io.enq.bits.slot := descriptor.slot
+    completionQueue.io.enq.bits.requestedBytes := descriptor.bytes
     completionQueue.io.enq.bits.actualBytes := actualBytes
+    completionQueue.io.enq.bits.spmWordAddress := descriptor.spmWordAddress
     completionQueue.io.enq.bits.dmaTag := descriptor.dmaTag
     completionQueue.io.enq.bits.consumerStatus := resultStatus
     completionQueue.io.enq.bits.producerStatus := producerStatus

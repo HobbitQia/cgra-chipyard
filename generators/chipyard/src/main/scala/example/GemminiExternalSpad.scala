@@ -242,6 +242,26 @@ class GemminiExternalSpadMemory(
         FromAsyncBundle(consumerLink.readStart)
       consumerAdapter.io.dmaDoneIn <>
         FromAsyncBundle(consumerLink.dmaDone)
+      val launchParams = CgraComputeLaunchGateParams.production
+      val completionToCgra = Wire(
+        Decoupled(new CgraConsumerCompletion(
+          CgraConsumerPullAdapterParams.production)))
+      val launchHeaderToCgra = Wire(
+        Decoupled(new CgraLaunchSequenceHeader(launchParams)))
+      val launchPacketToCgra = Wire(
+        Decoupled(new CgraLaunchPacket(launchParams)))
+      val launchResultFromCgra = Wire(
+        Decoupled(new CgraLaunchResult(launchParams)))
+      val launchErrorFromCgra = Wire(
+        Decoupled(new CgraLaunchProtocolError(launchParams)))
+      consumerLink.completion <> ToAsyncBundle(
+        completionToCgra, AsyncQueueParams.singleton())
+      consumerLink.launchHeader <> ToAsyncBundle(
+        launchHeaderToCgra, AsyncQueueParams.singleton())
+      consumerLink.launchPacket <> ToAsyncBundle(
+        launchPacketToCgra, AsyncQueueParams.singleton())
+      launchResultFromCgra <> FromAsyncBundle(consumerLink.launchResult)
+      launchErrorFromCgra <> FromAsyncBundle(consumerLink.launchError)
       transferEndpoint.io.errorOut.ready := true.B
 
       val readLineIndex = read.a.bits.address(
@@ -445,7 +465,14 @@ class GemminiExternalSpadMemory(
           consumerAdapter.io.descriptorIn <> validationPullQueue.io.deq
 
           val validationCompletionAccept = RegInit(false.B)
-          consumerAdapter.io.completionOut.ready := validationCompletionAccept
+          val validationLaunchGateEnable = RegInit(false.B)
+          completionToCgra.valid :=
+            consumerAdapter.io.completionOut.valid &&
+              validationCompletionAccept && validationLaunchGateEnable
+          completionToCgra.bits := consumerAdapter.io.completionOut.bits
+          consumerAdapter.io.completionOut.ready :=
+            validationCompletionAccept && Mux(
+              validationLaunchGateEnable, completionToCgra.ready, true.B)
           val consumerCompletionCount = RegInit(0.U(32.W))
           val lastConsumerCompletion = Reg(
             new CgraConsumerCompletion(
@@ -453,6 +480,85 @@ class GemminiExternalSpadMemory(
           when(consumerAdapter.io.completionOut.fire) {
             consumerCompletionCount := consumerCompletionCount + 1.U
             lastConsumerCompletion := consumerAdapter.io.completionOut.bits
+          }
+
+          val validationLaunchJobId = RegInit(0.U(32.W))
+          val validationLaunchSlot = RegInit(0.U(32.W))
+          val validationLaunchBytes = RegInit(0.U(32.W))
+          val validationLaunchSpmWordAddress = RegInit(0.U(32.W))
+          val validationLaunchDmaTag = RegInit(0.U(32.W))
+          val validationLaunchPacketCount = RegInit(0.U(32.W))
+          val validationLaunchSubmit = Wire(Decoupled(UInt(1.W)))
+          val validationLaunchHeaderQueue = Module(new Queue(
+            new CgraLaunchSequenceHeader(launchParams), 1))
+          validationLaunchHeaderQueue.io.enq.valid :=
+            validationLaunchSubmit.valid &&
+              validationLaunchSubmit.bits.asBool && validationLaunchGateEnable
+          validationLaunchHeaderQueue.io.enq.bits.jobId :=
+            validationLaunchJobId
+          validationLaunchHeaderQueue.io.enq.bits.slot := validationLaunchSlot
+          validationLaunchHeaderQueue.io.enq.bits.bytes :=
+            validationLaunchBytes
+          validationLaunchHeaderQueue.io.enq.bits.spmWordAddress :=
+            validationLaunchSpmWordAddress
+          validationLaunchHeaderQueue.io.enq.bits.dmaTag :=
+            validationLaunchDmaTag
+          validationLaunchHeaderQueue.io.enq.bits.packetCount :=
+            validationLaunchPacketCount
+          validationLaunchSubmit.ready :=
+            validationLaunchHeaderQueue.io.enq.ready &&
+              validationLaunchGateEnable
+          launchHeaderToCgra <> validationLaunchHeaderQueue.io.deq
+
+          val validationLaunchPacketLo = RegInit(0.U(64.W))
+          val validationLaunchPacketMid = RegInit(0.U(64.W))
+          val validationLaunchPacketHi = RegInit(0.U(64.W))
+          val validationLaunchPacketTop = RegInit(0.U(64.W))
+          val validationLaunchPacketSubmit = Wire(Decoupled(UInt(1.W)))
+          val validationLaunchPacketQueue = Module(new Queue(
+            new CgraLaunchPacket(launchParams), 1))
+          val validationLaunchPacketBits = Cat(
+            validationLaunchPacketTop,
+            validationLaunchPacketHi,
+            validationLaunchPacketMid,
+            validationLaunchPacketLo)
+          validationLaunchPacketQueue.io.enq.valid :=
+            validationLaunchPacketSubmit.valid &&
+              validationLaunchPacketSubmit.bits.asBool &&
+              validationLaunchGateEnable
+          validationLaunchPacketQueue.io.enq.bits.packet :=
+            validationLaunchPacketBits(launchParams.packetWidth - 1, 0)
+          validationLaunchPacketSubmit.ready :=
+            validationLaunchPacketQueue.io.enq.ready &&
+              validationLaunchGateEnable
+          launchPacketToCgra <> validationLaunchPacketQueue.io.deq
+
+          val validationLaunchResultAccept = RegInit(false.B)
+          launchResultFromCgra.ready := validationLaunchResultAccept
+          val launchResultCount = RegInit(0.U(32.W))
+          val launchAcceptedPacketCount = RegInit(0.U(32.W))
+          val completionCountAtLaunchResult = RegInit(0.U(32.W))
+          val lastLaunchResult = Reg(new CgraLaunchResult(launchParams))
+          when(launchResultFromCgra.fire) {
+            launchResultCount := launchResultCount + 1.U
+            lastLaunchResult := launchResultFromCgra.bits
+            completionCountAtLaunchResult := consumerCompletionCount
+            when(launchResultFromCgra.bits.status ===
+              CgraLaunchStatus.LaunchAccepted) {
+              launchAcceptedPacketCount := launchAcceptedPacketCount +
+                launchResultFromCgra.bits.packetCount
+              assert(consumerCompletionCount =/= 0.U)
+            }
+          }
+
+          val validationLaunchErrorAccept = RegInit(true.B)
+          launchErrorFromCgra.ready := validationLaunchErrorAccept
+          val launchErrorCount = RegInit(0.U(32.W))
+          val lastLaunchError = Reg(
+            new CgraLaunchProtocolError(launchParams))
+          when(launchErrorFromCgra.fire) {
+            launchErrorCount := launchErrorCount + 1.U
+            lastLaunchError := launchErrorFromCgra.bits
           }
           val consumerErrorCount = RegInit(0.U(32.W))
           val lastConsumerErrorReason = RegInit(0.U(32.W))
@@ -611,7 +717,52 @@ class GemminiExternalSpadMemory(
             0x310 -> Seq(RegField.r(32,
               transferEndpoint.io.slots(1).state.pad(32))),
             0x318 -> Seq(RegField.r(32, successfulProducerReadyCount)),
-            0x320 -> Seq(RegField.r(32, consumerEarlyDmaIssueCount)))
+            0x320 -> Seq(RegField.r(32, consumerEarlyDmaIssueCount)),
+            0x328 -> Seq(RegField.r(32,
+              consumerAdapter.io.completionOut.bits.spmWordAddress)),
+            0x330 -> Seq(RegField.r(32,
+              lastConsumerCompletion.spmWordAddress)),
+            0x338 -> Seq(RegField.r(32,
+              consumerAdapter.io.completionOut.bits.requestedBytes)),
+            0x340 -> Seq(RegField.r(32,
+              lastConsumerCompletion.requestedBytes)),
+            0x400 -> Seq(RegField(1, validationLaunchGateEnable)),
+            0x408 -> Seq(RegField(32, validationLaunchJobId)),
+            0x410 -> Seq(RegField(32, validationLaunchSlot)),
+            0x418 -> Seq(RegField(32, validationLaunchBytes)),
+            0x420 -> Seq(RegField(32,
+              validationLaunchSpmWordAddress)),
+            0x428 -> Seq(RegField(32, validationLaunchDmaTag)),
+            0x430 -> Seq(RegField(32, validationLaunchPacketCount)),
+            0x438 -> Seq(RegField.w(1, validationLaunchSubmit)),
+            0x440 -> Seq(RegField(64, validationLaunchPacketLo)),
+            0x448 -> Seq(RegField(64, validationLaunchPacketMid)),
+            0x450 -> Seq(RegField(64, validationLaunchPacketHi)),
+            0x458 -> Seq(RegField(64, validationLaunchPacketTop)),
+            0x460 -> Seq(RegField.w(1, validationLaunchPacketSubmit)),
+            0x468 -> Seq(RegField(1, validationLaunchResultAccept)),
+            0x470 -> Seq(RegField.r(1, launchResultFromCgra.valid)),
+            0x478 -> Seq(RegField.r(32, launchResultCount)),
+            0x480 -> Seq(RegField.r(32, lastLaunchResult.jobId)),
+            0x488 -> Seq(RegField.r(32, lastLaunchResult.slot)),
+            0x490 -> Seq(RegField.r(32, lastLaunchResult.actualBytes)),
+            0x498 -> Seq(RegField.r(32,
+              lastLaunchResult.spmWordAddress)),
+            0x4a0 -> Seq(RegField.r(32, lastLaunchResult.dmaTag)),
+            0x4a8 -> Seq(RegField.r(32, lastLaunchResult.packetCount)),
+            0x4b0 -> Seq(RegField.r(32, lastLaunchResult.status)),
+            0x4b8 -> Seq(RegField.r(32, launchAcceptedPacketCount)),
+            0x4c0 -> Seq(RegField.r(32,
+              completionCountAtLaunchResult)),
+            0x4c8 -> Seq(RegField(1, validationLaunchErrorAccept)),
+            0x4d0 -> Seq(RegField.r(1, launchErrorFromCgra.valid)),
+            0x4d8 -> Seq(RegField.r(32, launchErrorCount)),
+            0x4e0 -> Seq(RegField.r(32, lastLaunchError.operation)),
+            0x4e8 -> Seq(RegField.r(32, lastLaunchError.reason)),
+            0x4f0 -> Seq(RegField.r(32,
+              lastLaunchResult.requestedBytes)),
+            0x4f8 -> Seq(RegField.r(32,
+              lastLaunchError.requestedBytes)))
 
         case None =>
           transferEndpoint.io.requestIn <> consumerAdapter.io.requestOut
@@ -622,7 +773,15 @@ class GemminiExternalSpadMemory(
           consumerAdapter.io.descriptorIn.bits := 0.U.asTypeOf(
             new CgraConsumerPullDescriptor(
               CgraConsumerPullAdapterParams.production))
-          consumerAdapter.io.completionOut.ready := false.B
+          completionToCgra <> consumerAdapter.io.completionOut
+          launchHeaderToCgra.valid := false.B
+          launchHeaderToCgra.bits := 0.U.asTypeOf(
+            new CgraLaunchSequenceHeader(launchParams))
+          launchPacketToCgra.valid := false.B
+          launchPacketToCgra.bits := 0.U.asTypeOf(
+            new CgraLaunchPacket(launchParams))
+          launchResultFromCgra.ready := true.B
+          launchErrorFromCgra.ready := true.B
           consumerAdapter.io.errorOut.ready := true.B
       }
     }
