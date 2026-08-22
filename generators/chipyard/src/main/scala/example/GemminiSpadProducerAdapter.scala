@@ -81,7 +81,6 @@ class GemminiSpadProducerAdapter(params: GemminiSpadProducerAdapterParams)
     val acknowledgedBytes = Output(UInt(SpmTransferProtocol.LengthWidth.W))
     val issuedBytes = Output(UInt(SpmTransferProtocol.LengthWidth.W))
     val rowOutstanding = Output(Bool())
-    val finalRowOutstanding = Output(Bool())
   })
 
   import GemminiSpadProducerStatus._
@@ -114,8 +113,6 @@ class GemminiSpadProducerAdapter(params: GemminiSpadProducerAdapterParams)
   io.acknowledgedBytes := acknowledgedBytes
   io.issuedBytes := issuedBytes
   io.rowOutstanding := rowOutstanding
-  io.finalRowOutstanding :=
-    active && !readyValid && rowOutstanding && issuedBytes === expectedBytes
 
   private val requestSlotValid = io.requestIn.bits.slot < params.slotBases.size.U
   private val requestSlot = io.requestIn.bits.slot(slotIndexWidth - 1, 0)
@@ -253,19 +250,12 @@ class GemminiSpadProducerAdapter(params: GemminiSpadProducerAdapterParams)
 }
 
 /** Identity adapter placed only on Gemmini's dedicated spad_writer branch.
-  *
   * It observes the manager-width request and the D handshake returned to the
-  * writer. Optional D stalling is validation-only and never enabled by the
-  * production configuration.
+  * writer.
   */
 class GemminiSpadPublicationMonitor(
-  params: GemminiSpadProducerAdapterParams,
-  stallFinalAck: Boolean,
-  stallCycles: Int)(implicit p: Parameters)
+  params: GemminiSpadProducerAdapterParams)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
-  require(stallCycles >= 0)
-  require(stallFinalAck == (stallCycles != 0))
-
   val node = TLAdapterNode()
 
   override lazy val module = new MonitorImpl
@@ -273,12 +263,6 @@ class GemminiSpadPublicationMonitor(
     val io = IO(new Bundle {
       val writerA = Valid(new GemminiSpadWriterAEvent(params))
       val writerD = Valid(new GemminiSpadWriterDEvent)
-      val stallResponse = Input(Bool())
-      val dBlocked = Output(Bool())
-      val aFireCount = Output(UInt(32.W))
-      val dFireCount = Output(UInt(32.W))
-      val dBlockedCycleCount = Output(UInt(32.W))
-      val lastAAddress = Output(UInt(64.W))
     })
 
     withClockAndReset(clock, reset) {
@@ -293,42 +277,9 @@ class GemminiSpadPublicationMonitor(
       out.c <> in.c
       out.e <> in.e
 
-      val dFireCount = RegInit(0.U(32.W))
-      val currentResponseStalled = RegInit(false.B)
-      val stallRemainingWidth = math.max(1, log2Ceil(stallCycles + 1))
-      val stallRemaining = RegInit(0.U(stallRemainingWidth.W))
-      val targetResponse = if (stallFinalAck) {
-        !currentResponseStalled && io.stallResponse && out.d.valid
-      } else false.B
-      val dBlocked = targetResponse || stallRemaining =/= 0.U
-
-      in.d.valid := out.d.valid && !dBlocked
+      in.d.valid := out.d.valid
       in.d.bits := out.d.bits
-      out.d.ready := in.d.ready && !dBlocked
-
-      if (stallCycles > 0) {
-        when(targetResponse) {
-          currentResponseStalled := true.B
-          stallRemaining := (stallCycles - 1).U
-        }.elsewhen(stallRemaining =/= 0.U) {
-          stallRemaining := stallRemaining - 1.U
-        }
-      }
-
-      val aFireCount = RegInit(0.U(32.W))
-      val dBlockedCycleCount = RegInit(0.U(32.W))
-      val lastAAddress = RegInit(0.U(64.W))
-      when(in.a.fire) {
-        aFireCount := aFireCount + 1.U
-        lastAAddress := in.a.bits.address
-      }
-      when(in.d.fire) {
-        dFireCount := dFireCount + 1.U
-        currentResponseStalled := false.B
-      }
-      when(dBlocked && out.d.valid) {
-        dBlockedCycleCount := dBlockedCycleCount + 1.U
-      }
+      out.d.ready := in.d.ready
 
       io.writerA.valid := in.a.fire
       io.writerA.bits.address := in.a.bits.address
@@ -341,15 +292,6 @@ class GemminiSpadPublicationMonitor(
       io.writerD.bits.size := in.d.bits.size
       io.writerD.bits.denied := in.d.bits.denied
       io.writerD.bits.corrupt := in.d.bits.corrupt
-      io.dBlocked := dBlocked && out.d.valid
-      io.aFireCount := aFireCount
-      io.dFireCount := dFireCount
-      io.dBlockedCycleCount := dBlockedCycleCount
-      io.lastAAddress := lastAAddress
-
-      when(dBlocked && out.d.valid) {
-        assert(!io.writerD.valid)
-      }
     }
   }
 }

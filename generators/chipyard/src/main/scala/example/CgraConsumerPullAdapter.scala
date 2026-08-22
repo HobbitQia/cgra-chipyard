@@ -174,11 +174,6 @@ class CgraConsumerPullAdapter(params: CgraConsumerPullAdapterParams)
     val dmaIssued = Output(Bool())
     val readStartDelivered = Output(Bool())
     val dmaDoneSeen = Output(Bool())
-    val requestCount = Output(UInt(32.W))
-    val dmaCommandCount = Output(UInt(32.W))
-    val readStartCount = Output(UInt(32.W))
-    val dmaDoneCount = Output(UInt(32.W))
-    val releaseCount = Output(UInt(32.W))
   })
 
   import CgraConsumerError._
@@ -192,11 +187,6 @@ class CgraConsumerPullAdapter(params: CgraConsumerPullAdapterParams)
   private val readStartSeen = RegInit(false.B)
   private val readStartDelivered = RegInit(false.B)
   private val dmaDoneSeen = RegInit(false.B)
-  private val requestCount = RegInit(0.U(32.W))
-  private val dmaCommandCount = RegInit(0.U(32.W))
-  private val readStartCount = RegInit(0.U(32.W))
-  private val dmaDoneCount = RegInit(0.U(32.W))
-  private val releaseCount = RegInit(0.U(32.W))
 
   private val completionQueue = Module(
     new Queue(new CgraConsumerCompletion(params), 2))
@@ -261,7 +251,6 @@ class CgraConsumerPullAdapter(params: CgraConsumerPullAdapterParams)
   io.requestOut.bits.slot := descriptor.slot
   io.requestOut.bits.maxBytes := descriptor.bytes
   when(io.requestOut.fire) {
-    requestCount := requestCount + 1.U
     state := waitReady
   }
 
@@ -387,17 +376,14 @@ class CgraConsumerPullAdapter(params: CgraConsumerPullAdapterParams)
   io.dmaCommandOut.bits.bytes := actualBytes
   io.dmaCommandOut.bits.dmaTag := descriptor.dmaTag
   when(io.dmaCommandOut.fire) {
-    dmaCommandCount := dmaCommandCount + 1.U
     state := waitDmaEvents
   }
 
   when(io.dmaReadStartIn.fire && readStartAccepted) {
     readStartSeen := true.B
-    readStartCount := readStartCount + 1.U
   }
   when(io.dmaDoneIn.fire && dmaDoneAccepted) {
     dmaDoneSeen := true.B
-    dmaDoneCount := dmaDoneCount + 1.U
   }
 
   io.readStartOut.valid :=
@@ -420,7 +406,6 @@ class CgraConsumerPullAdapter(params: CgraConsumerPullAdapterParams)
   io.releaseOut.bits.jobId := descriptor.jobId
   io.releaseOut.bits.slot := descriptor.slot
   when(io.releaseOut.fire) {
-    releaseCount := releaseCount + 1.U
     state := enqueueCompletion
   }
 
@@ -444,11 +429,6 @@ class CgraConsumerPullAdapter(params: CgraConsumerPullAdapterParams)
     state === enqueueCompletion
   io.readStartDelivered := readStartDelivered
   io.dmaDoneSeen := dmaDoneSeen
-  io.requestCount := requestCount
-  io.dmaCommandCount := dmaCommandCount
-  io.readStartCount := readStartCount
-  io.dmaDoneCount := dmaDoneCount
-  io.releaseCount := releaseCount
 
   private def assertStable[T <: Data](channel: DecoupledIO[T]): Unit = {
     val blocked = channel.valid && !channel.ready

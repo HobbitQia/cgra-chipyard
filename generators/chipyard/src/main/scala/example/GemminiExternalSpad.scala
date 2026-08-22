@@ -20,11 +20,7 @@ case class GemminiExternalSpadParams(
   spadRowBytes: Int,
   fullWidthRowStride: Int,
   outputSlotCount: Int,
-  outputSlotSizeBytes: Int,
-  telemetryAddress: Option[BigInt] = None,
-  systemReadResponseStallCycles: Int = 0,
-  publicationResponseStallFinalAck: Boolean = false,
-  publicationResponseStallCycles: Int = 0) {
+  outputSlotSizeBytes: Int) {
   val fullWidthRowBytes: Int = spadRowBytes * fullWidthRowStride
   val matrixDimension: Int = outputSlotSizeBytes / fullWidthRowBytes
   val outputReservedBytes: Int = outputSlotCount * outputSlotSizeBytes
@@ -39,47 +35,6 @@ case class GemminiExternalSpadParams(
 
 case object GemminiExternalSpadKey
     extends Field[Option[GemminiExternalSpadParams]](None)
-
-/** Validation-only adapter which backpressures the first system-read D beat.
-  *
-  * This creates a deterministic TileLink stability regression without
-  * changing the production path. Requests and all non-D channels pass
-  * through unchanged.
-  */
-class GemminiExternalSpadReadResponseStaller(stallCycles: Int)(implicit p: Parameters)
-    extends ClockSinkDomain(ClockSinkParameters())(p) {
-  require(stallCycles > 0)
-
-  val node = TLAdapterNode()
-
-  override lazy val module = new StallerImpl
-  class StallerImpl extends Impl {
-    withClockAndReset(clock, reset) {
-      (node.in zip node.out).foreach { case ((in, _), (out, _)) =>
-        out.a <> in.a
-        in.b <> out.b
-        out.c <> in.c
-        out.e <> in.e
-
-        val holdFirstResponse = RegInit(true.B)
-        val remaining = RegInit(0.U(log2Ceil(stallCycles + 1).W))
-        val startHold = holdFirstResponse && out.d.valid
-        val holdResponse = startHold || remaining =/= 0.U
-
-        in.d.valid := out.d.valid && !holdResponse
-        in.d.bits := out.d.bits
-        out.d.ready := in.d.ready && !holdResponse
-
-        when (startHold) {
-          holdFirstResponse := false.B
-          remaining := (stallCycles - 1).U
-        }.elsewhen(remaining =/= 0.U) {
-          remaining := remaining - 1.U
-        }
-      }
-    }
-  }
-}
 
 /** TileLink-visible 1R1W backing for Gemmini's external scratchpad.
   *
@@ -124,24 +79,11 @@ class GemminiExternalSpadMemory(
   })
   require(params.outputSlotBases.last + params.outputSlotSizeBytes ==
     params.baseAddress + params.sizeBytes)
-  require(params.telemetryAddress.forall { telemetryAddress =>
-    telemetryAddress >= params.baseAddress + params.sizeBytes &&
-      (telemetryAddress & 0xfff) == 0
-  })
-  require(params.systemReadResponseStallCycles >= 0)
-  require(params.systemReadResponseStallCycles == 0 || params.telemetryAddress.isDefined)
-  require(params.publicationResponseStallCycles >= 0)
-  require(params.publicationResponseStallFinalAck ==
-    (params.publicationResponseStallCycles != 0))
-  require(params.publicationResponseStallCycles == 0 ||
-    params.telemetryAddress.isDefined)
-
   require(params.baseAddress == gemminiConfig.tl_ext_mem_base)
   require(params.sizeBytes == gemminiSpadBytes)
   require(params.controlAddress ==
     GemminiExternalSpadGenerated.productionControlAddress)
   require(params.controlAddress >= params.baseAddress + params.sizeBytes)
-  require(params.telemetryAddress.forall(_ != params.controlAddress))
   require(params.spadRowBytes == gemminiSpadRowBytes)
   require(params.fullWidthRowBytes == gemminiFullWidthRowBytes)
   require(params.fullWidthRowStride ==
@@ -159,9 +101,6 @@ class GemminiExternalSpadMemory(
   private val memoryDevice = new SimpleDevice(
     "gemmini-external-spad",
     Seq("ucbbar,gemmini-external-spad"))
-  private val telemetryDevice = new SimpleDevice(
-    "gemmini-external-spad-validation-stats",
-    Seq("ucbbar,gemmini-external-spad-validation-telemetry"))
   private val controlDevice = new SimpleDevice(
     "cgra-transfer-control",
     Seq("ucbbar,cgra-transfer-control"))
@@ -192,13 +131,6 @@ class GemminiExternalSpadMemory(
   val systemReadNode = TLIdentityNode()
   val consumerNode = BundleBridgeSource(() =>
     new CgraConsumerAsyncLink(CgraConsumerPullAdapterParams.production))
-  val telemetryNode = params.telemetryAddress.map { telemetryAddress =>
-    TLRegisterNode(
-      address = Seq(AddressSet(telemetryAddress, 0xfff)),
-      device = telemetryDevice,
-      beatBytes = 8,
-      concurrency = 1)
-  }
   val controlNode = TLRegisterNode(
     address = Seq(AddressSet(
       params.controlAddress,
@@ -212,9 +144,7 @@ class GemminiExternalSpadMemory(
   private val producerAdapterParams =
     GemminiSpadProducerAdapterParams.production
   val publicationMonitor = LazyModule(new GemminiSpadPublicationMonitor(
-    producerAdapterParams,
-    params.publicationResponseStallFinalAck,
-    params.publicationResponseStallCycles))
+    producerAdapterParams))
 
   readManager := readXbar
   readXbar := systemReadNode
@@ -247,8 +177,6 @@ class GemminiExternalSpadMemory(
       transferEndpoint.io.readyIn <> producerAdapter.io.readyOut
       producerAdapter.io.writerA <> publicationMonitor.module.io.writerA
       producerAdapter.io.writerD <> publicationMonitor.module.io.writerD
-      publicationMonitor.module.io.stallResponse :=
-        producerAdapter.io.finalRowOutstanding
 
       val consumerLink = consumerNode.out(0)._1
       consumerLink.dmaCommand <> ToAsyncBundle(
@@ -365,47 +293,6 @@ class GemminiExternalSpadMemory(
       }
       when (write.d.fire) {
         writePending := false.B
-      }
-
-      val writeCommitCount = RegInit(0.U(32.W))
-      val writeAckCount = RegInit(0.U(32.W))
-      val fullLineWriteCount = RegInit(0.U(32.W))
-      val partialWriteCount = RegInit(0.U(32.W))
-      val lastWriteAddress = RegInit(0.U(64.W))
-      val lastWriteMask = RegInit(0.U(64.W))
-      val sawOutstandingWrite = RegInit(false.B)
-      val readCount = RegInit(0.U(32.W))
-      val readResponseBackpressureCycleCount = RegInit(0.U(32.W))
-      val sameLineWriteWhileReadBlockedCount = RegInit(0.U(32.W))
-
-      when (write.a.fire) {
-        writeCommitCount := writeCommitCount + 1.U
-        lastWriteAddress := write.a.bits.address
-        lastWriteMask := write.a.bits.mask
-        when (write.a.bits.size === log2Ceil(writeBeatBytes).U &&
-          write.a.bits.mask.andR) {
-          fullLineWriteCount := fullLineWriteCount + 1.U
-        }.otherwise {
-          partialWriteCount := partialWriteCount + 1.U
-        }
-      }
-      when (write.d.fire) {
-        writeAckCount := writeAckCount + 1.U
-      }
-      when (writePending) {
-        sawOutstandingWrite := true.B
-      }
-      when (read.a.fire) {
-        readCount := readCount + 1.U
-      }
-      when (readResponseBlocked) {
-        readResponseBackpressureCycleCount :=
-          readResponseBackpressureCycleCount + 1.U
-      }
-      when (readResponseBlocked && write.a.fire &&
-        writeLineIndex === readResponseLineIndex) {
-        sameLineWriteWhileReadBlockedCount :=
-          sameLineWriteWhileReadBlockedCount + 1.U
       }
 
       // Production control ABI. Only typed metadata and full launch packets
@@ -612,465 +499,19 @@ class GemminiExternalSpadMemory(
         COMPUTE_ERROR_REASON -> Seq(RegField.r(32,
           computeErrorSnapshot.reason)))
 
-      telemetryNode match {
-        case Some(node) =>
-          // The following injection and observation controls exist only in the
-          // validation configuration. Production correctness consumes typed
-          // endpoint events and the dedicated writer monitor directly.
-          val validationRequestJobId = RegInit(0.U(32.W))
-          val validationRequestSlot = RegInit(0.U(32.W))
-          val validationRequestMaxBytes = RegInit(0.U(32.W))
-          val validationRequestSubmit = Wire(Decoupled(UInt(1.W)))
-          val validationRequestQueue = Module(new Queue(
-            new SpmTransferRequest, 1))
-          validationRequestQueue.io.enq.valid :=
-            validationRequestSubmit.valid &&
-              validationRequestSubmit.bits.asBool
-          validationRequestQueue.io.enq.bits.jobId := validationRequestJobId
-          validationRequestQueue.io.enq.bits.slot := validationRequestSlot
-          validationRequestQueue.io.enq.bits.maxBytes :=
-            validationRequestMaxBytes
-          validationRequestSubmit.ready := validationRequestQueue.io.enq.ready
-
-          val validationReadyAccept = RegInit(false.B)
-          val validationConsumerEnable = RegInit(false.B)
-
-          transferEndpoint.io.requestIn.valid := Mux(
-            validationConsumerEnable,
-            consumerAdapter.io.requestOut.valid,
-            validationRequestQueue.io.deq.valid)
-          transferEndpoint.io.requestIn.bits := Mux(
-            validationConsumerEnable,
-            consumerAdapter.io.requestOut.bits,
-            validationRequestQueue.io.deq.bits)
-          consumerAdapter.io.requestOut.ready :=
-            transferEndpoint.io.requestIn.ready && validationConsumerEnable
-          validationRequestQueue.io.deq.ready :=
-            transferEndpoint.io.requestIn.ready && !validationConsumerEnable
-
-          consumerAdapter.io.readyIn.valid :=
-            transferEndpoint.io.readyOut.valid && validationConsumerEnable
-          consumerAdapter.io.readyIn.bits := transferEndpoint.io.readyOut.bits
-          transferEndpoint.io.readyOut.ready := Mux(
-            validationConsumerEnable,
-            consumerAdapter.io.readyIn.ready,
-            validationReadyAccept)
-
-          transferEndpoint.io.readStartIn.valid :=
-            consumerAdapter.io.readStartOut.valid && validationConsumerEnable
-          transferEndpoint.io.readStartIn.bits :=
-            consumerAdapter.io.readStartOut.bits
-          consumerAdapter.io.readStartOut.ready :=
-            transferEndpoint.io.readStartIn.ready && validationConsumerEnable
-          transferEndpoint.io.releaseIn.valid :=
-            consumerAdapter.io.releaseOut.valid && validationConsumerEnable
-          transferEndpoint.io.releaseIn.bits := consumerAdapter.io.releaseOut.bits
-          consumerAdapter.io.releaseOut.ready :=
-            transferEndpoint.io.releaseIn.ready && validationConsumerEnable
-
-          val validationPullJobId = RegInit(0.U(32.W))
-          val validationPullSlot = RegInit(0.U(32.W))
-          val validationPullBytes = RegInit(0.U(32.W))
-          val validationPullSpmWordAddress = RegInit(0.U(32.W))
-          val validationPullDmaTag = RegInit(0.U(32.W))
-          val validationPullSubmit = Wire(Decoupled(UInt(1.W)))
-          val validationPullQueue = Module(new Queue(
-            new CgraConsumerPullDescriptor(
-              CgraConsumerPullAdapterParams.production), 1))
-          validationPullQueue.io.enq.valid :=
-            validationPullSubmit.valid &&
-              validationPullSubmit.bits.asBool && validationConsumerEnable
-          validationPullQueue.io.enq.bits.jobId := validationPullJobId
-          validationPullQueue.io.enq.bits.slot := validationPullSlot
-          validationPullQueue.io.enq.bits.bytes := validationPullBytes
-          validationPullQueue.io.enq.bits.spmWordAddress :=
-            validationPullSpmWordAddress
-          validationPullQueue.io.enq.bits.dmaTag := validationPullDmaTag
-          validationPullSubmit.ready :=
-            validationPullQueue.io.enq.ready && validationConsumerEnable
-
-          val validationCompletionAccept = RegInit(false.B)
-          val validationLaunchGateEnable = RegInit(false.B)
-          val validationLaunchJobId = RegInit(0.U(32.W))
-          val validationLaunchSlot = RegInit(0.U(32.W))
-          val validationLaunchBytes = RegInit(0.U(32.W))
-          val validationLaunchSpmWordAddress = RegInit(0.U(32.W))
-          val validationLaunchDmaTag = RegInit(0.U(32.W))
-          val validationLaunchPacketCount = RegInit(0.U(32.W))
-          val validationLaunchSubmit = Wire(Decoupled(UInt(1.W)))
-          val validationLaunchHeaderQueue = Module(new Queue(
-            new CgraLaunchSequenceHeader(launchParams), 1))
-          validationLaunchHeaderQueue.io.enq.valid :=
-            validationLaunchSubmit.valid &&
-              validationLaunchSubmit.bits.asBool && validationLaunchGateEnable
-          validationLaunchHeaderQueue.io.enq.bits.jobId :=
-            validationLaunchJobId
-          validationLaunchHeaderQueue.io.enq.bits.slot := validationLaunchSlot
-          validationLaunchHeaderQueue.io.enq.bits.bytes :=
-            validationLaunchBytes
-          validationLaunchHeaderQueue.io.enq.bits.spmWordAddress :=
-            validationLaunchSpmWordAddress
-          validationLaunchHeaderQueue.io.enq.bits.dmaTag :=
-            validationLaunchDmaTag
-          validationLaunchHeaderQueue.io.enq.bits.packetCount :=
-            validationLaunchPacketCount
-          validationLaunchSubmit.ready :=
-            validationLaunchHeaderQueue.io.enq.ready &&
-              validationLaunchGateEnable
-
-          val controlSourceSelector = Module(
-            new CgraTransferControlSourceSelector(launchParams))
-          controlSourceSelector.io.productionDescriptorIn <>
-            controlQueues.io.descriptorOut
-          controlSourceSelector.io.validationDescriptorIn <>
-            validationPullQueue.io.deq
-          consumerAdapter.io.descriptorIn <>
-            controlSourceSelector.io.descriptorOut
-          controlSourceSelector.io.productionLaunchHeaderIn <>
-            controlQueues.io.launchHeaderOut
-          controlSourceSelector.io.validationLaunchHeaderIn <>
-            validationLaunchHeaderQueue.io.deq
-          launchHeaderToCgra <> controlSourceSelector.io.launchHeaderOut
-          controlSourceSelector.io.completionIn <>
-            consumerAdapter.io.completionOut
-
-          completionToCgra.valid :=
-            controlSourceSelector.io.productionCompletionOut.valid ||
-              (controlSourceSelector.io.validationCompletionOut.valid &&
-                validationCompletionAccept && validationLaunchGateEnable)
-          completionToCgra.bits := Mux(
-            controlSourceSelector.io.productionCompletionOut.valid,
-            controlSourceSelector.io.productionCompletionOut.bits,
-            controlSourceSelector.io.validationCompletionOut.bits)
-          controlSourceSelector.io.productionCompletionOut.ready :=
-            completionToCgra.ready
-          controlSourceSelector.io.validationCompletionOut.ready :=
-            validationCompletionAccept && Mux(
-              validationLaunchGateEnable, completionToCgra.ready, true.B)
-          val consumerCompletionCount = RegInit(0.U(32.W))
-          val lastConsumerCompletion = Reg(
-            new CgraConsumerCompletion(
-              CgraConsumerPullAdapterParams.production))
-          when(controlSourceSelector.io.completionIn.fire) {
-            consumerCompletionCount := consumerCompletionCount + 1.U
-            lastConsumerCompletion := controlSourceSelector.io.completionIn.bits
-          }
-
-          val validationLaunchPacketLo = RegInit(0.U(64.W))
-          val validationLaunchPacketMid = RegInit(0.U(64.W))
-          val validationLaunchPacketHi = RegInit(0.U(64.W))
-          val validationLaunchPacketTop = RegInit(0.U(64.W))
-          val validationLaunchPacketSubmit = Wire(Decoupled(UInt(1.W)))
-          val validationLaunchPacketQueue = Module(new Queue(
-            new CgraLaunchPacket(launchParams), 1))
-          val validationLaunchPacketBits = Cat(
-            validationLaunchPacketTop,
-            validationLaunchPacketHi,
-            validationLaunchPacketMid,
-            validationLaunchPacketLo)
-          validationLaunchPacketQueue.io.enq.valid :=
-            validationLaunchPacketSubmit.valid &&
-              validationLaunchPacketSubmit.bits.asBool &&
-              validationLaunchGateEnable
-          validationLaunchPacketQueue.io.enq.bits.packet :=
-            validationLaunchPacketBits(launchParams.packetWidth - 1, 0)
-          validationLaunchPacketSubmit.ready :=
-            validationLaunchPacketQueue.io.enq.ready &&
-              validationLaunchGateEnable
-          launchPacketToCgra.valid := Mux(
-            controlSourceSelector.io.productionSelected,
-            controlQueues.io.launchPacketOut.valid,
-            validationLaunchPacketQueue.io.deq.valid)
-          launchPacketToCgra.bits := Mux(
-            controlSourceSelector.io.productionSelected,
-            controlQueues.io.launchPacketOut.bits,
-            validationLaunchPacketQueue.io.deq.bits)
-          controlQueues.io.launchPacketOut.ready :=
-            launchPacketToCgra.ready &&
-              controlSourceSelector.io.productionSelected
-          validationLaunchPacketQueue.io.deq.ready :=
-            launchPacketToCgra.ready &&
-              !controlSourceSelector.io.productionSelected
-
-          val validationLaunchResultAccept = RegInit(false.B)
-          controlQueues.io.launchResultIn.valid :=
-            launchResultFromCgra.valid &&
-              controlSourceSelector.io.productionSelected
-          controlQueues.io.launchResultIn.bits := launchResultFromCgra.bits
-          launchResultFromCgra.ready := Mux(
-            controlSourceSelector.io.productionSelected,
-            controlQueues.io.launchResultIn.ready,
-            validationLaunchResultAccept)
-          val launchResultCount = RegInit(0.U(32.W))
-          val launchAcceptedPacketCount = RegInit(0.U(32.W))
-          val completionCountAtLaunchResult = RegInit(0.U(32.W))
-          val lastLaunchResult = Reg(new CgraLaunchResult(launchParams))
-          when(launchResultFromCgra.fire) {
-            launchResultCount := launchResultCount + 1.U
-            lastLaunchResult := launchResultFromCgra.bits
-            completionCountAtLaunchResult := consumerCompletionCount
-            when(launchResultFromCgra.bits.status ===
-              CgraLaunchStatus.LaunchAccepted) {
-              launchAcceptedPacketCount := launchAcceptedPacketCount +
-                launchResultFromCgra.bits.packetCount
-              assert(consumerCompletionCount =/= 0.U)
-            }
-          }
-
-          val validationLaunchErrorAccept = RegInit(true.B)
-          controlQueues.io.launchErrorIn.valid :=
-            launchErrorFromCgra.valid &&
-              controlSourceSelector.io.productionSelected
-          controlQueues.io.launchErrorIn.bits := launchErrorFromCgra.bits
-          launchErrorFromCgra.ready := Mux(
-            controlSourceSelector.io.productionSelected,
-            controlQueues.io.launchErrorIn.ready,
-            validationLaunchErrorAccept)
-          val launchErrorCount = RegInit(0.U(32.W))
-          val lastLaunchError = Reg(
-            new CgraLaunchProtocolError(launchParams))
-          when(launchErrorFromCgra.fire) {
-            launchErrorCount := launchErrorCount + 1.U
-            lastLaunchError := launchErrorFromCgra.bits
-          }
-          controlQueues.io.computeCompletionIn.valid :=
-            computeCompletionFromCgra.valid &&
-              controlSourceSelector.io.productionSelected
-          controlQueues.io.computeCompletionIn.bits :=
-            computeCompletionFromCgra.bits
-          computeCompletionFromCgra.ready := Mux(
-            controlSourceSelector.io.productionSelected,
-            controlQueues.io.computeCompletionIn.ready,
-            true.B)
-          controlQueues.io.computeErrorIn.valid :=
-            computeErrorFromCgra.valid &&
-              controlSourceSelector.io.productionSelected
-          controlQueues.io.computeErrorIn.bits := computeErrorFromCgra.bits
-          computeErrorFromCgra.ready := Mux(
-            controlSourceSelector.io.productionSelected,
-            controlQueues.io.computeErrorIn.ready,
-            true.B)
-          val consumerErrorCount = RegInit(0.U(32.W))
-          val lastConsumerErrorReason = RegInit(0.U(32.W))
-          consumerAdapter.io.errorOut.ready := true.B
-          when(consumerAdapter.io.errorOut.fire) {
-            consumerErrorCount := consumerErrorCount + 1.U
-            lastConsumerErrorReason := consumerAdapter.io.errorOut.bits.reason
-          }
-
-          // Validation-only causal telemetry. The producer count advances
-          // only after its final writer-D-derived READY is accepted by T3.
-          // A consumer DMA command without a preceding such event is sticky
-          // evidence of an early issue; software need not race a fixed D
-          // stall window to establish the ordering.
-          val successfulProducerReadyCount = RegInit(0.U(32.W))
-          val consumerEarlyDmaIssueCount = RegInit(0.U(32.W))
-          when(producerAdapter.io.readyOut.fire &&
-            producerAdapter.io.readyOut.bits.status ===
-              SpmTransferProtocol.ProducerStatus.Success) {
-            successfulProducerReadyCount := successfulProducerReadyCount + 1.U
-          }
-          when(consumerAdapter.io.dmaCommandOut.fire &&
-            consumerAdapter.io.dmaCommandCount >=
-              successfulProducerReadyCount) {
-            consumerEarlyDmaIssueCount := consumerEarlyDmaIssueCount + 1.U
-          }
-
-          val readyDeliveryCount = RegInit(0.U(32.W))
-          val lastReadyJobId = RegInit(0.U(32.W))
-          val lastReadySlot = RegInit(0.U(32.W))
-          val lastReadyActualBytes = RegInit(0.U(32.W))
-          val lastReadyStatus = RegInit(0.U(32.W))
-          when(transferEndpoint.io.readyOut.fire) {
-            readyDeliveryCount := readyDeliveryCount + 1.U
-            lastReadyJobId := transferEndpoint.io.readyOut.bits.jobId
-            lastReadySlot := transferEndpoint.io.readyOut.bits.slot
-            lastReadyActualBytes :=
-              transferEndpoint.io.readyOut.bits.actualBytes
-            lastReadyStatus := transferEndpoint.io.readyOut.bits.status
-          }
-
-          val protocolErrorCount = RegInit(0.U(32.W))
-          val lastProtocolErrorReason = RegInit(0.U(32.W))
-          when(transferEndpoint.io.errorOut.fire) {
-            protocolErrorCount := protocolErrorCount + 1.U
-            lastProtocolErrorReason :=
-              transferEndpoint.io.errorOut.bits.reason
-          }
-
-          node.regmap(
-            0x00 -> Seq(RegField.r(32, writeCommitCount)),
-            0x08 -> Seq(RegField.r(32, writeAckCount)),
-            0x10 -> Seq(RegField.r(32, fullLineWriteCount)),
-            0x18 -> Seq(RegField.r(32, partialWriteCount)),
-            0x20 -> Seq(RegField.r(64, lastWriteAddress)),
-            0x28 -> Seq(RegField.r(64, lastWriteMask)),
-            0x30 -> Seq(RegField.r(1, sawOutstandingWrite)),
-            0x38 -> Seq(RegField.r(32, readCount)),
-            0x40 -> Seq(RegField.r(32,
-              readResponseBackpressureCycleCount)),
-            0x48 -> Seq(RegField.r(32,
-              sameLineWriteWhileReadBlockedCount)),
-            0x50 -> Seq(RegField.r(32,
-              params.systemReadResponseStallCycles.U)),
-            0x100 -> Seq(RegField(32, validationRequestJobId)),
-            0x108 -> Seq(RegField(32, validationRequestSlot)),
-            0x110 -> Seq(RegField(32, validationRequestMaxBytes)),
-            0x118 -> Seq(RegField.w(1, validationRequestSubmit)),
-            0x120 -> Seq(RegField(1, validationReadyAccept)),
-            0x128 -> Seq(RegField.r(1,
-              transferEndpoint.io.readyOut.valid)),
-            0x130 -> Seq(RegField.r(32,
-              transferEndpoint.io.readyOut.bits.jobId)),
-            0x138 -> Seq(RegField.r(32,
-              transferEndpoint.io.readyOut.bits.slot)),
-            0x140 -> Seq(RegField.r(32,
-              transferEndpoint.io.readyOut.bits.actualBytes)),
-            0x148 -> Seq(RegField.r(32,
-              transferEndpoint.io.readyOut.bits.status)),
-            0x150 -> Seq(RegField.r(32, readyDeliveryCount)),
-            0x158 -> Seq(RegField.r(32, lastReadyJobId)),
-            0x160 -> Seq(RegField.r(32, lastReadySlot)),
-            0x168 -> Seq(RegField.r(32, lastReadyActualBytes)),
-            0x170 -> Seq(RegField.r(32, lastReadyStatus)),
-            0x178 -> Seq(RegField.r(1, producerAdapter.io.active)),
-            0x180 -> Seq(RegField.r(32,
-              producerAdapter.io.issuedBytes)),
-            0x188 -> Seq(RegField.r(32,
-              producerAdapter.io.acknowledgedBytes)),
-            0x190 -> Seq(RegField.r(1,
-              producerAdapter.io.rowOutstanding)),
-            0x198 -> Seq(RegField.r(32,
-              publicationMonitor.module.io.aFireCount)),
-            0x1a0 -> Seq(RegField.r(32,
-              publicationMonitor.module.io.dFireCount)),
-            0x1a8 -> Seq(RegField.r(1,
-              publicationMonitor.module.io.dBlocked)),
-            0x1b0 -> Seq(RegField.r(32,
-              publicationMonitor.module.io.dBlockedCycleCount)),
-            0x1b8 -> Seq(RegField.r(64,
-              publicationMonitor.module.io.lastAAddress)),
-            0x1c0 -> Seq(RegField.r(32, protocolErrorCount)),
-            0x1c8 -> Seq(RegField.r(32, lastProtocolErrorReason)),
-            0x1d0 -> Seq(RegField.r(32,
-              params.matrixDimension.U)),
-            0x1d8 -> Seq(RegField.r(32,
-              params.publicationResponseStallCycles.U)),
-            0x1e0 -> Seq(RegField.r(1,
-              params.publicationResponseStallFinalAck.B)),
-            0x200 -> Seq(RegField(1, validationConsumerEnable)),
-            0x208 -> Seq(RegField(32, validationPullJobId)),
-            0x210 -> Seq(RegField(32, validationPullSlot)),
-            0x218 -> Seq(RegField(32, validationPullBytes)),
-            0x220 -> Seq(RegField(32, validationPullSpmWordAddress)),
-            0x228 -> Seq(RegField(32, validationPullDmaTag)),
-            0x230 -> Seq(RegField.w(1, validationPullSubmit)),
-            0x238 -> Seq(RegField(1, validationCompletionAccept)),
-            0x240 -> Seq(RegField.r(1,
-              consumerAdapter.io.completionOut.valid)),
-            0x248 -> Seq(RegField.r(32,
-              consumerAdapter.io.completionOut.bits.jobId)),
-            0x250 -> Seq(RegField.r(32,
-              consumerAdapter.io.completionOut.bits.slot)),
-            0x258 -> Seq(RegField.r(32,
-              consumerAdapter.io.completionOut.bits.actualBytes)),
-            0x260 -> Seq(RegField.r(32,
-              consumerAdapter.io.completionOut.bits.dmaTag)),
-            0x268 -> Seq(RegField.r(32,
-              consumerAdapter.io.completionOut.bits.consumerStatus)),
-            0x270 -> Seq(RegField.r(32,
-              consumerAdapter.io.completionOut.bits.producerStatus)),
-            0x278 -> Seq(RegField.r(32, consumerCompletionCount)),
-            0x280 -> Seq(RegField.r(32, lastConsumerCompletion.jobId)),
-            0x288 -> Seq(RegField.r(32, lastConsumerCompletion.slot)),
-            0x290 -> Seq(RegField.r(32, lastConsumerCompletion.actualBytes)),
-            0x298 -> Seq(RegField.r(32, lastConsumerCompletion.dmaTag)),
-            0x2a0 -> Seq(RegField.r(32,
-              lastConsumerCompletion.consumerStatus)),
-            0x2a8 -> Seq(RegField.r(32,
-              lastConsumerCompletion.producerStatus)),
-            0x2b0 -> Seq(RegField.r(1, consumerAdapter.io.active)),
-            0x2b8 -> Seq(RegField.r(1, consumerAdapter.io.dmaIssued)),
-            0x2c0 -> Seq(RegField.r(1,
-              consumerAdapter.io.readStartDelivered)),
-            0x2c8 -> Seq(RegField.r(1,
-              consumerAdapter.io.dmaDoneSeen)),
-            0x2d0 -> Seq(RegField.r(32, consumerErrorCount)),
-            0x2d8 -> Seq(RegField.r(32, lastConsumerErrorReason)),
-            0x2e0 -> Seq(RegField.r(32, consumerAdapter.io.requestCount)),
-            0x2e8 -> Seq(RegField.r(32, consumerAdapter.io.dmaCommandCount)),
-            0x2f0 -> Seq(RegField.r(32, consumerAdapter.io.readStartCount)),
-            0x2f8 -> Seq(RegField.r(32, consumerAdapter.io.dmaDoneCount)),
-            0x300 -> Seq(RegField.r(32, consumerAdapter.io.releaseCount)),
-            0x308 -> Seq(RegField.r(32,
-              transferEndpoint.io.slots(0).state.pad(32))),
-            0x310 -> Seq(RegField.r(32,
-              transferEndpoint.io.slots(1).state.pad(32))),
-            0x318 -> Seq(RegField.r(32, successfulProducerReadyCount)),
-            0x320 -> Seq(RegField.r(32, consumerEarlyDmaIssueCount)),
-            0x328 -> Seq(RegField.r(32,
-              consumerAdapter.io.completionOut.bits.spmWordAddress)),
-            0x330 -> Seq(RegField.r(32,
-              lastConsumerCompletion.spmWordAddress)),
-            0x338 -> Seq(RegField.r(32,
-              consumerAdapter.io.completionOut.bits.requestedBytes)),
-            0x340 -> Seq(RegField.r(32,
-              lastConsumerCompletion.requestedBytes)),
-            0x400 -> Seq(RegField(1, validationLaunchGateEnable)),
-            0x408 -> Seq(RegField(32, validationLaunchJobId)),
-            0x410 -> Seq(RegField(32, validationLaunchSlot)),
-            0x418 -> Seq(RegField(32, validationLaunchBytes)),
-            0x420 -> Seq(RegField(32,
-              validationLaunchSpmWordAddress)),
-            0x428 -> Seq(RegField(32, validationLaunchDmaTag)),
-            0x430 -> Seq(RegField(32, validationLaunchPacketCount)),
-            0x438 -> Seq(RegField.w(1, validationLaunchSubmit)),
-            0x440 -> Seq(RegField(64, validationLaunchPacketLo)),
-            0x448 -> Seq(RegField(64, validationLaunchPacketMid)),
-            0x450 -> Seq(RegField(64, validationLaunchPacketHi)),
-            0x458 -> Seq(RegField(64, validationLaunchPacketTop)),
-            0x460 -> Seq(RegField.w(1, validationLaunchPacketSubmit)),
-            0x468 -> Seq(RegField(1, validationLaunchResultAccept)),
-            0x470 -> Seq(RegField.r(1, launchResultFromCgra.valid)),
-            0x478 -> Seq(RegField.r(32, launchResultCount)),
-            0x480 -> Seq(RegField.r(32, lastLaunchResult.jobId)),
-            0x488 -> Seq(RegField.r(32, lastLaunchResult.slot)),
-            0x490 -> Seq(RegField.r(32, lastLaunchResult.actualBytes)),
-            0x498 -> Seq(RegField.r(32,
-              lastLaunchResult.spmWordAddress)),
-            0x4a0 -> Seq(RegField.r(32, lastLaunchResult.dmaTag)),
-            0x4a8 -> Seq(RegField.r(32, lastLaunchResult.packetCount)),
-            0x4b0 -> Seq(RegField.r(32, lastLaunchResult.status)),
-            0x4b8 -> Seq(RegField.r(32, launchAcceptedPacketCount)),
-            0x4c0 -> Seq(RegField.r(32,
-              completionCountAtLaunchResult)),
-            0x4c8 -> Seq(RegField(1, validationLaunchErrorAccept)),
-            0x4d0 -> Seq(RegField.r(1, launchErrorFromCgra.valid)),
-            0x4d8 -> Seq(RegField.r(32, launchErrorCount)),
-            0x4e0 -> Seq(RegField.r(32, lastLaunchError.operation)),
-            0x4e8 -> Seq(RegField.r(32, lastLaunchError.reason)),
-            0x4f0 -> Seq(RegField.r(32,
-              lastLaunchResult.requestedBytes)),
-            0x4f8 -> Seq(RegField.r(32,
-              lastLaunchError.requestedBytes)))
-
-        case None =>
-          transferEndpoint.io.requestIn <> consumerAdapter.io.requestOut
-          consumerAdapter.io.readyIn <> transferEndpoint.io.readyOut
-          transferEndpoint.io.readStartIn <> consumerAdapter.io.readStartOut
-          transferEndpoint.io.releaseIn <> consumerAdapter.io.releaseOut
-          consumerAdapter.io.descriptorIn <>
-            controlQueues.io.descriptorOut
-          completionToCgra <> consumerAdapter.io.completionOut
-          launchHeaderToCgra <> controlQueues.io.launchHeaderOut
-          launchPacketToCgra <> controlQueues.io.launchPacketOut
-          controlQueues.io.launchResultIn <> launchResultFromCgra
-          controlQueues.io.launchErrorIn <> launchErrorFromCgra
-          controlQueues.io.computeCompletionIn <>
-            computeCompletionFromCgra
-          controlQueues.io.computeErrorIn <> computeErrorFromCgra
-          consumerAdapter.io.errorOut.ready := true.B
-      }
+      transferEndpoint.io.requestIn <> consumerAdapter.io.requestOut
+      consumerAdapter.io.readyIn <> transferEndpoint.io.readyOut
+      transferEndpoint.io.readStartIn <> consumerAdapter.io.readStartOut
+      transferEndpoint.io.releaseIn <> consumerAdapter.io.releaseOut
+      consumerAdapter.io.descriptorIn <> controlQueues.io.descriptorOut
+      completionToCgra <> consumerAdapter.io.completionOut
+      launchHeaderToCgra <> controlQueues.io.launchHeaderOut
+      launchPacketToCgra <> controlQueues.io.launchPacketOut
+      controlQueues.io.launchResultIn <> launchResultFromCgra
+      controlQueues.io.launchErrorIn <> launchErrorFromCgra
+      controlQueues.io.computeCompletionIn <> computeCompletionFromCgra
+      controlQueues.io.computeErrorIn <> computeErrorFromCgra
+      consumerAdapter.io.errorOut.ready := true.B
     }
   }
 }
@@ -1106,24 +547,9 @@ trait CanHaveGemminiExternalSpad {
     memory.clockNode := pbus.fixedClockNode
     memory.publicationMonitor.clockNode := pbus.fixedClockNode
 
-    if (params.systemReadResponseStallCycles > 0) {
-      val staller = LazyModule(new GemminiExternalSpadReadResponseStaller(
-        params.systemReadResponseStallCycles))
-      staller.clockNode := pbus.fixedClockNode
-      pbus.coupleTo("gemmini-external-spad-read") {
-        memory.systemReadNode := staller.node :=
-          TLFragmenter(16, pbus.blockBytes) := TLWidthWidget(pbus) := _
-      }
-    } else {
-      pbus.coupleTo("gemmini-external-spad-read") {
-        memory.systemReadNode :=
-          TLFragmenter(16, pbus.blockBytes) := TLWidthWidget(pbus) := _
-      }
-    }
-    memory.telemetryNode.foreach { telemetryNode =>
-      pbus.coupleTo("gemmini-external-spad-validation-telemetry") {
-        telemetryNode := TLFragmenter(pbus.beatBytes, pbus.blockBytes) := _
-      }
+    pbus.coupleTo("gemmini-external-spad-read") {
+      memory.systemReadNode :=
+        TLFragmenter(16, pbus.blockBytes) := TLWidthWidget(pbus) := _
     }
     pbus.coupleTo("cgra-transfer-control") {
       memory.controlNode := TLFragmenter(pbus.beatBytes, pbus.blockBytes) := _

@@ -5,8 +5,7 @@ package chipyard.example
 object GemminiExternalSpadGenerated {
   val baseAddress: BigInt = BigInt("60000000", 16)
   val sizeBytes: Int = 65536
-  val productionControlAddress: BigInt = BigInt("60011000", 16)
-  val validationTelemetryAddress: BigInt = BigInt("60010000", 16)
+  val productionControlAddress: BigInt = BigInt("60010000", 16)
   val controlPageSizeBytes: Int = 4096
   val spadRowBytes: Int = 16
   val fullWidthRowStride: Int = 4
@@ -24,10 +23,7 @@ object GemminiExternalSpadGenerated {
   require(controlPageSizeBytes > 0 &&
     (controlPageSizeBytes & (controlPageSizeBytes - 1)) == 0)
   require((productionControlAddress & (controlPageSizeBytes - 1)) == 0)
-  require((validationTelemetryAddress & (controlPageSizeBytes - 1)) == 0)
-  require(productionControlAddress != validationTelemetryAddress)
   require(productionControlAddress >= baseAddress + sizeBytes)
-  require(validationTelemetryAddress >= baseAddress + sizeBytes)
   require(outputReservedBytes == outputSlotCount * outputSlotSizeBytes)
   require(outputReservedBase == baseAddress + sizeBytes - outputReservedBytes)
   require(outputSlotBases.size == outputSlotCount)
