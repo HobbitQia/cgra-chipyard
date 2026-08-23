@@ -204,7 +204,6 @@ class CGRATileLinkDmaAdapterIO(params: CGRAParams) extends Bundle {
   val writeReq = Flipped(Decoupled(new CGRADmaWriteRequest(params)))
   val writeResp = Decoupled(Bool())
   val busy = Output(Bool())
-  val readRequestAccepted = Output(Bool())
 }
 
 class CGRATileLinkDmaAdapter(params: CGRAParams)(implicit p: Parameters)
@@ -249,7 +248,6 @@ class CGRATileLinkDmaAdapterImp(
     io.writeResp.valid := state === holdWrite
     io.writeResp.bits := false.B
     io.busy := state =/= idle
-    io.readRequestAccepted := tl.a.fire && !requestIsWrite
 
     when (io.readReq.valid && io.writeReq.valid) {
       assert(false.B,
@@ -379,8 +377,9 @@ class CGRAAccelerator(opcodes: OpcodeSet, params: CGRAParams = CGRAGenerated.par
     extends LazyRoCC(opcodes) {
   val dmaAdapter = if (params.dma.enabled)
     Some(LazyModule(new CGRATileLinkDmaAdapter(params))) else None
-  val consumerNode = if (params.dma.enabled && p(GemminiExternalSpadKey).isDefined)
-    Some(BundleBridgeSink[CgraConsumerAsyncLink]()) else None
+  val spmParams = p(CgraSpmKey)
+  val spmNode = if (params.dma.enabled && spmParams.isDefined)
+    Some(BundleBridgeSink[CgraSpmAsyncLink]()) else None
   override val tlNode: TLNode = dmaAdapter.map(_.node).getOrElse(TLIdentityNode())
   override lazy val module = new CGRAAcceleratorImp(this, params)
 }
@@ -448,125 +447,20 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     dmaAdapter.writeResp.ready := cgra.io.recv_from_dram_wr_resp_rdy.get
   }
   val dmaAdapterBusy = outer.dmaAdapter.map(_.module.io.busy).getOrElse(false.B)
-  val dmaReadRequestAccepted = outer.dmaAdapter
-    .map(_.module.io.readRequestAccepted).getOrElse(false.B)
-
-  private val consumerParams = CgraConsumerPullAdapterParams.production
-  if (outer.consumerNode.isDefined) {
-    require(params.dma.enabled)
-    require(params.dma.spmAddrWidth == consumerParams.spmAddressWidth)
-    require(params.dma.tagWidth == consumerParams.dmaTagWidth)
-    require(params.dma.dramAddrWidth == consumerParams.dramAddressWidth)
-    require(params.dma.spmWords == consumerParams.spmWords)
-  }
-  val automaticDmaCommand = Wire(
-    Decoupled(new CgraAutomaticDmaCommand(consumerParams)))
-  val automaticReadStartOut = Wire(
-    Decoupled(new CgraAutomaticDmaEvent(consumerParams)))
-  val automaticDmaDoneOut = Wire(
-    Decoupled(new CgraAutomaticDmaEvent(consumerParams)))
-  private val launchParams = CgraComputeLaunchGateParams.production
-  val consumerCompletion = Wire(
-    Decoupled(new CgraConsumerCompletion(consumerParams)))
-  val launchHeader = Wire(
-    Decoupled(new CgraLaunchSequenceHeader(launchParams)))
-  val launchPacket = Wire(Decoupled(new CgraLaunchPacket(launchParams)))
-  val launchResult = Wire(Decoupled(new CgraLaunchResult(launchParams)))
-  val launchError = Wire(
-    Decoupled(new CgraLaunchProtocolError(launchParams)))
-  val computeCompletion = Wire(
-    Decoupled(new CgraComputeCompletion(launchParams)))
-  val computeError = Wire(
-    Decoupled(new CgraComputeCompletionProtocolError(launchParams)))
-  outer.consumerNode match {
-    case Some(node) =>
-      val link = node.in(0)._1
-      automaticDmaCommand <> FromAsyncBundle(link.dmaCommand)
-      link.readStart <> ToAsyncBundle(
-        automaticReadStartOut, AsyncQueueParams.singleton())
-      link.dmaDone <> ToAsyncBundle(
-        automaticDmaDoneOut, AsyncQueueParams.singleton())
-      consumerCompletion <> FromAsyncBundle(link.completion)
-      launchHeader <> FromAsyncBundle(link.launchHeader)
-      launchPacket <> FromAsyncBundle(link.launchPacket)
-      link.launchResult <> ToAsyncBundle(
-        launchResult, AsyncQueueParams.singleton())
-      link.launchError <> ToAsyncBundle(
-        launchError, AsyncQueueParams.singleton())
-      link.computeCompletion <> ToAsyncBundle(
-        computeCompletion, AsyncQueueParams.singleton())
-      link.computeError <> ToAsyncBundle(
-        computeError, AsyncQueueParams.singleton())
-    case None =>
-      automaticDmaCommand.valid := false.B
-      automaticDmaCommand.bits := 0.U.asTypeOf(
-        new CgraAutomaticDmaCommand(consumerParams))
-      automaticReadStartOut.ready := true.B
-      automaticDmaDoneOut.ready := true.B
-      consumerCompletion.valid := false.B
-      consumerCompletion.bits := 0.U.asTypeOf(
-        new CgraConsumerCompletion(consumerParams))
-      consumerCompletion.ready := true.B
-      launchHeader.valid := false.B
-      launchHeader.bits := 0.U.asTypeOf(
-        new CgraLaunchSequenceHeader(launchParams))
-      launchHeader.ready := true.B
-      launchPacket.valid := false.B
-      launchPacket.bits := 0.U.asTypeOf(new CgraLaunchPacket(launchParams))
-      launchPacket.ready := true.B
-      launchResult.valid := false.B
-      launchResult.bits := 0.U.asTypeOf(new CgraLaunchResult(launchParams))
-      launchResult.ready := true.B
-      launchError.valid := false.B
-      launchError.bits := 0.U.asTypeOf(
-        new CgraLaunchProtocolError(launchParams))
-      launchError.ready := true.B
-      computeCompletion.valid := false.B
-      computeCompletion.bits := 0.U.asTypeOf(
-        new CgraComputeCompletion(launchParams))
-      computeCompletion.ready := true.B
-      computeError.valid := false.B
-      computeError.bits := 0.U.asTypeOf(
-        new CgraComputeCompletionProtocolError(launchParams))
-      computeError.ready := true.B
-  }
-
-  // The current CGRA response packet carries no job identity. Track whether a
-  // CPU-issued compute is already outstanding so an automatic owner cannot be
-  // reserved until that older untagged completion has retired.
   val cpuComputeActive = RegInit(false.B)
-  val cpuLaunchAccepted = WireDefault(false.B)
-
-  val launchGate = outer.consumerNode.map { _ =>
-    val gate = Module(new CgraComputeLaunchGate(launchParams))
-    gate.io.packetIn <> launchPacket
-    gate.io.completionIn <> consumerCompletion
-    launchError <> gate.io.errorOut
-    gate
-  }
-  val computeTracker = outer.consumerNode.map { _ =>
-    val tracker = Module(new CgraComputeCompletionTracker(launchParams))
-    val gate = launchGate.get
-
-    // Header acceptance atomically establishes the sole compute owner in the
-    // tracker and the matching retained sequence in the T6 gate.
-    gate.io.headerIn.valid := launchHeader.valid &&
-      tracker.io.reservationIn.ready && !cpuComputeActive &&
-        !cpuLaunchAccepted
-    gate.io.headerIn.bits := launchHeader.bits
-    tracker.io.reservationIn.valid := launchHeader.valid &&
-      gate.io.headerIn.ready && !cpuComputeActive && !cpuLaunchAccepted
-    tracker.io.reservationIn.bits := launchHeader.bits
-    launchHeader.ready := gate.io.headerIn.ready &&
-      tracker.io.reservationIn.ready && !cpuComputeActive &&
-        !cpuLaunchAccepted
-
-    tracker.io.launchResultIn <> gate.io.resultOut
-    tracker.io.launchAcceptedIn := gate.io.launchAccepted
-    launchResult <> tracker.io.launchResultOut
-    computeCompletion <> tracker.io.completionOut
-    computeError <> tracker.io.errorOut
-    tracker
+  val cpuComputeStarting = WireDefault(false.B)
+  val spmEngine = outer.spmParams.map { spmParams =>
+    val node = outer.spmNode.get
+    val engine = Module(new CgraSpmEngine(spmParams))
+    val link = node.in.head._1
+    engine.io.configIn <> FromAsyncBundle(link.config)
+    link.configAck <> ToAsyncBundle(engine.io.configAck, AsyncQueueParams.singleton())
+    engine.io.transferStart <> FromAsyncBundle(link.transferStart)
+    link.transferDone <> ToAsyncBundle(engine.io.transferDone, AsyncQueueParams.singleton())
+    engine.io.consumerStart <> FromAsyncBundle(link.consumerStart)
+    link.consumerDone <> ToAsyncBundle(engine.io.consumerDone, AsyncQueueParams.singleton())
+    engine.io.cpuComputeActive := cpuComputeActive || cpuComputeStarting
+    engine
   }
 
   // ---- Tie off unused ports ----
@@ -680,26 +574,23 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   val packetFifoEntries = 8
   val packetFifo = Module(new Queue(UInt(params.intraPktWidth.W), entries = packetFifoEntries))
-  val packetInputArbiter = Module(
-    new CgraPacketFifoInputArbiter(params.intraPktWidth))
+  val packetInputArbiter = Module(new CgraPacketArbiter(params.intraPktWidth))
   val cpuPacketCandidate = Wire(Decoupled(UInt(params.intraPktWidth.W)))
   val dmaPacketCandidate = Wire(Decoupled(UInt(params.intraPktWidth.W)))
   cpuPacketCandidate.valid := false.B
   cpuPacketCandidate.bits := 0.U
   dmaPacketCandidate.valid := false.B
   dmaPacketCandidate.bits := 0.U
-  packetInputArbiter.io.cpuPacketIn <> cpuPacketCandidate
-  packetInputArbiter.io.dmaPacketIn <> dmaPacketCandidate
-  launchGate match {
-    case Some(gate) =>
-      packetInputArbiter.io.launchPacketIn.valid := gate.io.packetOut.valid
-      packetInputArbiter.io.launchPacketIn.bits := gate.io.packetOut.bits.packet
-      gate.io.packetOut.ready := packetInputArbiter.io.launchPacketIn.ready
+  packetInputArbiter.io.cpu <> cpuPacketCandidate
+  packetInputArbiter.io.dma <> dmaPacketCandidate
+  spmEngine match {
+    case Some(engine) =>
+      packetInputArbiter.io.launch <> engine.io.launchPacket
     case None =>
-      packetInputArbiter.io.launchPacketIn.valid := false.B
-      packetInputArbiter.io.launchPacketIn.bits := 0.U
+      packetInputArbiter.io.launch.valid := false.B
+      packetInputArbiter.io.launch.bits := 0.U
   }
-  packetFifo.io.enq <> packetInputArbiter.io.packetOut
+  packetFifo.io.enq <> packetInputArbiter.io.out
 
   cgra.io.recv_from_cpu_pkt_val := packetFifo.io.deq.valid
   cgra.io.recv_from_cpu_pkt_msg := packetFifo.io.deq.bits
@@ -718,8 +609,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       CGRACmdGenerated.CMD_LAUNCH.U(params.cmdWidth.W) ||
       completedCpuPacketCommand ===
         CGRACmdGenerated.CMD_RESUME.U(params.cmdWidth.W))
-  val automaticComputeOwnerActive = computeTracker
-    .map(_.io.active).getOrElse(false.B)
+  val spmComputeOwnerActive = spmEngine.map(_.io.active).getOrElse(false.B)
 
   def acceptAssembledPkt(assembledPkt: UInt): Unit = {
     val assembledCmd = assembledPkt(pktCmdMsb, pktCmdLsb)
@@ -727,7 +617,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     cpuPacketCandidate.bits := assembledPkt
     when (assembledCmd === CGRACmdGenerated.CMD_LAUNCH.U(params.cmdWidth.W) ||
           assembledCmd === CGRACmdGenerated.CMD_RESUME.U(params.cmdWidth.W)) {
-      cpuLaunchAccepted := true.B
+      cpuComputeStarting := true.B
       cpuComputeActive := true.B
       noteLaunchIssued()
     }
@@ -744,8 +634,8 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     cgraComplete := false.B
   }
 
-  launchGate.foreach { gate =>
-    when(gate.io.packetOut.fire) {
+  spmEngine.foreach { engine =>
+    when(engine.io.launchPacket.fire) {
       noteLaunchIssued()
     }
   }
@@ -808,27 +698,20 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val dmaDoneValid = RegInit(false.B)
   val dmaDoneTag = Reg(UInt(xLen.W))
   val dmaWaitExpectedTag = Reg(UInt(xLen.W))
-  val dmaOwnerAutomatic = RegInit(false.B)
-  val automaticJobId = Reg(UInt(SpmTransferProtocol.JobIdWidth.W))
-  val automaticSlot = Reg(UInt(SpmTransferProtocol.SlotIdWidth.W))
-  val automaticTag = Reg(UInt(consumerParams.dmaTagWidth.W))
-  val automaticReadObserved = RegInit(false.B)
-  val automaticReadStartPending = RegInit(false.B)
-  val automaticDmaDonePending = RegInit(false.B)
+  val dmaOwnerSpm = RegInit(false.B)
+  val spmDmaJobId = outer.spmParams.map(spmParams => Reg(UInt(spmParams.protocol.jobIdWidth.W)))
+  val spmDmaSlot = outer.spmParams.map(spmParams => Reg(UInt(spmParams.protocol.slotWidth.W)))
+  val spmDmaTag = Reg(UInt(params.dma.tagWidth.W))
+  val spmDmaDonePending = RegInit(false.B)
 
-  automaticReadStartOut.valid := automaticReadStartPending
-  automaticReadStartOut.bits.jobId := automaticJobId
-  automaticReadStartOut.bits.slot := automaticSlot
-  automaticReadStartOut.bits.dmaTag := automaticTag
-  automaticDmaDoneOut.valid := automaticDmaDonePending
-  automaticDmaDoneOut.bits.jobId := automaticJobId
-  automaticDmaDoneOut.bits.slot := automaticSlot
-  automaticDmaDoneOut.bits.dmaTag := automaticTag
-  when(automaticReadStartOut.fire) {
-    automaticReadStartPending := false.B
-  }
-  when(automaticDmaDoneOut.fire) {
-    automaticDmaDonePending := false.B
+  spmEngine.foreach { engine =>
+    engine.io.dmaCompletion.valid := spmDmaDonePending
+    engine.io.dmaCompletion.bits.jobId := spmDmaJobId.get
+    engine.io.dmaCompletion.bits.slot := spmDmaSlot.get
+    engine.io.dmaCompletion.bits.dmaTag := spmDmaTag
+    when(engine.io.dmaCompletion.fire) {
+      spmDmaDonePending := false.B
+    }
   }
 
   if (params.dma.enabled) {
@@ -849,14 +732,6 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
     val dmaPacketTemplates = VecInit(
       params.dma.packetTemplates.map(_.U(params.intraPktWidth.W)))
-    val automaticDescriptor = WireInit(0.U(xLen.W))
-    automaticDescriptor :=
-      (automaticDmaCommand.bits.spmWordAddress <<
-        params.dma.descriptorSpmLsb) |
-      (automaticDmaCommand.bits.bytes <<
-        params.dma.descriptorNbytesLsb) |
-      (automaticDmaCommand.bits.dmaTag <<
-        params.dma.descriptorTagLsb)
     val dmaSeqPacket = Wire(UInt(params.intraPktWidth.W))
     dmaSeqPacket := 0.U
     switch (dmaSeqPhase) {
@@ -915,12 +790,6 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
           "only one DMA command may be outstanding")
         assert(!dmaAdapterBusy,
           "new DMA command issued while the TileLink adapter is active")
-        computeTracker.foreach { tracker =>
-          when(isDmaMvout) {
-            assert(!tracker.io.active || tracker.io.completed,
-              "CGRA DMA MVOUT issued before automatic compute completion")
-          }
-        }
         if (params.dma.descriptorWidth < xLen) {
           assert(!rs2(xLen - 1, params.dma.descriptorWidth).orR,
             "DMA descriptor has nonzero bits outside the generated layout")
@@ -940,7 +809,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         dmaSeqPhase := 0.U
         dmaSeqActive := true.B
         dmaInFlight := true.B
-        dmaOwnerAutomatic := false.B
+        dmaOwnerSpm := false.B
       } .elsewhen (isDmaWait) {
         assert(dmaInFlight || dmaDoneValid,
           "DMA_WAIT issued without an in-flight or completed DMA command")
@@ -964,48 +833,25 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       }
     }
 
-    when(automaticDmaCommand.fire) {
-      val automaticWords =
-        automaticDmaCommand.bits.bytes >> cgraWordByteShift
-      val automaticSpmEnd =
-        automaticDmaCommand.bits.spmWordAddress +& automaticWords
-      val automaticAddressEnd =
-        automaticDmaCommand.bits.sourceAddress +&
-          automaticDmaCommand.bits.bytes
-      assert(!dmaInFlight && !dmaDoneValid && !dmaSeqActive,
-        "automatic CGRA DMA requires an idle semantic sequencer")
-      assert(!dmaAdapterBusy,
-        "automatic CGRA DMA issued while the TileLink adapter is active")
-      assert(!automaticReadStartPending && !automaticDmaDonePending,
-        "automatic CGRA DMA would overwrite an undelivered event")
-      assert(automaticDmaCommand.bits.jobId =/= 0.U,
-        "automatic CGRA DMA job ID must be nonzero")
-      assert(automaticDmaCommand.bits.slot < consumerParams.slotCount.U,
-        "automatic CGRA DMA slot is invalid")
-      assert(automaticDmaCommand.bits.bytes =/= 0.U,
-        "automatic CGRA DMA byte count must be nonzero")
-      assert(automaticDmaCommand.bits.bytes(
-        dmaBeatByteShift - 1, 0) === 0.U,
-        "automatic CGRA DMA byte count must be a multiple of 16 bytes")
-      assert(automaticSpmEnd <= params.dma.spmWords.U,
-        "automatic CGRA DMA exceeds the generated SPM range")
-      assert(automaticDmaCommand.bits.sourceAddress(
-        dmaBeatByteShift - 1, 0) === 0.U,
-        "automatic CGRA DMA source address must be 16-byte aligned")
-      assert(!automaticAddressEnd(params.dma.dramAddrWidth),
-        "automatic CGRA DMA address plus length overflows")
-
-      dmaSeqDramAddr := automaticDmaCommand.bits.sourceAddress
-      dmaSeqDescriptor := automaticDescriptor
-      dmaSeqIsMvin := true.B
-      dmaSeqPhase := 0.U
-      dmaSeqActive := true.B
-      dmaInFlight := true.B
-      dmaOwnerAutomatic := true.B
-      automaticJobId := automaticDmaCommand.bits.jobId
-      automaticSlot := automaticDmaCommand.bits.slot
-      automaticTag := automaticDmaCommand.bits.dmaTag
-      automaticReadObserved := false.B
+    spmEngine.foreach { engine =>
+      val request = engine.io.dmaRequest
+      val descriptor = WireInit(0.U(xLen.W))
+      descriptor :=
+        (request.bits.spmWordAddress << params.dma.descriptorSpmLsb) |
+        (request.bits.bytes << params.dma.descriptorNbytesLsb) |
+        (request.bits.dmaTag << params.dma.descriptorTagLsb)
+      when(request.fire) {
+        dmaSeqDramAddr := request.bits.sourceAddress
+        dmaSeqDescriptor := descriptor
+        dmaSeqIsMvin := true.B
+        dmaSeqPhase := 0.U
+        dmaSeqActive := true.B
+        dmaInFlight := true.B
+        dmaOwnerSpm := true.B
+        spmDmaJobId.get := request.bits.jobId
+        spmDmaSlot.get := request.bits.slot
+        spmDmaTag := request.bits.dmaTag
+      }
     }
   } else {
     when (state === s_idle && cmd.fire) {
@@ -1040,33 +886,22 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     state := s_resp
   }
 
-  // readStart is tied to the first real TileLink Get acceptance, not to
-  // descriptor acceptance or semantic packet enqueue.
-  when(dmaReadRequestAccepted && dmaInFlight && dmaOwnerAutomatic &&
-    !automaticReadObserved) {
-    assert(!automaticReadStartPending,
-      "automatic CGRA DMA read-start event buffer is occupied")
-    automaticReadObserved := true.B
-    automaticReadStartPending := true.B
-  }
-
   // ---- Monitor CGRA output (send_to_cpu_pkt) ----
   val cgraResponsePacket = cgra.io.send_to_cpu_pkt_msg
   val cgraResponseCommand = cgraResponsePacket(pktCmdMsb, pktCmdLsb)
   val cgraResponseData = cgraResponsePacket(
     pktDataPayloadMsb, pktDataPayloadLsb)
-  val automaticCompleteOwned = computeTracker.map { tracker =>
-    tracker.io.active &&
+  val spmCompleteOwned = spmEngine.map { engine =>
+    engine.io.computeActive &&
       cgraResponseCommand === CGRACmdGenerated.CMD_COMPLETE.U(
         params.cmdWidth.W)
   }.getOrElse(false.B)
-  computeTracker.foreach { tracker =>
-    tracker.io.completeIn.valid := cgra.io.send_to_cpu_pkt_val &&
-      automaticCompleteOwned
-    tracker.io.completeIn.bits := cgraResponseData
+  spmEngine.foreach { engine =>
+    engine.io.complete.valid := cgra.io.send_to_cpu_pkt_val && spmCompleteOwned
+    engine.io.complete.bits := cgraResponseData
   }
-  cgra.io.send_to_cpu_pkt_rdy := computeTracker.map { tracker =>
-    Mux(automaticCompleteOwned, tracker.io.completeIn.ready, true.B)
+  cgra.io.send_to_cpu_pkt_rdy := spmEngine.map { engine =>
+    Mux(spmCompleteOwned, engine.io.complete.ready, true.B)
   }.getOrElse(true.B)
 
   def handleRegularCgraResponse(recvPkt: UInt, recvCmd: UInt): Unit = {
@@ -1106,14 +941,12 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
                           pktDataPayloadLsb + params.dma.tagWidth).orR,
             "CMD_DMA_DONE payload contains non-tag bits")
         }
-        when(dmaOwnerAutomatic) {
-          assert(payloadTag === automaticTag,
-            "automatic CMD_DMA_DONE tag does not match its retained owner")
-          assert(automaticReadObserved,
-            "automatic CMD_DMA_DONE arrived before any real DMA read")
-          assert(!automaticDmaDonePending,
-            "automatic CMD_DMA_DONE would overwrite an undelivered event")
-          automaticDmaDonePending := true.B
+        when(dmaOwnerSpm) {
+          assert(payloadTag === spmDmaTag,
+            "SPM DMA completion tag does not match its retained owner")
+          assert(!spmDmaDonePending,
+            "SPM DMA completion would overwrite an undelivered event")
+          spmDmaDonePending := true.B
           dmaInFlight := false.B
         }.otherwise {
           assert(!dmaDoneValid,
@@ -1124,17 +957,10 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         }
       } .otherwise {
         when(recvCmd === CGRACmdGenerated.CMD_COMPLETE.U(params.cmdWidth.W) &&
-          !automaticCompleteOwned) {
+          !spmCompleteOwned) {
           cpuComputeActive := false.B
         }
-        computeTracker match {
-          case Some(tracker) =>
-            when(!automaticCompleteOwned ||
-              (tracker.io.launched && !tracker.io.completed)) {
-              handleRegularCgraResponse(recvPkt, recvCmd)
-            }
-          case None => handleRegularCgraResponse(recvPkt, recvCmd)
-        }
+        handleRegularCgraResponse(recvPkt, recvCmd)
       }
     } else {
       when(recvCmd === CGRACmdGenerated.CMD_COMPLETE.U(params.cmdWidth.W)) {
@@ -1146,14 +972,15 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   // ---- RoCC Command Ready ----
   val dmaIssueReady = !dmaInFlight && !dmaDoneValid && !dmaSeqActive &&
-                      !dmaAdapterBusy && !automaticReadStartPending &&
-                      !automaticDmaDonePending
-  automaticDmaCommand.ready := dmaIssueReady && state === s_idle &&
-                               !respValid && !cmd.valid
+                      !dmaAdapterBusy && !spmDmaDonePending
+  spmEngine.foreach { engine =>
+    engine.io.dmaRequest.ready := dmaIssueReady && state === s_idle &&
+      !respValid && !cmd.valid
+  }
   cmd.ready := (state === s_idle) && !respValid && !dmaSeqActive &&
                (!completesPacket || cpuPacketCandidate.ready) &&
                (!isDmaIssue || dmaIssueReady) &&
-               (!completesCpuLaunch || !automaticComputeOwnerActive)
+               (!completesCpuLaunch || !spmComputeOwnerActive)
 
   // ---- RoCC Response Interface ----
   io.resp.valid     := respValid

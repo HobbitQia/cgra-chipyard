@@ -15,17 +15,14 @@ class CGRARocketConfig extends Config(
   new chipyard.config.AbstractConfig)
 
 object CGRAMinimalGemminiRocketConfig {
-  val externalSpadParams = chipyard.example.GemminiExternalSpadParams(
-    baseAddress = chipyard.example.GemminiExternalSpadGenerated.baseAddress,
-    sizeBytes = chipyard.example.GemminiExternalSpadGenerated.sizeBytes,
-    controlAddress =
-      chipyard.example.GemminiExternalSpadGenerated.productionControlAddress,
-    spadRowBytes = chipyard.example.GemminiExternalSpadGenerated.spadRowBytes,
-    fullWidthRowStride =
-      chipyard.example.GemminiExternalSpadGenerated.fullWidthRowStride,
-    outputSlotCount = chipyard.example.GemminiExternalSpadGenerated.outputSlotCount,
-    outputSlotSizeBytes =
-      chipyard.example.GemminiExternalSpadGenerated.outputSlotSizeBytes)
+  val sharedSpm = chipyard.example.SharedSpmParams(
+    baseAddress = chipyard.example.SharedSpmGenerated.baseAddress,
+    sizeBytes = chipyard.example.SharedSpmGenerated.sizeBytes,
+    slotCount = chipyard.example.SharedSpmGenerated.slotCount,
+    slotSizeBytes = chipyard.example.SharedSpmGenerated.slotSizeBytes)
+  val spmDma = chipyard.example.GemminiCgraSpmDmaParams(
+    sharedSpm,
+    chipyard.example.CgraSpmControlGenerated.baseAddress)
 
   val minimalGemminiConfig:
     gemmini.GemminiArrayConfig[chisel3.SInt, gemmini.Float, gemmini.Float] =
@@ -53,15 +50,14 @@ object CGRAMinimalGemminiRocketConfig {
     dma_buswidth = 128,
     use_shared_ext_mem = true,
     use_tl_ext_mem = true,
-    tl_ext_mem_base = externalSpadParams.baseAddress,
+    tl_ext_mem_base = sharedSpm.baseAddress,
     sp_singleported = false,
-    spad_read_delay = 4,
     acc_sub_banks = 1)
 }
 
 class CGRAMinimalGemminiRocketConfig extends Config(
-  new chipyard.example.WithGemminiExternalSpad(
-    CGRAMinimalGemminiRocketConfig.externalSpadParams) ++
+  new chipyard.example.WithGemminiCgraSpmDma(
+    CGRAMinimalGemminiRocketConfig.spmDma) ++
   new chipyard.config.WithCGRA() ++
   new gemmini.DefaultGemminiConfig(CGRAMinimalGemminiRocketConfig.minimalGemminiConfig) ++
   new freechips.rocketchip.rocket.WithNBigCores(1) ++
