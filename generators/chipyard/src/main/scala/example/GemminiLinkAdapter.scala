@@ -1,0 +1,291 @@
+package chipyard.example
+
+import chisel3._
+import chisel3.util._
+import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.prci.{ClockSinkDomain, ClockSinkParameters}
+import freechips.rocketchip.subsystem.{BaseSubsystem, InstantiatesHierarchicalElements, SBUS}
+import freechips.rocketchip.tile.RocketTile
+import freechips.rocketchip.tilelink._
+import freechips.rocketchip.util.{AsyncQueueParams, FromAsyncBundle, ToAsyncBundle}
+import org.chipsalliance.cde.config.{Config, Field, Parameters}
+import org.chipsalliance.diplomacy.lazymodule.LazyModule
+
+object GemminiLinkStatus {
+  val BadAddress = 1
+  val BadBeat = 2
+  val BadOrder = 3
+  val Denied = 4
+  val Corrupt = 5
+}
+
+case class GemminiLinkParams(
+  auto: AutoLinkParams,
+  endpoint: String,
+  spm: GemminiExternalSpmParams,
+  beatBytes: Int) {
+  require(auto.endpoints.exists(_.name == endpoint))
+  require(isPow2(beatBytes))
+}
+
+case object GemminiLinkKey extends Field[Option[GemminiLinkParams]](None)
+
+class WithGemminiLink(params: GemminiLinkParams)
+    extends Config((_, _, _) => { case GemminiLinkKey => Some(params) })
+
+class GemminiLinkWrite(params: GemminiLinkParams) extends Bundle {
+  val address = UInt(64.W)
+  val source = UInt(16.W)
+  val size = UInt(8.W)
+  val opcode = UInt(3.W)
+  val mask = UInt(params.beatBytes.W)
+}
+
+class GemminiLinkAck extends Bundle {
+  val source = UInt(16.W)
+  val size = UInt(8.W)
+  val denied = Bool()
+  val corrupt = Bool()
+}
+
+/** Converts Gemmini external-SPM writes into the standard AutoLink interface. */
+class GemminiLinkAdapter(params: GemminiLinkParams) extends Module {
+  val io = IO(new Bundle {
+    val write = Flipped(Valid(new GemminiLinkWrite(params)))
+    val ack = Flipped(Valid(new GemminiLinkAck))
+    val endpoint = new AutoEndpointIO(params.auto)
+  })
+
+  val watch = Reg(new AutoWatch(params.auto))
+  val armed = RegInit(false.B)
+  val active = RegInit(false.B)
+  val issuedBytes = RegInit(0.U(params.auto.lengthWidth.W))
+  val acknowledgedBytes = RegInit(0.U(params.auto.lengthWidth.W))
+  val outstanding = RegInit(false.B)
+  val source = Reg(UInt(16.W))
+  val beatValid = RegInit(false.B)
+  val beatError = RegInit(0.U(params.auto.detailWidth.W))
+  val producedValid = RegInit(false.B)
+  val producedDetail = RegInit(0.U(params.auto.detailWidth.W))
+
+  val expectedSize = log2Ceil(params.beatBytes).U
+  val fullMask = ((BigInt(1) << params.beatBytes) - 1).U
+
+  io.endpoint.watch.ready := !armed && !producedValid
+  io.endpoint.produced.valid := producedValid
+  io.endpoint.produced.bits.status := Mux(
+    producedDetail === 0.U,
+    AutoLinkStatus.Success,
+    AutoLinkStatus.SourceFailure)
+  io.endpoint.produced.bits.detail := producedDetail
+  io.endpoint.produced.bits.data := 0.U
+  io.endpoint.transfer.ready := false.B
+  io.endpoint.transferred.valid := false.B
+  io.endpoint.transferred.bits := 0.U.asTypeOf(new AutoTransferDone(params.auto))
+  io.endpoint.release.ready := false.B
+  io.endpoint.complete.valid := false.B
+  io.endpoint.complete.bits := 0.U.asTypeOf(new AutoEvent(params.auto))
+
+  def finish(detail: UInt): Unit = {
+    producedValid := true.B
+    producedDetail := detail
+  }
+
+  when(io.endpoint.watch.fire) {
+    watch := io.endpoint.watch.bits
+    armed := true.B
+    active := false.B
+    issuedBytes := 0.U
+    acknowledgedBytes := 0.U
+    outstanding := false.B
+  }
+
+  when(armed && !producedValid && io.write.valid) {
+    val expectedAddress = watch.address + issuedBytes
+    val addressValid = io.write.bits.address === expectedAddress
+    val shapeValid = io.write.bits.opcode === TLMessages.PutFullData &&
+      io.write.bits.size === expectedSize && io.write.bits.mask === fullMask
+    val withinPublication = issuedBytes < watch.bytes
+
+    active := true.B
+    when(outstanding) {
+      beatValid := false.B
+      beatError := GemminiLinkStatus.BadOrder.U
+    }.otherwise {
+      outstanding := true.B
+      source := io.write.bits.source
+      beatValid := addressValid && shapeValid && withinPublication
+      beatError := Mux(
+        !addressValid,
+        GemminiLinkStatus.BadAddress.U,
+        Mux(!shapeValid, GemminiLinkStatus.BadBeat.U, GemminiLinkStatus.BadOrder.U))
+      when(addressValid && shapeValid && withinPublication) {
+        issuedBytes := issuedBytes + params.beatBytes.U
+      }
+    }
+  }
+
+  when(active && !producedValid && io.ack.valid) {
+    when(!outstanding) {
+      finish(GemminiLinkStatus.BadOrder.U)
+    }.otherwise {
+      val responseShapeValid = io.ack.bits.source === source &&
+        io.ack.bits.size === expectedSize
+      val responseValid = beatValid && responseShapeValid &&
+        !io.ack.bits.denied && !io.ack.bits.corrupt
+      val detail = Mux(
+        io.ack.bits.denied,
+        GemminiLinkStatus.Denied.U,
+        Mux(
+          io.ack.bits.corrupt,
+          GemminiLinkStatus.Corrupt.U,
+          Mux(!responseShapeValid, GemminiLinkStatus.BadBeat.U, beatError)))
+      val nextBytes = Mux(
+        responseValid,
+        acknowledgedBytes + params.beatBytes.U,
+        acknowledgedBytes)
+
+      acknowledgedBytes := nextBytes
+      outstanding := false.B
+      when(!responseValid) {
+        finish(detail)
+      }.elsewhen(nextBytes === watch.bytes) {
+        finish(0.U)
+      }
+    }
+  }
+
+  when(io.endpoint.produced.fire) {
+    armed := false.B
+    active := false.B
+    outstanding := false.B
+    producedValid := false.B
+  }
+}
+
+class GemminiLinkMonitor(params: GemminiLinkParams)(implicit p: Parameters)
+    extends ClockSinkDomain(ClockSinkParameters())(p) {
+  val node = TLAdapterNode()
+
+  override lazy val module = new MonitorImpl
+  class MonitorImpl extends Impl {
+    val io = IO(new Bundle {
+      val write = Valid(new GemminiLinkWrite(params))
+      val ack = Valid(new GemminiLinkAck)
+    })
+
+    withClockAndReset(clock, reset) {
+      val (in, _) = node.in.head
+      val (out, _) = node.out.head
+      out.a <> in.a
+      in.b <> out.b
+      out.c <> in.c
+      in.d <> out.d
+      out.e <> in.e
+
+      io.write.valid := in.a.fire
+      io.write.bits.address := in.a.bits.address
+      io.write.bits.source := in.a.bits.source
+      io.write.bits.size := in.a.bits.size
+      io.write.bits.opcode := in.a.bits.opcode
+      io.write.bits.mask := in.a.bits.mask
+      io.ack.valid := in.d.fire
+      io.ack.bits.source := in.d.bits.source
+      io.ack.bits.size := in.d.bits.size
+      io.ack.bits.denied := in.d.bits.denied
+      io.ack.bits.corrupt := in.d.bits.corrupt
+    }
+  }
+}
+
+class GemminiLinkEndpoint(
+  gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float],
+  spm: GemminiExternalSpm,
+  params: GemminiLinkParams)(implicit p: Parameters)
+    extends ClockSinkDomain(ClockSinkParameters())(p) {
+  private val gemminiConfig = gemminiAccelerator.config
+  private val readBeatBytes = gemminiConfig.sp_width / 8
+  private val writeBeatBytes =
+    gemminiConfig.meshColumns * gemminiConfig.tileColumns * gemminiConfig.accType.getWidth / 8
+  private val spmBytes =
+    gemminiConfig.sp_banks * gemminiConfig.sp_bank_entries * readBeatBytes
+
+  require(readBeatBytes == params.auto.beatBytes)
+  require(writeBeatBytes == params.beatBytes)
+  require(spmBytes == params.spm.sizeBytes)
+
+  val node = BundleBridgeSink[AutoEndpointAsyncLink]()
+  val readPorts = TLXbar()
+  val writePorts = TLXbar()
+  val monitor = LazyModule(new GemminiLinkMonitor(params))
+
+  spm.readNode := readPorts
+  spm.writeNode := writePorts
+  readPorts :=* gemminiAccelerator.spad_read_nodes
+  writePorts :=* TLWidthWidget(readBeatBytes) :=* TLBuffer() :=*
+    gemminiAccelerator.spad_write_nodes
+  writePorts := monitor.node := TLWidthWidget(readBeatBytes) := TLBuffer() :=
+    gemminiAccelerator.spad.spad_writer.get.node
+
+  override lazy val module = new EndpointImpl
+  class EndpointImpl extends Impl {
+    withClockAndReset(clock, reset) {
+      val adapter = Module(new GemminiLinkAdapter(params))
+      val link = node.in.head._1
+
+      adapter.io.write <> monitor.module.io.write
+      adapter.io.ack <> monitor.module.io.ack
+      adapter.io.endpoint.watch <> FromAsyncBundle(link.watch)
+      link.produced <> ToAsyncBundle(
+        adapter.io.endpoint.produced,
+        AsyncQueueParams.singleton())
+      adapter.io.endpoint.transfer <> FromAsyncBundle(link.transfer)
+      link.transferred <> ToAsyncBundle(
+        adapter.io.endpoint.transferred,
+        AsyncQueueParams.singleton())
+      adapter.io.endpoint.release <> FromAsyncBundle(link.release)
+      link.complete <> ToAsyncBundle(
+        adapter.io.endpoint.complete,
+        AsyncQueueParams.singleton())
+    }
+  }
+}
+
+trait CanHaveGemminiLink {
+  this: BaseSubsystem with InstantiatesHierarchicalElements with CanHaveAutoLink =>
+  private val sbus = locateTLBusWrapper(SBUS)
+
+  val gemminiLink = p(GemminiLinkKey).map { params =>
+    val gemminis = totalTiles.values.toSeq.flatMap {
+      case tile: RocketTile =>
+        tile.roccs.collect { case accelerator: gemmini.Gemmini[_, _, _] => accelerator }
+      case _ => Nil
+    }
+    require(gemminis.size == 1)
+    val gemminiAccelerator = gemminis.head.asInstanceOf[
+      gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float]]
+    val gemminiConfig = gemminiAccelerator.config
+    val readBeatBytes = gemminiConfig.sp_width / 8
+    val writeBeatBytes =
+      gemminiConfig.meshColumns * gemminiConfig.tileColumns * gemminiConfig.accType.getWidth / 8
+    val spm = LazyModule(new GemminiExternalSpm(
+      params.spm,
+      readBeatBytes,
+      writeBeatBytes))
+    val endpoint = LazyModule(new GemminiLinkEndpoint(
+      gemminiAccelerator,
+      spm,
+      params))
+
+    endpoint.node := autoLink.get.endpoint(params.endpoint)
+    endpoint.clockNode := sbus.fixedClockNode
+    endpoint.monitor.clockNode := sbus.fixedClockNode
+    spm.clockNode := sbus.fixedClockNode
+    sbus.coupleTo("gemmini-ext-spm") {
+      endpoint.readPorts := TLFragmenter(
+        params.auto.beatBytes,
+        sbus.blockBytes) := TLWidthWidget(sbus) := _
+    }
+    endpoint
+  }
+}

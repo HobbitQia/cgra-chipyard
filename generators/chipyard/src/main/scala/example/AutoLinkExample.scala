@@ -1,13 +1,29 @@
 package chipyard.example
 
 object AutoLinkExample {
-  val links: Seq[SpmLinkSpec] = SpmLinksGenerated.links
-  val transfer = SpmCommunicationRule(link = 0, slot = 0, bytes = 128)
-  val source = SpmEndpointSpec(
-    name = "gemmini",
-    table = SpmCommunicationTable(waitFor = Nil, publishTo = Seq(transfer)))
-  val destination = SpmEndpointSpec(
-    name = "cgra",
-    table = SpmCommunicationTable(waitFor = Seq(transfer), publishTo = Nil))
-  val endpoints: Seq[SpmEndpointSpec] = Seq(source, destination)
+  val externalSpm = GemminiExternalSpmParams(
+    baseAddress = GemminiExternalSpmGenerated.baseAddress,
+    sizeBytes = GemminiExternalSpmGenerated.sizeBytes)
+  val links: Seq[AutoLinkSpec] = AutoLinksGenerated.links
+  val transferBytes = 128
+  val endpoints: Seq[AutoEndpointSpec] = Seq(
+    AutoEndpointSpec(
+      name = "gemmini",
+      buffer = Some(AutoBuffer(externalSpm.baseAddress, externalSpm.sizeBytes)),
+      localBytes = externalSpm.sizeBytes),
+    AutoEndpointSpec(
+      name = "cgra",
+      buffer = None,
+      localBytes = CGRAGenerated.params.dma.spmWords *
+        CGRAGenerated.params.dataPayloadWidth / 8))
+  val table: Seq[AutoTransferSpec] = Seq(AutoTransferSpec(
+    route = 0,
+    sourceOffset = externalSpm.sizeBytes - transferBytes,
+    destinationOffset = 0,
+    bytes = transferBytes))
+  val params = AutoLinkParams(
+    links = links,
+    endpoints = endpoints,
+    table = table,
+    beatBytes = CGRAGenerated.params.dma.dramDataWidth / 8)
 }

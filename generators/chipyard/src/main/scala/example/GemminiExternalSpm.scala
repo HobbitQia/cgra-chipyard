@@ -8,29 +8,24 @@ import freechips.rocketchip.resources.SimpleDevice
 import freechips.rocketchip.tilelink._
 import org.chipsalliance.cde.config.Parameters
 
-case class SharedSpmParams(
+case class GemminiExternalSpmParams(
   baseAddress: BigInt,
-  sizeBytes: Int,
-  slotCount: Int,
-  slotSizeBytes: Int) {
+  sizeBytes: Int) {
   require(isPow2(sizeBytes))
   require((baseAddress & (sizeBytes - 1)) == 0)
-  require(slotCount > 0 && slotCount * slotSizeBytes <= sizeBytes)
-
-  val slotBase: BigInt = baseAddress + sizeBytes - slotCount * slotSizeBytes
-  val slotBases: Seq[BigInt] = Seq.tabulate(slotCount)(index => slotBase + index * slotSizeBytes)
 }
 
-/** TileLink-visible shared SPM with one physical read port and one physical
-  * write port. IP-specific adapters attach to the public crossbars.
-  */
-class SharedSpm(params: SharedSpmParams, readBeatBytes: Int, writeBeatBytes: Int)(implicit p: Parameters)
+/** TileLink backing memory for Gemmini's external scratchpad. */
+class GemminiExternalSpm(
+  params: GemminiExternalSpmParams,
+  readBeatBytes: Int,
+  writeBeatBytes: Int)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
   require(writeBeatBytes % readBeatBytes == 0)
   private val address = AddressSet(params.baseAddress, params.sizeBytes - 1)
-  private val device = new SimpleDevice("shared-spm", Seq("coredac,shared-spm"))
+  private val device = new SimpleDevice("gemmini-ext-spm", Seq("coredac,gemmini-ext-spm"))
 
-  private val readManager = TLManagerNode(Seq(TLSlavePortParameters.v1(
+  val readNode = TLManagerNode(Seq(TLSlavePortParameters.v1(
     managers = Seq(TLSlaveParameters.v1(
       address = Seq(address),
       resources = device.reg,
@@ -41,7 +36,7 @@ class SharedSpm(params: SharedSpmParams, readBeatBytes: Int, writeBeatBytes: Int
     beatBytes = readBeatBytes,
     minLatency = 1)))
 
-  private val writeManager = TLManagerNode(Seq(TLSlavePortParameters.v1(
+  val writeNode = TLManagerNode(Seq(TLSlavePortParameters.v1(
     managers = Seq(TLSlaveParameters.v1(
       address = Seq(address),
       resources = Nil,
@@ -53,16 +48,11 @@ class SharedSpm(params: SharedSpmParams, readBeatBytes: Int, writeBeatBytes: Int
     beatBytes = writeBeatBytes,
     minLatency = 1)))
 
-  val readers = TLXbar()
-  val writers = TLXbar()
-  readManager := readers
-  writeManager := writers
-
-  override lazy val module = new SharedSpmImpl
-  class SharedSpmImpl extends Impl {
+  override lazy val module = new MemoryImpl
+  class MemoryImpl extends Impl {
     withClockAndReset(clock, reset) {
-      val (read, readEdge) = readManager.in.head
-      val (write, writeEdge) = writeManager.in.head
+      val (read, readEdge) = readNode.in.head
+      val (write, writeEdge) = writeNode.in.head
       val lineCount = params.sizeBytes / writeBeatBytes
       val lineIndexBits = log2Ceil(lineCount)
       val lineOffsetBits = log2Ceil(writeBeatBytes)
@@ -87,14 +77,15 @@ class SharedSpm(params: SharedSpmParams, readBeatBytes: Int, writeBeatBytes: Int
       val incomingWriteLine = write.a.bits.address(
         lineOffsetBits + lineIndexBits - 1,
         lineOffsetBits)
-      val writeCanCommit = !writePending
-      val sameLineRequest = read.a.valid && write.a.valid && incomingReadLine === incomingWriteLine
+      val sameLineRequest = read.a.valid && write.a.valid &&
+        incomingReadLine === incomingWriteLine
       val readData = mem.read(incomingReadLine, read.a.fire)
       val readBeats = readData.asUInt.asTypeOf(
         Vec(writeBeatBytes / readBeatBytes, UInt((readBeatBytes * 8).W)))
       val writeConflictsWithRead = readPending && incomingWriteLine === readLine
 
-      read.a.ready := !readPending && !responseValid && !(writeCanCommit && sameLineRequest)
+      read.a.ready := !readPending && !responseValid &&
+        !(write.a.valid && !writePending && sameLineRequest)
       read.d.valid := responseValid
       read.d.bits := readEdge.AccessAck(readSource, readSize, responseData)
       read.b.valid := false.B
@@ -109,7 +100,9 @@ class SharedSpm(params: SharedSpmParams, readBeatBytes: Int, writeBeatBytes: Int
         if (readIndexBits == 0) {
           readBeat := 0.U
         } else {
-          readBeat := read.a.bits.address(lineOffsetBits - 1, log2Ceil(readBeatBytes))
+          readBeat := read.a.bits.address(
+            lineOffsetBits - 1,
+            log2Ceil(readBeatBytes))
         }
       }
       when(readPending) {
@@ -121,7 +114,7 @@ class SharedSpm(params: SharedSpmParams, readBeatBytes: Int, writeBeatBytes: Int
         responseValid := false.B
       }
 
-      write.a.ready := writeCanCommit && !writeConflictsWithRead
+      write.a.ready := !writePending && !writeConflictsWithRead
       write.d.valid := writePending
       write.d.bits := writeEdge.AccessAck(writeSource, writeSize)
       write.b.valid := false.B
