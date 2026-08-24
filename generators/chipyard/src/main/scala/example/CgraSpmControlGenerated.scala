@@ -7,15 +7,10 @@ object CgraSpmControlGenerated {
   val SPM_WORD_ADDRESS: Int = 0x000
   val DMA_TAG: Int = 0x008
   val PACKET_COUNT: Int = 0x010
-  val HEADER_SUBMIT: Int = 0x018
-  val PACKET_LO: Int = 0x020
-  val PACKET_MID: Int = 0x028
-  val PACKET_HI: Int = 0x030
-  val PACKET_TOP: Int = 0x038
-  val PACKET_SUBMIT: Int = 0x040
-  val RESULT_VALID: Int = 0x048
-  val RESULT_POP: Int = 0x050
-  val RESULT_STATUS: Int = 0x058
-  val RESULT_DETAIL: Int = 0x060
-  val RESULT_DATA: Int = 0x068
+  val CONFIG_SUBMIT: Int = 0x018
+  val RESULT_VALID: Int = 0x020
+  val RESULT_POP: Int = 0x028
+  val RESULT_STATUS: Int = 0x030
+  val RESULT_DETAIL: Int = 0x038
+  val RESULT_DATA: Int = 0x040
 }

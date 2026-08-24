@@ -5,12 +5,6 @@ import chisel3.util._
 import freechips.rocketchip.util.{AsyncBundle, AsyncQueueParams}
 import org.chipsalliance.cde.config.{Config, Field}
 
-object CgraSpmConfigKind {
-  val Width = 1
-  val Header = 0.U(Width.W)
-  val Packet = 1.U(Width.W)
-}
-
 object CgraSpmStatus {
   val BadConfig = 1
   val BadPacket = 2
@@ -51,16 +45,10 @@ case object CgraSpmKey extends Field[Option[CgraSpmAttachParams]](None)
 class WithCgraSpm(params: CgraSpmAttachParams)
     extends Config((_, _, _) => { case CgraSpmKey => Some(params) })
 
-class CgraSpmHeader(params: CgraSpmParams) extends Bundle {
+class CgraSpmConfig(params: CgraSpmParams) extends Bundle {
   val spmWordAddress = UInt(params.cgra.dma.spmAddrWidth.W)
   val dmaTag = UInt(params.cgra.dma.tagWidth.W)
   val packetCount = UInt(params.packetCountWidth.W)
-}
-
-class CgraSpmConfig(params: CgraSpmParams) extends Bundle {
-  val kind = UInt(CgraSpmConfigKind.Width.W)
-  val header = new CgraSpmHeader(params)
-  val packet = UInt(params.cgra.intraPktWidth.W)
 }
 
 class CgraSpmConfigAck(params: CgraSpmParams) extends Bundle {
@@ -90,6 +78,7 @@ class CgraSpmAdapter(params: CgraSpmParams) extends Module {
   val io = IO(new Bundle {
     val configIn = Flipped(Decoupled(new CgraSpmConfig(params)))
     val configAck = Decoupled(new CgraSpmConfigAck(params))
+    val packetIn = Flipped(Decoupled(UInt(params.cgra.intraPktWidth.W)))
     val endpoint = new SpmEndpointIO(params.link)
     val dmaRequest = Decoupled(new CgraSpmDmaRequest(params))
     val dmaCompletion = Flipped(Decoupled(new CgraSpmDmaCompletion(params)))
@@ -102,7 +91,7 @@ class CgraSpmAdapter(params: CgraSpmParams) extends Module {
 
   val Seq(empty, collect, configResult, armed, issueDma, waitDma, launch, waitCompute, result) = Enum(9)
   val state = RegInit(empty)
-  val header = Reg(new CgraSpmHeader(params))
+  val config = Reg(new CgraSpmConfig(params))
   val delivery = Reg(new SpmLinkEvent(params.link))
   val packets = Reg(Vec(params.packetCapacity, UInt(params.cgra.intraPktWidth.W)))
   val packetIndex = RegInit(0.U(params.packetCountWidth.W))
@@ -112,17 +101,17 @@ class CgraSpmAdapter(params: CgraSpmParams) extends Module {
   val resultData = RegInit(0.U(params.link.resultWidth.W))
 
   val deliveryWords = params.delivery.bytes >> log2Ceil(params.wordBytes)
-  val headerEnd = io.configIn.bits.header.spmWordAddress +& deliveryWords.U
-  val headerValid = headerEnd <= params.cgra.dma.spmWords.U &&
-    io.configIn.bits.header.packetCount =/= 0.U &&
-    io.configIn.bits.header.packetCount <= params.packetCapacity.U
-  val packetCommand = io.configIn.bits.packet(
+  val configEnd = io.configIn.bits.spmWordAddress +& deliveryWords.U
+  val configValid = configEnd <= params.cgra.dma.spmWords.U &&
+    io.configIn.bits.packetCount =/= 0.U &&
+    io.configIn.bits.packetCount <= params.packetCapacity.U
+  val packetCommand = io.packetIn.bits(
     params.cgra.packetLayout.cmdLsb + params.cgra.cmdWidth - 1,
     params.cgra.packetLayout.cmdLsb)
-  val packetValid = io.configIn.bits.kind === CgraSpmConfigKind.Packet &&
-    packetCommand === CGRACmdGenerated.CMD_LAUNCH.U
+  val packetValid = packetCommand === CGRACmdGenerated.CMD_LAUNCH.U
 
-  io.configIn.ready := state === empty || state === collect
+  io.configIn.ready := state === empty
+  io.packetIn.ready := state === collect
   io.configAck.valid := state === configResult &&
     (configStatus =/= SpmLinkStatus.Success || !io.cpuComputeActive)
   io.configAck.bits.status := configStatus
@@ -143,9 +132,9 @@ class CgraSpmAdapter(params: CgraSpmParams) extends Module {
   io.dmaRequest.valid := state === issueDma
   io.dmaRequest.bits.sourceAddress := VecInit(
     params.slotBases.map(_.U(params.cgra.dma.dramAddrWidth.W)))(delivery.slot)
-  io.dmaRequest.bits.spmWordAddress := header.spmWordAddress
+  io.dmaRequest.bits.spmWordAddress := config.spmWordAddress
   io.dmaRequest.bits.bytes := delivery.bytes
-  io.dmaRequest.bits.dmaTag := header.dmaTag
+  io.dmaRequest.bits.dmaTag := config.dmaTag
   io.dmaCompletion.ready := state === waitDma
 
   io.launchPacket.valid := state === launch
@@ -155,30 +144,30 @@ class CgraSpmAdapter(params: CgraSpmParams) extends Module {
   io.computeActive := state === launch || state === waitCompute || state === result
 
   when(io.configIn.fire) {
-    when(state === empty) {
-      header := io.configIn.bits.header
-      packetIndex := 0.U
-      when(io.configIn.bits.kind =/= CgraSpmConfigKind.Header || !headerValid) {
-        configStatus := SpmLinkStatus.SinkFailure
-        configDetail := CgraSpmStatus.BadConfig.U
-        state := configResult
-      }.otherwise {
-        configStatus := SpmLinkStatus.Success
-        configDetail := 0.U
-        state := collect
-      }
+    config := io.configIn.bits
+    packetIndex := 0.U
+    when(!configValid) {
+      configStatus := SpmLinkStatus.SinkFailure
+      configDetail := CgraSpmStatus.BadConfig.U
+      state := configResult
     }.otherwise {
-      when(!packetValid) {
-        configStatus := SpmLinkStatus.SinkFailure
-        configDetail := CgraSpmStatus.BadPacket.U
+      configStatus := SpmLinkStatus.Success
+      configDetail := 0.U
+      state := collect
+    }
+  }
+
+  when(io.packetIn.fire) {
+    when(!packetValid) {
+      configStatus := SpmLinkStatus.SinkFailure
+      configDetail := CgraSpmStatus.BadPacket.U
+      state := configResult
+    }.otherwise {
+      packets(packetIndex(params.packetIndexWidth - 1, 0)) := io.packetIn.bits
+      when(packetIndex + 1.U === config.packetCount) {
         state := configResult
       }.otherwise {
-        packets(packetIndex(params.packetIndexWidth - 1, 0)) := io.configIn.bits.packet
-        when(packetIndex + 1.U === header.packetCount) {
-          state := configResult
-        }.otherwise {
-          packetIndex := packetIndex + 1.U
-        }
+        packetIndex := packetIndex + 1.U
       }
     }
   }
@@ -207,7 +196,7 @@ class CgraSpmAdapter(params: CgraSpmParams) extends Module {
   }
 
   when(io.dmaCompletion.fire) {
-    when(io.dmaCompletion.bits.dmaTag === header.dmaTag) {
+    when(io.dmaCompletion.bits.dmaTag === config.dmaTag) {
       packetIndex := 0.U
       state := launch
     }.otherwise {
@@ -217,7 +206,7 @@ class CgraSpmAdapter(params: CgraSpmParams) extends Module {
   }
 
   when(io.launchPacket.fire) {
-    when(packetIndex + 1.U === header.packetCount) {
+    when(packetIndex + 1.U === config.packetCount) {
       state := waitCompute
     }.otherwise {
       packetIndex := packetIndex + 1.U

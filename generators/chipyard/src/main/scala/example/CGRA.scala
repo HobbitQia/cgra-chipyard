@@ -370,6 +370,8 @@ class CGRATileLinkDmaAdapterImp(
 //   9 = RESULT:       Return the last 32-bit CMD_COMPLETE payload
 //   10 = RAW_PKT_TOP: Send bits above 192 and trigger transmit when needed
 //   11 = LOAD_RESULT: Block until a CMD_LOAD_RESPONSE arrives, then return data
+//   15 = SPM_PKT_HI:  Stash or queue SPM packet bits [191:128]
+//   16 = SPM_PKT_TOP: Queue SPM packet bits above 192 when needed
 //
 // ============================================================================
 
@@ -514,6 +516,8 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val isDmaIssue = isDmaMvin || isDmaMvout
   val isDmaWait = params.dma.enabled.B &&
                   (funct === CGRARoCCGenerated.DMA_WAIT.U)
+  val isSpmPktHi = funct === CGRARoCCGenerated.SPM_PKT_HI.U
+  val isSpmPktTop = funct === CGRARoCCGenerated.SPM_PKT_TOP.U
 
   // ---- State Machine ----
   val s_idle :: s_wait_complete :: s_wait_load_response :: s_wait_dma :: s_resp :: Nil = Enum(5)
@@ -578,18 +582,23 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val packetInputArbiter = Module(new CgraPacketArbiter(params.intraPktWidth))
   val cpuPacketCandidate = Wire(Decoupled(UInt(params.intraPktWidth.W)))
   val dmaPacketCandidate = Wire(Decoupled(UInt(params.intraPktWidth.W)))
+  val spmPacketCandidate = Wire(Decoupled(UInt(params.intraPktWidth.W)))
   cpuPacketCandidate.valid := false.B
   cpuPacketCandidate.bits := 0.U
   dmaPacketCandidate.valid := false.B
   dmaPacketCandidate.bits := 0.U
+  spmPacketCandidate.valid := false.B
+  spmPacketCandidate.bits := 0.U
   packetInputArbiter.io.cpu <> cpuPacketCandidate
   packetInputArbiter.io.dma <> dmaPacketCandidate
   spmAdapter match {
     case Some(adapter) =>
       packetInputArbiter.io.launch <> adapter.io.launchPacket
+      adapter.io.packetIn <> spmPacketCandidate
     case None =>
       packetInputArbiter.io.launch.valid := false.B
       packetInputArbiter.io.launch.bits := 0.U
+      spmPacketCandidate.ready := false.B
   }
   packetFifo.io.enq <> packetInputArbiter.io.out
 
@@ -599,6 +608,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   val packetFifoEmpty = !packetFifo.io.deq.valid
   val completesPacket = if (needsRawPktTop) isRawPktTop else isRawPktHi
+  val completesSpmPacket = if (needsRawPktTop) isSpmPktTop else isSpmPktHi
   val completedCpuPacket = if (needsRawPktTop) {
     Cat(rs1(rawPktTopWidth - 1, 0), rawPktHi, rawPktMid, rawPktLo)
   } else {
@@ -626,6 +636,11 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       loadRespValid := false.B
       expectLoadResponse := true.B
     }
+  }
+
+  def queueSpmPacket(assembledPkt: UInt): Unit = {
+    spmPacketCandidate.valid := true.B
+    spmPacketCandidate.bits := assembledPkt
   }
 
   def noteLaunchIssued(): Unit = {
@@ -685,6 +700,16 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     } .elsewhen (isRawPktTop) {
       if (needsRawPktTop) {
         acceptAssembledPkt(Cat(rs1(rawPktTopWidth - 1, 0), rawPktHi, rawPktMid, rawPktLo))
+      }
+    } .elsewhen (isSpmPktHi) {
+      if (needsRawPktTop) {
+        rawPktHi := rs1
+      } else {
+        queueSpmPacket(Cat(rs1(rawPktHiWidth - 1, 0), rawPktMid, rawPktLo))
+      }
+    } .elsewhen (isSpmPktTop) {
+      if (needsRawPktTop) {
+        queueSpmPacket(Cat(rs1(rawPktTopWidth - 1, 0), rawPktHi, rawPktMid, rawPktLo))
       }
     }
   }
@@ -974,6 +999,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   }
   cmd.ready := (state === s_idle) && !respValid && !dmaSeqActive &&
                (!completesPacket || cpuPacketCandidate.ready) &&
+               (!completesSpmPacket || spmPacketCandidate.ready) &&
                (!isDmaIssue || dmaIssueReady) &&
                (!completesCpuLaunch || !spmComputeOwnerActive)
 

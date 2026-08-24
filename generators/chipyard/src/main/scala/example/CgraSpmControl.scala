@@ -13,7 +13,7 @@ import freechips.rocketchip.util.{AsyncBundle, AsyncQueueParams, FromAsyncBundle
 import org.chipsalliance.cde.config.Parameters
 import org.chipsalliance.diplomacy.lazymodule.LazyModule
 
-/** CPU configuration and result registers for the CGRA AutoLink adapter. */
+/** CPU task configuration and result registers for the CGRA AutoLink adapter. */
 class CgraSpmControl(
   params: CgraSpmParams,
   address: BigInt,
@@ -40,31 +40,15 @@ class CgraSpmControl(
       val spmWordAddress = RegInit(0.U(32.W))
       val dmaTag = RegInit(0.U(32.W))
       val packetCount = RegInit(0.U(32.W))
-      val packetLo = RegInit(0.U(64.W))
-      val packetMid = RegInit(0.U(64.W))
-      val packetHi = RegInit(0.U(64.W))
-      val packetTop = RegInit(0.U(64.W))
 
-      val headerSubmit = Wire(Decoupled(UInt(1.W)))
-      val packetSubmit = Wire(Decoupled(UInt(1.W)))
-      val config = Module(new Arbiter(new CgraSpmConfig(params), 2))
-      config.io.in(0).valid := headerSubmit.valid && headerSubmit.bits.asBool
-      config.io.in(0).bits.kind := CgraSpmConfigKind.Header
-      config.io.in(0).bits.header.spmWordAddress :=
+      val configSubmit = Wire(Decoupled(UInt(1.W)))
+      configOut.valid := configSubmit.valid && configSubmit.bits.asBool
+      configOut.bits.spmWordAddress :=
         spmWordAddress(params.cgra.dma.spmAddrWidth - 1, 0)
-      config.io.in(0).bits.header.dmaTag := dmaTag(params.cgra.dma.tagWidth - 1, 0)
-      config.io.in(0).bits.header.packetCount :=
+      configOut.bits.dmaTag := dmaTag(params.cgra.dma.tagWidth - 1, 0)
+      configOut.bits.packetCount :=
         packetCount(params.packetCountWidth - 1, 0)
-      config.io.in(0).bits.packet := 0.U
-      headerSubmit.ready := config.io.in(0).ready
-
-      val packet = Cat(packetTop, packetHi, packetMid, packetLo)
-      config.io.in(1).valid := packetSubmit.valid && packetSubmit.bits.asBool
-      config.io.in(1).bits.kind := CgraSpmConfigKind.Packet
-      config.io.in(1).bits.header := 0.U.asTypeOf(new CgraSpmHeader(params))
-      config.io.in(1).bits.packet := packet(params.cgra.intraPktWidth - 1, 0)
-      packetSubmit.ready := config.io.in(1).ready
-      configOut <> config.io.out
+      configSubmit.ready := configOut.ready
 
       val results = Module(new Queue(new SpmLinkEvent(params.link), 2))
       val resultArbiter = Module(new Arbiter(new SpmLinkEvent(params.link), 2))
@@ -96,12 +80,7 @@ class CgraSpmControl(
         SPM_WORD_ADDRESS -> Seq(RegField(32, spmWordAddress)),
         DMA_TAG -> Seq(RegField(32, dmaTag)),
         PACKET_COUNT -> Seq(RegField(32, packetCount)),
-        HEADER_SUBMIT -> Seq(RegField.w(1, headerSubmit)),
-        PACKET_LO -> Seq(RegField(64, packetLo)),
-        PACKET_MID -> Seq(RegField(64, packetMid)),
-        PACKET_HI -> Seq(RegField(64, packetHi)),
-        PACKET_TOP -> Seq(RegField(64, packetTop)),
-        PACKET_SUBMIT -> Seq(RegField.w(1, packetSubmit)),
+        CONFIG_SUBMIT -> Seq(RegField.w(1, configSubmit)),
         RESULT_VALID -> Seq(RegField.r(1, results.io.deq.valid)),
         RESULT_POP -> Seq(RegField.w(1, resultPop)),
         RESULT_STATUS -> Seq(RegField.r(32, result.status)),
