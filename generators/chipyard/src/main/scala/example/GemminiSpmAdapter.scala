@@ -8,19 +8,25 @@ import freechips.rocketchip.tilelink._
 import org.chipsalliance.cde.config.Parameters
 
 object GemminiSpmStatus {
-  val BadRequest = 1
-  val BadAddress = 2
-  val BadBeat = 3
-  val BadOrder = 4
-  val Denied = 5
-  val Corrupt = 6
+  val BadAddress = 1
+  val BadBeat = 2
+  val BadOrder = 3
+  val Denied = 4
+  val Corrupt = 5
 }
 
-case class GemminiSpmParams(slotBases: Seq[BigInt], slotSizeBytes: Int, beatBytes: Int) {
-  require(slotBases.nonEmpty)
-  require(slotSizeBytes > 0)
+case class GemminiSpmParams(
+  link: SpmLinkParams,
+  table: SpmCommunicationTable,
+  slotBases: Seq[BigInt],
+  beatBytes: Int) {
+  table.validate(link)
+  require(table.waitFor.isEmpty)
+  require(table.publishTo.size == 1)
+  require(slotBases.size == link.slotCount)
   require(isPow2(beatBytes))
-  require(slotSizeBytes % beatBytes == 0)
+
+  val publication: SpmCommunicationRule = table.publishTo.head
 }
 
 class GemminiSpmWrite(params: GemminiSpmParams) extends Bundle {
@@ -38,85 +44,74 @@ class GemminiSpmAck extends Bundle {
   val corrupt = Bool()
 }
 
-/** Adapts one serialized Gemmini STORE_SPAD publication to the common
-  * producer stage.
-  */
-class GemminiSpmProducer(protocol: SpmDmaParams, params: GemminiSpmParams) extends Module {
+/** Converts Gemmini's dedicated Shared SPM writer into an AutoLink publication. */
+class GemminiSpmAdapter(params: GemminiSpmParams) extends Module {
   val io = IO(new Bundle {
-    val start = Flipped(Decoupled(new SpmDmaCommand(protocol)))
     val write = Flipped(Valid(new GemminiSpmWrite(params)))
     val ack = Flipped(Valid(new GemminiSpmAck))
-    val done = Decoupled(new SpmDmaResult(protocol))
+    val endpoint = new SpmEndpointIO(params.link)
   })
 
   val active = RegInit(false.B)
-  val command = Reg(new SpmDmaCommand(protocol))
-  val issuedBytes = RegInit(0.U(protocol.lengthWidth.W))
-  val acknowledgedBytes = RegInit(0.U(protocol.lengthWidth.W))
+  val issuedBytes = RegInit(0.U(params.link.lengthWidth.W))
+  val acknowledgedBytes = RegInit(0.U(params.link.lengthWidth.W))
   val outstanding = RegInit(false.B)
   val source = Reg(UInt(16.W))
   val beatValid = RegInit(false.B)
-  val beatError = RegInit(0.U(protocol.detailWidth.W))
-  val doneValid = RegInit(false.B)
-  val doneDetail = RegInit(0.U(protocol.detailWidth.W))
+  val beatError = RegInit(0.U(params.link.detailWidth.W))
+  val producedValid = RegInit(false.B)
+  val producedDetail = RegInit(0.U(params.link.detailWidth.W))
 
+  val publication = params.publication
   val slotBases = VecInit(params.slotBases.map(_.U(64.W)))
   val expectedSize = log2Ceil(params.beatBytes).U
   val fullMask = ((BigInt(1) << params.beatBytes) - 1).U
-  val startValid = io.start.bits.slot < params.slotBases.size.U &&
-    io.start.bits.bytes =/= 0.U && io.start.bits.bytes <= params.slotSizeBytes.U &&
-    (io.start.bits.bytes & (params.beatBytes - 1).U) === 0.U
 
-  io.start.ready := !active && !doneValid
-  io.done.valid := doneValid
-  io.done.bits.jobId := command.jobId
-  io.done.bits.slot := command.slot
-  io.done.bits.bytes := command.bytes
-  io.done.bits.stage := SpmDmaStage.Producer
-  io.done.bits.status := Mux(doneDetail === 0.U, SpmDmaStatus.Success, SpmDmaStatus.StageFailure)
-  io.done.bits.detail := doneDetail
-  io.done.bits.data := 0.U
+  io.endpoint.produced.valid := producedValid
+  io.endpoint.produced.bits.link := publication.link.U
+  io.endpoint.produced.bits.slot := publication.slot.U
+  io.endpoint.produced.bits.bytes := publication.bytes.U
+  io.endpoint.produced.bits.status := Mux(
+    producedDetail === 0.U,
+    SpmLinkStatus.Success,
+    SpmLinkStatus.SourceFailure)
+  io.endpoint.produced.bits.detail := producedDetail
+  io.endpoint.produced.bits.data := 0.U
+  io.endpoint.deliver.ready := false.B
+  io.endpoint.done.valid := false.B
+  io.endpoint.done.bits := 0.U.asTypeOf(new SpmLinkEvent(params.link))
 
   def finish(detail: UInt): Unit = {
-    doneValid := true.B
-    doneDetail := detail
+    producedValid := true.B
+    producedDetail := detail
   }
 
-  when(io.start.fire) {
+  when(!producedValid && io.write.valid) {
+    val expectedAddress = slotBases(publication.slot) + issuedBytes
+    val addressValid = io.write.bits.address === expectedAddress
+    val shapeValid = io.write.bits.opcode === TLMessages.PutFullData &&
+      io.write.bits.size === expectedSize && io.write.bits.mask === fullMask
+    val withinPublication = issuedBytes < publication.bytes.U
+
     active := true.B
-    command := io.start.bits
-    issuedBytes := 0.U
-    acknowledgedBytes := 0.U
-    outstanding := false.B
-    when(!startValid) {
-      finish(GemminiSpmStatus.BadRequest.U)
-    }
-  }
-
-  when(active && !doneValid && io.write.valid) {
     when(outstanding) {
       beatValid := false.B
       beatError := GemminiSpmStatus.BadOrder.U
     }.otherwise {
-      val expectedAddress = slotBases(command.slot) + issuedBytes
-      val addressValid = io.write.bits.address === expectedAddress
-      val shapeValid = io.write.bits.opcode === TLMessages.PutFullData &&
-        io.write.bits.size === expectedSize && io.write.bits.mask === fullMask
-      val withinRequest = issuedBytes < command.bytes
       outstanding := true.B
       source := io.write.bits.source
-      beatValid := addressValid && shapeValid && withinRequest
+      beatValid := addressValid && shapeValid && withinPublication
       beatError := Mux(
         !addressValid,
         GemminiSpmStatus.BadAddress.U,
         Mux(!shapeValid, GemminiSpmStatus.BadBeat.U, GemminiSpmStatus.BadOrder.U))
-      when(addressValid && shapeValid && withinRequest) {
+      when(addressValid && shapeValid && withinPublication) {
         issuedBytes := issuedBytes + params.beatBytes.U
       }
     }
   }
 
-  when(active && !doneValid && io.ack.valid) {
+  when(active && !producedValid && io.ack.valid) {
     when(!outstanding) {
       finish(GemminiSpmStatus.BadOrder.U)
     }.otherwise {
@@ -130,23 +125,27 @@ class GemminiSpmProducer(protocol: SpmDmaParams, params: GemminiSpmParams) exten
           GemminiSpmStatus.Corrupt.U,
           Mux(!responseShapeValid, GemminiSpmStatus.BadBeat.U, beatError)))
       val nextBytes = Mux(responseValid, acknowledgedBytes + params.beatBytes.U, acknowledgedBytes)
+
       acknowledgedBytes := nextBytes
       outstanding := false.B
       when(!responseValid) {
         finish(detail)
-      }.elsewhen(nextBytes === command.bytes) {
+      }.elsewhen(nextBytes === publication.bytes.U) {
         finish(0.U)
       }
     }
   }
 
-  when(io.done.fire) {
+  when(io.endpoint.produced.fire) {
     active := false.B
-    doneValid := false.B
+    issuedBytes := 0.U
+    acknowledgedBytes := 0.U
+    outstanding := false.B
+    producedValid := false.B
   }
 }
 
-/** Observes only Gemmini's dedicated spad_writer branch. */
+/** Observes only Gemmini's dedicated Shared SPM writer. */
 class GemminiSpmMonitor(params: GemminiSpmParams)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
   val node = TLAdapterNode()
