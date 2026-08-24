@@ -4,8 +4,12 @@ import chisel3._
 import chisel3.util._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.prci.{ClockSinkDomain, ClockSinkParameters}
+import freechips.rocketchip.subsystem.{BaseSubsystem, InstantiatesHierarchicalElements, PBUS}
+import freechips.rocketchip.tile.RocketTile
 import freechips.rocketchip.tilelink._
-import org.chipsalliance.cde.config.Parameters
+import freechips.rocketchip.util.{AsyncQueueParams, FromAsyncBundle, ToAsyncBundle}
+import org.chipsalliance.cde.config.{Config, Field, Parameters}
+import org.chipsalliance.diplomacy.lazymodule.LazyModule
 
 object GemminiSpmStatus {
   val BadAddress = 1
@@ -17,17 +21,22 @@ object GemminiSpmStatus {
 
 case class GemminiSpmParams(
   link: SpmLinkParams,
-  table: SpmCommunicationTable,
+  endpoint: SpmEndpointSpec,
   slotBases: Seq[BigInt],
   beatBytes: Int) {
-  table.validate(link)
-  require(table.waitFor.isEmpty)
-  require(table.publishTo.size == 1)
+  endpoint.table.validate(link)
+  require(endpoint.table.waitFor.isEmpty)
+  require(endpoint.table.publishTo.size == 1)
   require(slotBases.size == link.slotCount)
   require(isPow2(beatBytes))
 
-  val publication: SpmCommunicationRule = table.publishTo.head
+  val publication: SpmCommunicationRule = endpoint.table.publishTo.head
 }
+
+case object GemminiSpmKey extends Field[Option[GemminiSpmParams]](None)
+
+class WithGemminiSpm(params: GemminiSpmParams)
+    extends Config((_, _, _) => { case GemminiSpmKey => Some(params) })
 
 class GemminiSpmWrite(params: GemminiSpmParams) extends Bundle {
   val address = UInt(64.W)
@@ -178,5 +187,64 @@ class GemminiSpmMonitor(params: GemminiSpmParams)(implicit p: Parameters)
       io.ack.bits.denied := in.d.bits.denied
       io.ack.bits.corrupt := in.d.bits.corrupt
     }
+  }
+}
+
+class GemminiSpmEndpoint(
+  gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float],
+  spm: SharedSpm,
+  params: GemminiSpmParams)(implicit p: Parameters)
+    extends ClockSinkDomain(ClockSinkParameters())(p) {
+  private val gemminiConfig = gemminiAccelerator.config
+  private val readBeatBytes = gemminiConfig.sp_width / 8
+  private val writeBeatBytes =
+    gemminiConfig.meshColumns * gemminiConfig.tileColumns * gemminiConfig.accType.getWidth / 8
+
+  require(readBeatBytes == params.link.beatBytes)
+  require(writeBeatBytes == params.beatBytes)
+
+  val node = BundleBridgeSink[SpmEndpointAsyncLink]()
+  val monitor = LazyModule(new GemminiSpmMonitor(params))
+
+  spm.readers :=* gemminiAccelerator.spad_read_nodes
+  spm.writers :=* TLWidthWidget(readBeatBytes) :=* TLBuffer() :=*
+    gemminiAccelerator.spad_write_nodes
+  spm.writers := monitor.node := TLWidthWidget(readBeatBytes) := TLBuffer() :=
+    gemminiAccelerator.spad.spad_writer.get.node
+
+  override lazy val module = new EndpointImpl
+  class EndpointImpl extends Impl {
+    withClockAndReset(clock, reset) {
+      val adapter = Module(new GemminiSpmAdapter(params))
+      val link = node.in.head._1
+
+      adapter.io.write <> monitor.module.io.write
+      adapter.io.ack <> monitor.module.io.ack
+      link.produced <> ToAsyncBundle(adapter.io.endpoint.produced, AsyncQueueParams.singleton())
+      adapter.io.endpoint.deliver <> FromAsyncBundle(link.deliver)
+      link.done <> ToAsyncBundle(adapter.io.endpoint.done, AsyncQueueParams.singleton())
+    }
+  }
+}
+
+trait CanHaveGemminiSpm {
+  this: BaseSubsystem with InstantiatesHierarchicalElements with CanHaveSpmAutoLink =>
+  private val pbus = locateTLBusWrapper(PBUS)
+
+  val gemminiSpm = p(GemminiSpmKey).map { params =>
+    val system = spmAutoLink.get
+    val gemminis = totalTiles.values.toSeq.flatMap {
+      case tile: RocketTile =>
+        tile.roccs.collect { case accelerator: gemmini.Gemmini[_, _, _] => accelerator }
+      case _ => Nil
+    }
+    require(gemminis.size == 1)
+    val gemminiAccelerator = gemminis.head.asInstanceOf[
+      gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float]]
+    val endpoint = LazyModule(new GemminiSpmEndpoint(gemminiAccelerator, system.spm, params))
+    endpoint.node := system.fabric.endpoint(params.endpoint.name)
+    endpoint.clockNode := pbus.fixedClockNode
+    endpoint.monitor.clockNode := pbus.fixedClockNode
+    endpoint
   }
 }

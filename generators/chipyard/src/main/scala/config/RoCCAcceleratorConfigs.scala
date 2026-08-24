@@ -54,33 +54,7 @@ object CGRAMinimalGemminiAutoLinkRocketConfig {
     sizeBytes = chipyard.example.SharedSpmGenerated.sizeBytes,
     slotCount = chipyard.example.SharedSpmGenerated.slotCount,
     slotSizeBytes = chipyard.example.SharedSpmGenerated.slotSizeBytes)
-  private val links = chipyard.example.SpmLinksGenerated.links
-  private val gemminiToCgra = links.indexWhere(link =>
-    link.source == "gemmini" && link.destination == "cgra")
-  require(gemminiToCgra >= 0)
-
-  private val linkParams = chipyard.example.SpmLinkParams(
-    linkCount = links.size,
-    slotCount = sharedSpm.slotCount,
-    slotSizeBytes = sharedSpm.slotSizeBytes,
-    beatBytes = chipyard.example.CGRAGenerated.params.dma.dramDataWidth / 8)
-  private val reluTransfer = chipyard.example.SpmCommunicationRule(
-    link = gemminiToCgra,
-    slot = 0,
-    bytes = 128)
-
-  val autoLink = chipyard.example.GemminiCgraSpmParams(
-    spm = sharedSpm,
-    link = linkParams,
-    gemminiTable = chipyard.example.SpmCommunicationTable(
-      waitFor = Nil,
-      publishTo = Seq(reluTransfer)),
-    cgraTable = chipyard.example.SpmCommunicationTable(
-      waitFor = Seq(reluTransfer),
-      publishTo = Nil),
-    controlAddress = chipyard.example.CgraSpmControlGenerated.baseAddress,
-    controlBytes = chipyard.example.CgraSpmControlGenerated.pageSizeBytes,
-    packetCapacity = 16)
+  private val links = chipyard.example.AutoLinkExample.links
 
   val gemminiConfig = CGRAMinimalGemminiRocketConfig.minimalGemminiConfig.copy(
     use_shared_ext_mem = true,
@@ -88,11 +62,43 @@ object CGRAMinimalGemminiAutoLinkRocketConfig {
     tl_ext_mem_base = sharedSpm.baseAddress,
     sp_singleported = false,
     acc_sub_banks = 1)
+  private val readBeatBytes = gemminiConfig.sp_width / 8
+  private val writeBeatBytes =
+    gemminiConfig.meshColumns * gemminiConfig.tileColumns * gemminiConfig.accType.getWidth / 8
+
+  private val linkParams = chipyard.example.SpmLinkParams(
+    linkCount = links.size,
+    slotCount = sharedSpm.slotCount,
+    slotSizeBytes = sharedSpm.slotSizeBytes,
+    beatBytes = chipyard.example.CGRAGenerated.params.dma.dramDataWidth / 8)
+
+  val autoLink = chipyard.example.SpmAutoLinkParams(
+    spm = sharedSpm,
+    link = linkParams,
+    links = links,
+    endpoints = chipyard.example.AutoLinkExample.endpoints,
+    readBeatBytes = readBeatBytes,
+    writeBeatBytes = writeBeatBytes)
+  val gemminiSpm = chipyard.example.GemminiSpmParams(
+    link = linkParams,
+    endpoint = chipyard.example.AutoLinkExample.source,
+    slotBases = sharedSpm.slotBases,
+    beatBytes = writeBeatBytes)
+  val cgraSpm = chipyard.example.CgraSpmAttachParams(
+    adapter = chipyard.example.CgraSpmParams(
+      link = linkParams,
+      endpoint = chipyard.example.AutoLinkExample.destination,
+      cgra = chipyard.example.CGRAGenerated.params,
+      slotBases = sharedSpm.slotBases,
+      packetCapacity = 16),
+    controlAddress = chipyard.example.CgraSpmControlGenerated.baseAddress,
+    controlBytes = chipyard.example.CgraSpmControlGenerated.pageSizeBytes)
 }
 
 class CGRAMinimalGemminiAutoLinkRocketConfig extends Config(
-  new chipyard.example.WithGemminiCgraSpm(
-    CGRAMinimalGemminiAutoLinkRocketConfig.autoLink) ++
+  new chipyard.example.WithCgraSpm(CGRAMinimalGemminiAutoLinkRocketConfig.cgraSpm) ++
+  new chipyard.example.WithGemminiSpm(CGRAMinimalGemminiAutoLinkRocketConfig.gemminiSpm) ++
+  new chipyard.example.WithSpmAutoLink(CGRAMinimalGemminiAutoLinkRocketConfig.autoLink) ++
   new chipyard.config.WithCGRA() ++
   new gemmini.DefaultGemminiConfig(
     CGRAMinimalGemminiAutoLinkRocketConfig.gemminiConfig) ++

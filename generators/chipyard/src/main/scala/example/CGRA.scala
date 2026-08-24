@@ -377,9 +377,11 @@ class CGRAAccelerator(opcodes: OpcodeSet, params: CGRAParams = CGRAGenerated.par
     extends LazyRoCC(opcodes) {
   val dmaAdapter = if (params.dma.enabled)
     Some(LazyModule(new CGRATileLinkDmaAdapter(params))) else None
-  val spmParams = p(CgraSpmKey)
+  val spmParams = p(CgraSpmKey).map(_.adapter)
   val spmNode = if (params.dma.enabled && spmParams.isDefined)
-    Some(BundleBridgeSink[CgraSpmAsyncLink]()) else None
+    Some(BundleBridgeSink[SpmEndpointAsyncLink]()) else None
+  val spmConfigNode = if (params.dma.enabled && spmParams.isDefined)
+    Some(BundleBridgeSink[CgraSpmConfigAsyncLink]()) else None
   override val tlNode: TLNode = dmaAdapter.map(_.node).getOrElse(TLIdentityNode())
   override lazy val module = new CGRAAcceleratorImp(this, params)
 }
@@ -450,14 +452,14 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val cpuComputeActive = RegInit(false.B)
   val cpuComputeStarting = WireDefault(false.B)
   val spmAdapter = outer.spmParams.map { spmParams =>
-    val node = outer.spmNode.get
+    val endpoint = outer.spmNode.get.in.head._1
+    val config = outer.spmConfigNode.get.in.head._1
     val adapter = Module(new CgraSpmAdapter(spmParams))
-    val link = node.in.head._1
-    adapter.io.configIn <> FromAsyncBundle(link.config)
-    link.configAck <> ToAsyncBundle(adapter.io.configAck, AsyncQueueParams.singleton())
-    adapter.io.endpoint.deliver <> FromAsyncBundle(link.deliver)
-    link.done <> ToAsyncBundle(adapter.io.endpoint.done, AsyncQueueParams.singleton())
-    adapter.io.endpoint.produced.ready := true.B
+    adapter.io.configIn <> FromAsyncBundle(config.config)
+    config.configAck <> ToAsyncBundle(adapter.io.configAck, AsyncQueueParams.singleton())
+    endpoint.produced <> ToAsyncBundle(adapter.io.endpoint.produced, AsyncQueueParams.singleton())
+    adapter.io.endpoint.deliver <> FromAsyncBundle(endpoint.deliver)
+    endpoint.done <> ToAsyncBundle(adapter.io.endpoint.done, AsyncQueueParams.singleton())
     adapter.io.cpuComputeActive := cpuComputeActive || cpuComputeStarting
     adapter
   }

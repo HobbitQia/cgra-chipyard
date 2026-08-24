@@ -2,6 +2,7 @@ package chipyard.example
 
 import chisel3._
 import chisel3.util._
+import freechips.rocketchip.util.{AsyncBundle, AsyncQueueParams}
 
 object SpmLinkStatus {
   val Width = 4
@@ -51,6 +52,8 @@ case class SpmCommunicationTable(
   }
 }
 
+case class SpmEndpointSpec(name: String, table: SpmCommunicationTable)
+
 class SpmLinkEvent(params: SpmLinkParams) extends Bundle {
   val link = UInt(params.linkWidth.W)
   val slot = UInt(params.slotWidth.W)
@@ -65,6 +68,13 @@ class SpmEndpointIO(params: SpmLinkParams) extends Bundle {
   val produced = Decoupled(new SpmLinkEvent(params))
   val deliver = Flipped(Decoupled(new SpmLinkEvent(params)))
   val done = Decoupled(new SpmLinkEvent(params))
+}
+
+class SpmEndpointAsyncLink(params: SpmLinkParams) extends Bundle {
+  private val crossing = AsyncQueueParams.singleton()
+  val produced = Flipped(new AsyncBundle(new SpmLinkEvent(params), crossing))
+  val deliver = new AsyncBundle(new SpmLinkEvent(params), crossing)
+  val done = Flipped(new AsyncBundle(new SpmLinkEvent(params), crossing))
 }
 
 /** Connects one elaborated producer-to-consumer communication link. */

@@ -6,8 +6,12 @@ import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.prci.{ClockSinkDomain, ClockSinkParameters}
 import freechips.rocketchip.regmapper.RegField
 import freechips.rocketchip.resources.SimpleDevice
+import freechips.rocketchip.subsystem.{BaseSubsystem, InstantiatesHierarchicalElements, PBUS}
+import freechips.rocketchip.tile.RocketTile
 import freechips.rocketchip.tilelink._
+import freechips.rocketchip.util.{AsyncBundle, AsyncQueueParams, FromAsyncBundle, ToAsyncBundle}
 import org.chipsalliance.cde.config.Parameters
+import org.chipsalliance.diplomacy.lazymodule.LazyModule
 
 /** CPU configuration and result registers for the CGRA AutoLink adapter. */
 class CgraSpmControl(
@@ -21,16 +25,18 @@ class CgraSpmControl(
     device = device,
     beatBytes = 8,
     concurrency = 1)
+  val configNode = BundleBridgeSource(() => new CgraSpmConfigAsyncLink(params))
+  val resultNode = BundleBridgeSink[AsyncBundle[SpmLinkEvent]]()
 
   override lazy val module = new ControlImpl
   class ControlImpl extends Impl {
-    val io = IO(new Bundle {
-      val configOut = Decoupled(new CgraSpmConfig(params))
-      val configAck = Flipped(Decoupled(new CgraSpmConfigAck(params)))
-      val resultIn = Flipped(Decoupled(new SpmLinkEvent(params.link)))
-    })
-
     withClockAndReset(clock, reset) {
+      val configLink = configNode.out.head._1
+      val configOut = Wire(Decoupled(new CgraSpmConfig(params)))
+      val configAck = FromAsyncBundle(configLink.configAck)
+      val resultIn = FromAsyncBundle(resultNode.in.head._1)
+      configLink.config <> ToAsyncBundle(configOut, AsyncQueueParams.singleton())
+
       val spmWordAddress = RegInit(0.U(32.W))
       val dmaTag = RegInit(0.U(32.W))
       val packetCount = RegInit(0.U(32.W))
@@ -58,22 +64,22 @@ class CgraSpmControl(
       config.io.in(1).bits.header := 0.U.asTypeOf(new CgraSpmHeader(params))
       config.io.in(1).bits.packet := packet(params.cgra.intraPktWidth - 1, 0)
       packetSubmit.ready := config.io.in(1).ready
-      io.configOut <> config.io.out
+      configOut <> config.io.out
 
       val results = Module(new Queue(new SpmLinkEvent(params.link), 2))
       val resultArbiter = Module(new Arbiter(new SpmLinkEvent(params.link), 2))
-      resultArbiter.io.in(0) <> io.resultIn
-      resultArbiter.io.in(1).valid := io.configAck.valid &&
-        io.configAck.bits.status =/= SpmLinkStatus.Success
+      resultArbiter.io.in(0) <> resultIn
+      resultArbiter.io.in(1).valid := configAck.valid &&
+        configAck.bits.status =/= SpmLinkStatus.Success
       resultArbiter.io.in(1).bits.link := params.delivery.link.U
       resultArbiter.io.in(1).bits.slot := params.delivery.slot.U
       resultArbiter.io.in(1).bits.bytes := params.delivery.bytes.U
-      resultArbiter.io.in(1).bits.status := io.configAck.bits.status
-      resultArbiter.io.in(1).bits.detail := io.configAck.bits.detail
+      resultArbiter.io.in(1).bits.status := configAck.bits.status
+      resultArbiter.io.in(1).bits.detail := configAck.bits.detail
       resultArbiter.io.in(1).bits.data := 0.U
       results.io.enq <> resultArbiter.io.out
-      io.configAck.ready := Mux(
-        io.configAck.bits.status === SpmLinkStatus.Success,
+      configAck.ready := Mux(
+        configAck.bits.status === SpmLinkStatus.Success,
         true.B,
         resultArbiter.io.in(1).ready)
 
@@ -102,5 +108,35 @@ class CgraSpmControl(
         RESULT_DETAIL -> Seq(RegField.r(32, result.detail)),
         RESULT_DATA -> Seq(RegField.r(32, result.data)))
     }
+  }
+}
+
+trait CanHaveCgraSpm {
+  this: BaseSubsystem with InstantiatesHierarchicalElements with CanHaveSpmAutoLink =>
+  private val pbus = locateTLBusWrapper(PBUS)
+
+  val cgraSpm = p(CgraSpmKey).map { attach =>
+    val system = spmAutoLink.get
+    val cgras = totalTiles.values.toSeq.flatMap {
+      case tile: RocketTile =>
+        tile.roccs.collect { case accelerator: CGRAAccelerator => accelerator }
+      case _ => Nil
+    }
+    require(cgras.size == 1)
+    val params = attach.adapter
+    val cgra = cgras.head
+    val control = LazyModule(new CgraSpmControl(
+      params,
+      attach.controlAddress,
+      attach.controlBytes))
+
+    cgra.spmNode.get := system.fabric.endpoint(params.endpoint.name)
+    cgra.spmConfigNode.get := control.configNode
+    control.resultNode := system.fabric.result(params.endpoint.name)
+    control.clockNode := pbus.fixedClockNode
+    pbus.coupleTo("cgra-spm-control") {
+      control.node := TLBuffer() := TLFragmenter(pbus.beatBytes, pbus.blockBytes) := _
+    }
+    control
   }
 }

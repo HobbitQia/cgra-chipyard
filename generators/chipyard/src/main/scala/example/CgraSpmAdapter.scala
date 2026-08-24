@@ -3,6 +3,7 @@ package chipyard.example
 import chisel3._
 import chisel3.util._
 import freechips.rocketchip.util.{AsyncBundle, AsyncQueueParams}
+import org.chipsalliance.cde.config.{Config, Field}
 
 object CgraSpmConfigKind {
   val Width = 1
@@ -19,17 +20,17 @@ object CgraSpmStatus {
 
 case class CgraSpmParams(
   link: SpmLinkParams,
-  table: SpmCommunicationTable,
+  endpoint: SpmEndpointSpec,
   cgra: CGRAParams,
   slotBases: Seq[BigInt],
   packetCapacity: Int) {
-  table.validate(link)
-  require(table.waitFor.size == 1)
-  require(table.publishTo.isEmpty)
+  endpoint.table.validate(link)
+  require(endpoint.table.waitFor.size == 1)
+  require(endpoint.table.publishTo.isEmpty)
   require(slotBases.size == link.slotCount)
   require(packetCapacity > 0)
 
-  val delivery: SpmCommunicationRule = table.waitFor.head
+  val delivery: SpmCommunicationRule = endpoint.table.waitFor.head
   val packetCountWidth: Int = log2Ceil(packetCapacity + 1)
   val packetIndexWidth: Int = math.max(1, log2Ceil(packetCapacity))
   val wordBytes: Int = cgra.dataPayloadWidth / 8
@@ -39,6 +40,16 @@ case class CgraSpmParams(
   require(delivery.bytes % wordBytes == 0)
   require(delivery.bytes % dmaBeatBytes == 0)
 }
+
+case class CgraSpmAttachParams(
+  adapter: CgraSpmParams,
+  controlAddress: BigInt,
+  controlBytes: Int)
+
+case object CgraSpmKey extends Field[Option[CgraSpmAttachParams]](None)
+
+class WithCgraSpm(params: CgraSpmAttachParams)
+    extends Config((_, _, _) => { case CgraSpmKey => Some(params) })
 
 class CgraSpmHeader(params: CgraSpmParams) extends Bundle {
   val spmWordAddress = UInt(params.cgra.dma.spmAddrWidth.W)
@@ -68,12 +79,10 @@ class CgraSpmDmaCompletion(params: CgraSpmParams) extends Bundle {
   val dmaTag = UInt(params.cgra.dma.tagWidth.W)
 }
 
-class CgraSpmAsyncLink(params: CgraSpmParams) extends Bundle {
+class CgraSpmConfigAsyncLink(params: CgraSpmParams) extends Bundle {
   private val crossing = AsyncQueueParams.singleton()
   val config = new AsyncBundle(new CgraSpmConfig(params), crossing)
   val configAck = Flipped(new AsyncBundle(new CgraSpmConfigAck(params), crossing))
-  val deliver = new AsyncBundle(new SpmLinkEvent(params.link), crossing)
-  val done = Flipped(new AsyncBundle(new SpmLinkEvent(params.link), crossing))
 }
 
 /** Imports one Shared SPM publication and starts the configured CGRA kernel. */
