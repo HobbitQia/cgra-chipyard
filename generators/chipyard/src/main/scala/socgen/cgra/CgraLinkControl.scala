@@ -1,7 +1,10 @@
-package chipyard.example
+package chipyard.socgen.cgra
 
 import chisel3._
 import chisel3.util._
+import chipyard.example.CGRAAccelerator
+import chipyard.socgen.generated.CgraLinkControlGenerated
+import chipyard.socgen.link.{AutoEvent, AutoLinkStatus, CanHaveAutoLink}
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.prci.{ClockSinkDomain, ClockSinkParameters}
 import freechips.rocketchip.regmapper.RegField
@@ -14,11 +17,7 @@ import org.chipsalliance.cde.config.Parameters
 import org.chipsalliance.diplomacy.lazymodule.LazyModule
 
 /** CPU configuration and result registers for the CGRA AutoLink adapter. */
-class CgraLinkControl(
-  params: CgraLinkParams,
-  address: BigInt,
-  pageSizeBytes: Int)(implicit p: Parameters)
-    extends ClockSinkDomain(ClockSinkParameters())(p) {
+class CgraLinkControl(params: CgraLinkParams, address: BigInt, pageSizeBytes: Int)(implicit p: Parameters) extends ClockSinkDomain(ClockSinkParameters())(p) {
   private val device = new SimpleDevice("cgra-link-control", Seq("coredac,cgra-link-control"))
   val node = TLRegisterNode(
     address = Seq(AddressSet(address, pageSizeBytes - 1)),
@@ -91,10 +90,7 @@ trait CanHaveCgraLink {
     require(cgras.size == 1)
     val params = attach.adapter
     val cgra = cgras.head
-    val control = LazyModule(new CgraLinkControl(
-      params,
-      attach.controlAddress,
-      attach.controlBytes))
+    val control = LazyModule(new CgraLinkControl(params, attach.controlAddress, attach.controlBytes))
 
     cgra.autoNode.get := autoLink.get.endpoint(attach.portName)
     cgra.linkConfigNode.get := control.configNode

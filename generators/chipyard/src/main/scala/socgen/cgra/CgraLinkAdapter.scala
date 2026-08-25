@@ -1,7 +1,9 @@
-package chipyard.example
+package chipyard.socgen.cgra
 
 import chisel3._
 import chisel3.util._
+import chipyard.example.{CGRACmdGenerated, CGRAParams}
+import chipyard.socgen.link._
 import freechips.rocketchip.util.{AsyncBundle, AsyncQueueParams}
 import org.chipsalliance.cde.config.{Config, Field}
 
@@ -11,10 +13,7 @@ object CgraLinkStatus {
   val DmaMismatch = 3
 }
 
-case class CgraLinkParams(
-  auto: AutoLinkParams,
-  cgra: CGRAParams,
-  packetCapacity: Int) {
+case class CgraLinkParams(auto: AutoLinkParams, cgra: CGRAParams, packetCapacity: Int) {
   require(packetCapacity > 0)
 
   val packetCountWidth: Int = log2Ceil(packetCapacity + 1)
@@ -22,18 +21,13 @@ case class CgraLinkParams(
   val wordBytes: Int = cgra.dataPayloadWidth / 8
 }
 
-case class CgraLinkAttachParams(
-  adapter: CgraLinkParams,
-  portName: String,
-  controlAddress: BigInt,
-  controlBytes: Int) {
+case class CgraLinkAttachParams(adapter: CgraLinkParams, portName: String, controlAddress: BigInt, controlBytes: Int) {
   require(adapter.auto.endpoints.exists(_.name == portName))
 }
 
 case object CgraLinkKey extends Field[Option[CgraLinkAttachParams]](None)
 
-class WithCgraLink(params: CgraLinkAttachParams)
-    extends Config((_, _, _) => { case CgraLinkKey => Some(params) })
+class WithCgraLink(params: CgraLinkAttachParams) extends Config((_, _, _) => { case CgraLinkKey => Some(params) })
 
 class CgraLinkConfig(params: CgraLinkParams) extends Bundle {
   val packetCount = UInt(params.packetCountWidth.W)

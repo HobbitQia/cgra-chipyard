@@ -1,5 +1,10 @@
 package chipyard
 
+import chipyard.socgen.cgra.{CgraLinkAttachParams, CgraLinkParams, WithCgraLink}
+import chipyard.socgen.config.AutoLinkExample
+import chipyard.socgen.generated.{CgraLinkControlGenerated, GemminiExternalSpmGenerated}
+import chipyard.socgen.gemmini.{GemminiLinkAttachParams, GemminiLinkParams, WithGemminiExternalSpm, WithGemminiExternalSpmWriter, WithGemminiLink}
+import chipyard.socgen.link.WithAutoLink
 import org.chipsalliance.cde.config.{Config}
 
 // ------------------------------
@@ -15,10 +20,8 @@ class CGRARocketConfig extends Config(
   new chipyard.config.AbstractConfig)
 
 object CGRAMinimalGemminiRocketConfig {
-  val externalSpm = chipyard.example.GemminiExternalSpmGenerated.params
-  val minimalGemminiConfig:
-    gemmini.GemminiArrayConfig[chisel3.SInt, gemmini.Float, gemmini.Float] =
-    gemmini.GemminiConfigs.defaultConfig.copy(
+  val externalSpm = GemminiExternalSpmGenerated.params
+  val minimalGemminiConfig: gemmini.GemminiArrayConfig[chisel3.SInt, gemmini.Float, gemmini.Float] = gemmini.GemminiConfigs.defaultConfig.copy(
     dataflow = gemmini.Dataflow.WS,
     has_training_convs = false,
     has_max_pool = false,
@@ -48,8 +51,8 @@ object CGRAMinimalGemminiRocketConfig {
 }
 
 class CGRAMinimalGemminiRocketConfig extends Config(
-  new chipyard.example.WithGemminiExternalSpmWriter ++
-  new chipyard.example.WithGemminiExternalSpm(CGRAMinimalGemminiRocketConfig.externalSpm) ++
+  new WithGemminiExternalSpmWriter ++
+  new WithGemminiExternalSpm(CGRAMinimalGemminiRocketConfig.externalSpm) ++
   new chipyard.config.WithCGRA() ++
   new gemmini.DefaultGemminiConfig(CGRAMinimalGemminiRocketConfig.minimalGemminiConfig) ++
   new freechips.rocketchip.rocket.WithNBigCores(1) ++
@@ -57,33 +60,29 @@ class CGRAMinimalGemminiRocketConfig extends Config(
   new chipyard.config.AbstractConfig)
 
 object CGRAMinimalGemminiAutoLinkRocketConfig {
-  private val example = chipyard.example.AutoLinkExample
+  private val example = AutoLinkExample
 
   val gemminiConfig = CGRAMinimalGemminiRocketConfig.minimalGemminiConfig
   private val writeBeatBytes =
     gemminiConfig.meshColumns * gemminiConfig.tileColumns * gemminiConfig.accType.getWidth / 8
 
   val autoLink = example.params
-  val gemminiLink = chipyard.example.GemminiLinkAttachParams(
-    adapter = chipyard.example.GemminiLinkParams(
-      auto = autoLink,
-      beatBytes = writeBeatBytes),
-    portName = "gemmini")
-  val cgraLink = chipyard.example.CgraLinkAttachParams(
-    adapter = chipyard.example.CgraLinkParams(
+  val gemminiLink = GemminiLinkAttachParams(adapter = GemminiLinkParams(auto = autoLink, beatBytes = writeBeatBytes), portName = "gemmini")
+  val cgraLink = CgraLinkAttachParams(
+    adapter = CgraLinkParams(
       auto = autoLink,
       cgra = chipyard.example.CGRAGenerated.params,
       packetCapacity = 16),
     portName = "cgra",
-    controlAddress = chipyard.example.CgraLinkControlGenerated.baseAddress,
-    controlBytes = chipyard.example.CgraLinkControlGenerated.pageSizeBytes)
+    controlAddress = CgraLinkControlGenerated.baseAddress,
+    controlBytes = CgraLinkControlGenerated.pageSizeBytes)
 }
 
 class CGRAMinimalGemminiAutoLinkRocketConfig extends Config(
-  new chipyard.example.WithCgraLink(CGRAMinimalGemminiAutoLinkRocketConfig.cgraLink) ++
-  new chipyard.example.WithGemminiLink(CGRAMinimalGemminiAutoLinkRocketConfig.gemminiLink) ++
-  new chipyard.example.WithAutoLink(CGRAMinimalGemminiAutoLinkRocketConfig.autoLink) ++
-  new chipyard.example.WithGemminiExternalSpm(CGRAMinimalGemminiRocketConfig.externalSpm) ++
+  new WithCgraLink(CGRAMinimalGemminiAutoLinkRocketConfig.cgraLink) ++
+  new WithGemminiLink(CGRAMinimalGemminiAutoLinkRocketConfig.gemminiLink) ++
+  new WithAutoLink(CGRAMinimalGemminiAutoLinkRocketConfig.autoLink) ++
+  new WithGemminiExternalSpm(CGRAMinimalGemminiRocketConfig.externalSpm) ++
   new chipyard.config.WithCGRA() ++
   new gemmini.DefaultGemminiConfig(
     CGRAMinimalGemminiAutoLinkRocketConfig.gemminiConfig) ++

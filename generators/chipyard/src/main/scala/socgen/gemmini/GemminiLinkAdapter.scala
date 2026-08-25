@@ -1,7 +1,8 @@
-package chipyard.example
+package chipyard.socgen.gemmini
 
 import chisel3._
 import chisel3.util._
+import chipyard.socgen.link._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.prci.{ClockSinkDomain, ClockSinkParameters}
 import freechips.rocketchip.subsystem.{BaseSubsystem, InstantiatesHierarchicalElements, SBUS}
@@ -18,22 +19,17 @@ object GemminiLinkStatus {
   val Corrupt = 5
 }
 
-case class GemminiLinkParams(
-  auto: AutoLinkParams,
-  beatBytes: Int) {
+case class GemminiLinkParams(auto: AutoLinkParams, beatBytes: Int) {
   require(isPow2(beatBytes))
 }
 
-case class GemminiLinkAttachParams(
-  adapter: GemminiLinkParams,
-  portName: String) {
+case class GemminiLinkAttachParams(adapter: GemminiLinkParams, portName: String) {
   require(adapter.auto.endpoints.exists(_.name == portName))
 }
 
 case object GemminiLinkKey extends Field[Option[GemminiLinkAttachParams]](None)
 
-class WithGemminiLink(params: GemminiLinkAttachParams)
-    extends Config((_, _, _) => { case GemminiLinkKey => Some(params) })
+class WithGemminiLink(params: GemminiLinkAttachParams) extends Config((_, _, _) => { case GemminiLinkKey => Some(params) })
 
 class GemminiLinkWrite(params: GemminiLinkParams) extends Bundle {
   val address = UInt(64.W)
@@ -200,10 +196,7 @@ class GemminiLinkMonitor(params: GemminiLinkParams)(implicit p: Parameters)
   }
 }
 
-class GemminiLinkEndpoint(
-  gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float],
-  readBeatBytes: Int,
-  params: GemminiLinkParams)(implicit p: Parameters)
+class GemminiLinkEndpoint(gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float], readBeatBytes: Int, params: GemminiLinkParams)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
   val node = BundleBridgeSink[AutoEndpointAsyncLink]()
   val writerNode = TLIdentityNode()
@@ -237,10 +230,7 @@ class GemminiLinkEndpoint(
 }
 
 trait CanHaveGemminiLink {
-  this: BaseSubsystem
-    with InstantiatesHierarchicalElements
-    with CanHaveAutoLink
-    with CanHaveGemminiExternalSpm =>
+  this: BaseSubsystem with InstantiatesHierarchicalElements with CanHaveAutoLink with CanHaveGemminiExternalSpm =>
   private val sbus = locateTLBusWrapper(SBUS)
 
   val gemminiLink = p(GemminiLinkKey).map { attach =>
@@ -248,10 +238,7 @@ trait CanHaveGemminiLink {
     val externalSpm = gemminiExternalSpm.get
     require(externalSpm.readBeatBytes == params.auto.beatBytes)
     require(externalSpm.writeBeatBytes == params.beatBytes)
-    val endpoint = LazyModule(new GemminiLinkEndpoint(
-      externalSpm.gemminiAccelerator,
-      externalSpm.readBeatBytes,
-      params))
+    val endpoint = LazyModule(new GemminiLinkEndpoint(externalSpm.gemminiAccelerator, externalSpm.readBeatBytes, params))
 
     externalSpm.writerNode := endpoint.writerNode
     endpoint.node := autoLink.get.endpoint(attach.portName)

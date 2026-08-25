@@ -1,4 +1,4 @@
-package chipyard.example
+package chipyard.socgen.gemmini
 
 import chisel3._
 import chisel3.util._
@@ -11,30 +11,21 @@ import freechips.rocketchip.tilelink._
 import org.chipsalliance.cde.config.{Config, Field, Parameters}
 import org.chipsalliance.diplomacy.lazymodule.LazyModule
 
-case class GemminiExternalSpmParams(
-  baseAddress: BigInt,
-  sizeBytes: Int) {
+case class GemminiExternalSpmParams(baseAddress: BigInt, sizeBytes: Int) {
   require(isPow2(sizeBytes))
   require((baseAddress & (sizeBytes - 1)) == 0)
 }
 
-case object GemminiExternalSpmKey
-    extends Field[Option[GemminiExternalSpmParams]](None)
+case object GemminiExternalSpmKey extends Field[Option[GemminiExternalSpmParams]](None)
 
-class WithGemminiExternalSpm(params: GemminiExternalSpmParams)
-    extends Config((_, _, _) => { case GemminiExternalSpmKey => Some(params) })
+class WithGemminiExternalSpm(params: GemminiExternalSpmParams) extends Config((_, _, _) => { case GemminiExternalSpmKey => Some(params) })
 
 case object GemminiExternalSpmWriterKey extends Field[Boolean](false)
 
-class WithGemminiExternalSpmWriter
-    extends Config((_, _, _) => { case GemminiExternalSpmWriterKey => true })
+class WithGemminiExternalSpmWriter extends Config((_, _, _) => { case GemminiExternalSpmWriterKey => true })
 
 /** TileLink backing memory for Gemmini's external scratchpad. */
-class GemminiExternalSpm(
-  params: GemminiExternalSpmParams,
-  bankCount: Int,
-  readBeatBytes: Int,
-  writeBeatBytes: Int)(implicit p: Parameters)
+class GemminiExternalSpm(params: GemminiExternalSpmParams, bankCount: Int, readBeatBytes: Int, writeBeatBytes: Int)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
   require(isPow2(bankCount))
   require(params.sizeBytes % bankCount == 0)
@@ -164,9 +155,7 @@ class GemminiExternalSpm(
 }
 
 /** Connects Gemmini and system-side readers to one external scratchpad. */
-class GemminiExternalSpmAttach(
-  val gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float],
-  params: GemminiExternalSpmParams)(implicit p: Parameters)
+class GemminiExternalSpmAttach(val gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float], params: GemminiExternalSpmParams)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
   private val gemminiConfig = gemminiAccelerator.config
   val readBeatBytes: Int = gemminiConfig.sp_width / 8
@@ -177,11 +166,7 @@ class GemminiExternalSpmAttach(
 
   require(spmBytes == params.sizeBytes)
 
-  val spm = LazyModule(new GemminiExternalSpm(
-    params,
-    gemminiConfig.sp_banks,
-    readBeatBytes,
-    writeBeatBytes))
+  val spm = LazyModule(new GemminiExternalSpm(params, gemminiConfig.sp_banks, readBeatBytes, writeBeatBytes))
   val readPorts = TLXbar()
   val writePorts = TLXbar()
   val writerNode = TLIdentityNode()
@@ -197,9 +182,7 @@ class GemminiExternalSpmAttach(
   class AttachImpl extends Impl
 }
 
-class GemminiExternalSpmWriter(
-  gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float],
-  readBeatBytes: Int)(implicit p: Parameters)
+class GemminiExternalSpmWriter(gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float], readBeatBytes: Int)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
   val node = TLIdentityNode()
 
@@ -223,9 +206,7 @@ trait CanHaveGemminiExternalSpm {
     require(gemminis.size == 1)
     val gemminiAccelerator = gemminis.head.asInstanceOf[
       gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float]]
-    val attach = LazyModule(new GemminiExternalSpmAttach(
-      gemminiAccelerator,
-      params))
+    val attach = LazyModule(new GemminiExternalSpmAttach(gemminiAccelerator, params))
 
     attach.clockNode := sbus.fixedClockNode
     attach.spm.clockNode := sbus.fixedClockNode
@@ -239,16 +220,12 @@ trait CanHaveGemminiExternalSpm {
 }
 
 trait CanHaveGemminiExternalSpmWriter {
-  this: BaseSubsystem
-    with InstantiatesHierarchicalElements
-    with CanHaveGemminiExternalSpm =>
+  this: BaseSubsystem with InstantiatesHierarchicalElements with CanHaveGemminiExternalSpm =>
   private val sbus = locateTLBusWrapper(SBUS)
 
   val gemminiExternalSpmWriter = Option.when(p(GemminiExternalSpmWriterKey)) {
     val attach = gemminiExternalSpm.get
-    val writer = LazyModule(new GemminiExternalSpmWriter(
-      attach.gemminiAccelerator,
-      attach.readBeatBytes))
+    val writer = LazyModule(new GemminiExternalSpmWriter(attach.gemminiAccelerator, attach.readBeatBytes))
 
     attach.writerNode := writer.node
     writer.clockNode := sbus.fixedClockNode

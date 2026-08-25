@@ -2,6 +2,8 @@ package chipyard.example
 
 import chisel3._
 import chisel3.util._
+import chipyard.socgen.cgra.{CgraLinkAdapter, CgraLinkConfigAsync, CgraLinkKey, CgraPacketArbiter}
+import chipyard.socgen.link.AutoEndpointAsyncLink
 
 import org.chipsalliance.cde.config.{Parameters, Field, Config}
 import freechips.rocketchip.tile._

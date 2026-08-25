@@ -1,4 +1,4 @@
-package chipyard.example
+package chipyard.socgen.link
 
 import chisel3._
 import chisel3.util._
@@ -13,18 +13,11 @@ object AutoLinkStatus {
 
 case class AutoBuffer(baseAddress: BigInt, sizeBytes: Int)
 
-case class AutoEndpointSpec(
-  name: String,
-  buffer: Option[AutoBuffer],
-  localBytes: Int)
+case class AutoEndpointSpec(name: String, buffer: Option[AutoBuffer], localBytes: Int)
 
 case class AutoLinkSpec(source: String, destination: String)
 
-case class AutoCopySpec(
-  route: Int,
-  sourceOffset: Int,
-  destinationOffset: Int,
-  bytes: Int)
+case class AutoCopySpec(route: Int, sourceOffset: Int, destinationOffset: Int, bytes: Int)
 
 case class AutoLinkParams(
   links: Seq[AutoLinkSpec],

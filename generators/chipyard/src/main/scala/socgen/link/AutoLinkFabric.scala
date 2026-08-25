@@ -1,4 +1,4 @@
-package chipyard.example
+package chipyard.socgen.link
 
 import chisel3._
 import chisel3.util._
@@ -11,8 +11,7 @@ import org.chipsalliance.diplomacy.lazymodule.LazyModule
 
 case object AutoLinkKey extends Field[Option[AutoLinkParams]](None)
 
-class WithAutoLink(params: AutoLinkParams)
-    extends Config((_, _, _) => { case AutoLinkKey => Some(params) })
+class WithAutoLink(params: AutoLinkParams) extends Config((_, _, _) => { case AutoLinkKey => Some(params) })
 
 class AutoCopyTask(params: AutoLinkParams, index: Int) extends Module {
   private val spec = params.copy(index)
@@ -114,14 +113,12 @@ class AutoJoin(params: AutoLinkParams, inputCount: Int) extends Module {
 }
 
 /** Owns the task table, dependency state, and automatic control routing. */
-class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters)
-    extends ClockSinkDomain(ClockSinkParameters())(p) {
+class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters) extends ClockSinkDomain(ClockSinkParameters())(p) {
   private val endpointNodes = params.endpoints.map { endpoint =>
     endpoint.name -> BundleBridgeSource(() => new AutoEndpointAsyncLink(params))
   }.toMap
   private val resultNodes = params.table.indices.map(params.route(_).destination).distinct.map { name =>
-    name -> BundleBridgeSource(() =>
-      new AsyncBundle(new AutoEvent(params), AsyncQueueParams.singleton()))
+    name -> BundleBridgeSource(() => new AsyncBundle(new AutoEvent(params), AsyncQueueParams.singleton()))
   }.toMap
 
   def endpoint(name: String): BundleBridgeSource[AutoEndpointAsyncLink] = endpointNodes(name)
@@ -154,8 +151,7 @@ class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters)
           requestCompute,
           FromAsyncBundle(async.reportCompute))
       }.toMap
-      val tasks = params.table.indices.map(index =>
-        Module(new AutoCopyTask(params, index)))
+      val tasks = params.table.indices.map(index => Module(new AutoCopyTask(params, index)))
 
       params.endpoints.foreach { endpoint =>
         val port = ports(endpoint.name)
