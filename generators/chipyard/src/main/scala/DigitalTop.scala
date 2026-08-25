@@ -38,6 +38,8 @@ class DigitalTop(implicit p: Parameters) extends ChipyardSystem
   with constellation.soc.CanHaveGlobalNoC // Support instantiating a global NoC interconnect
   with rerocc.CanHaveReRoCCTiles // Support tiles that instantiate rerocc-attached accelerators
   with testchipip.ctc.CanHavePeripheryCTC // Support optional CTC link
+  with chipyard.example.CanHaveGemminiExternalSpm // Optional Gemmini external SPM
+  with chipyard.example.CanHaveGemminiExternalSpmWriter // Optional direct Gemmini writer
   with chipyard.example.CanHaveAutoLink // Optional automatic IP links
   with chipyard.example.CanHaveGemminiLink // Optional Gemmini endpoint
   with chipyard.example.CanHaveCgraLink // Optional CGRA endpoint

@@ -4,4 +4,5 @@ package chipyard.example
 object GemminiExternalSpmGenerated {
   val baseAddress: BigInt = BigInt("60000000", 16)
   val sizeBytes: Int = 65536
+  val params = GemminiExternalSpmParams(baseAddress, sizeBytes)
 }

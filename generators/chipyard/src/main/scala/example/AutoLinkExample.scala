@@ -1,9 +1,7 @@
 package chipyard.example
 
 object AutoLinkExample {
-  val externalSpm = GemminiExternalSpmParams(
-    baseAddress = GemminiExternalSpmGenerated.baseAddress,
-    sizeBytes = GemminiExternalSpmGenerated.sizeBytes)
+  val externalSpm = GemminiExternalSpmGenerated.params
   val links: Seq[AutoLinkSpec] = AutoLinksGenerated.links
   val copyBytes = 128
   val endpoints: Seq[AutoEndpointSpec] = Seq(
@@ -14,8 +12,7 @@ object AutoLinkExample {
     AutoEndpointSpec(
       name = "cgra",
       buffer = None,
-      localBytes = CGRAGenerated.params.dma.spmWords *
-        CGRAGenerated.params.dataPayloadWidth / 8))
+      localBytes = CGRAGenerated.params.dma.spmWords * CGRAGenerated.params.dataPayloadWidth / 8))
   val table: Seq[AutoCopySpec] = Seq(AutoCopySpec(
     route = 0,
     sourceOffset = externalSpm.sizeBytes - copyBytes,

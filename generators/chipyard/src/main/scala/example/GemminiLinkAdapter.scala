@@ -5,7 +5,6 @@ import chisel3.util._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.prci.{ClockSinkDomain, ClockSinkParameters}
 import freechips.rocketchip.subsystem.{BaseSubsystem, InstantiatesHierarchicalElements, SBUS}
-import freechips.rocketchip.tile.RocketTile
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.util.{AsyncQueueParams, FromAsyncBundle, ToAsyncBundle}
 import org.chipsalliance.cde.config.{Config, Field, Parameters}
@@ -21,7 +20,6 @@ object GemminiLinkStatus {
 
 case class GemminiLinkParams(
   auto: AutoLinkParams,
-  spm: GemminiExternalSpmParams,
   beatBytes: Int) {
   require(isPow2(beatBytes))
 }
@@ -204,31 +202,14 @@ class GemminiLinkMonitor(params: GemminiLinkParams)(implicit p: Parameters)
 
 class GemminiLinkEndpoint(
   gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float],
-  spm: GemminiExternalSpm,
+  readBeatBytes: Int,
   params: GemminiLinkParams)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
-  private val gemminiConfig = gemminiAccelerator.config
-  private val readBeatBytes = gemminiConfig.sp_width / 8
-  private val writeBeatBytes =
-    gemminiConfig.meshColumns * gemminiConfig.tileColumns * gemminiConfig.accType.getWidth / 8
-  private val spmBytes =
-    gemminiConfig.sp_banks * gemminiConfig.sp_bank_entries * readBeatBytes
-
-  require(readBeatBytes == params.auto.beatBytes)
-  require(writeBeatBytes == params.beatBytes)
-  require(spmBytes == params.spm.sizeBytes)
-
   val node = BundleBridgeSink[AutoEndpointAsyncLink]()
-  val readPorts = TLXbar()
-  val writePorts = TLXbar()
+  val writerNode = TLIdentityNode()
   val monitor = LazyModule(new GemminiLinkMonitor(params))
 
-  spm.readNodes.foreach { node => node := readPorts }
-  spm.writeNodes.foreach { node => node := writePorts }
-  readPorts :=* gemminiAccelerator.spad_read_nodes
-  writePorts :=* TLWidthWidget(readBeatBytes) :=* TLBuffer() :=*
-    gemminiAccelerator.spad_write_nodes
-  writePorts := monitor.node := TLWidthWidget(readBeatBytes) := TLBuffer() :=
+  writerNode := monitor.node := TLWidthWidget(readBeatBytes) := TLBuffer() :=
     gemminiAccelerator.spad.spad_writer.get.node
 
   override lazy val module = new EndpointImpl
@@ -256,42 +237,26 @@ class GemminiLinkEndpoint(
 }
 
 trait CanHaveGemminiLink {
-  this: BaseSubsystem with InstantiatesHierarchicalElements with CanHaveAutoLink =>
+  this: BaseSubsystem
+    with InstantiatesHierarchicalElements
+    with CanHaveAutoLink
+    with CanHaveGemminiExternalSpm =>
   private val sbus = locateTLBusWrapper(SBUS)
 
   val gemminiLink = p(GemminiLinkKey).map { attach =>
     val params = attach.adapter
-    val gemminis = totalTiles.values.toSeq.flatMap {
-      case tile: RocketTile =>
-        tile.roccs.collect { case accelerator: gemmini.Gemmini[_, _, _] => accelerator }
-      case _ => Nil
-    }
-    require(gemminis.size == 1)
-    val gemminiAccelerator = gemminis.head.asInstanceOf[
-      gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float]]
-    val gemminiConfig = gemminiAccelerator.config
-    val readBeatBytes = gemminiConfig.sp_width / 8
-    val writeBeatBytes =
-      gemminiConfig.meshColumns * gemminiConfig.tileColumns * gemminiConfig.accType.getWidth / 8
-    val spm = LazyModule(new GemminiExternalSpm(
-      params.spm,
-      gemminiConfig.sp_banks,
-      readBeatBytes,
-      writeBeatBytes))
+    val externalSpm = gemminiExternalSpm.get
+    require(externalSpm.readBeatBytes == params.auto.beatBytes)
+    require(externalSpm.writeBeatBytes == params.beatBytes)
     val endpoint = LazyModule(new GemminiLinkEndpoint(
-      gemminiAccelerator,
-      spm,
+      externalSpm.gemminiAccelerator,
+      externalSpm.readBeatBytes,
       params))
 
+    externalSpm.writerNode := endpoint.writerNode
     endpoint.node := autoLink.get.endpoint(attach.portName)
     endpoint.clockNode := sbus.fixedClockNode
     endpoint.monitor.clockNode := sbus.fixedClockNode
-    spm.clockNode := sbus.fixedClockNode
-    sbus.coupleTo("gemmini-ext-spm") {
-      endpoint.readPorts := TLFIFOFixer() := TLFragmenter(
-        params.auto.beatBytes,
-        sbus.blockBytes) := TLWidthWidget(sbus) := _
-    }
     endpoint
   }
 }
