@@ -21,16 +21,20 @@ object GemminiLinkStatus {
 
 case class GemminiLinkParams(
   auto: AutoLinkParams,
-  endpoint: String,
   spm: GemminiExternalSpmParams,
   beatBytes: Int) {
-  require(auto.endpoints.exists(_.name == endpoint))
   require(isPow2(beatBytes))
 }
 
-case object GemminiLinkKey extends Field[Option[GemminiLinkParams]](None)
+case class GemminiLinkAttachParams(
+  adapter: GemminiLinkParams,
+  portName: String) {
+  require(adapter.auto.endpoints.exists(_.name == portName))
+}
 
-class WithGemminiLink(params: GemminiLinkParams)
+case object GemminiLinkKey extends Field[Option[GemminiLinkAttachParams]](None)
+
+class WithGemminiLink(params: GemminiLinkAttachParams)
     extends Config((_, _, _) => { case GemminiLinkKey => Some(params) })
 
 class GemminiLinkWrite(params: GemminiLinkParams) extends Bundle {
@@ -53,7 +57,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams) extends Module {
   val io = IO(new Bundle {
     val write = Flipped(Valid(new GemminiLinkWrite(params)))
     val ack = Flipped(Valid(new GemminiLinkAck))
-    val endpoint = new AutoEndpointIO(params.auto)
+    val autoLink = new AutoEndpointIO(params.auto)
   })
 
   val watch = Reg(new AutoWatch(params.auto))
@@ -71,28 +75,28 @@ class GemminiLinkAdapter(params: GemminiLinkParams) extends Module {
   val expectedSize = log2Ceil(params.beatBytes).U
   val fullMask = ((BigInt(1) << params.beatBytes) - 1).U
 
-  io.endpoint.watch.ready := !armed && !producedValid
-  io.endpoint.produced.valid := producedValid
-  io.endpoint.produced.bits.status := Mux(
+  io.autoLink.watchOutput.ready := !armed && !producedValid
+  io.autoLink.reportOutput.valid := producedValid
+  io.autoLink.reportOutput.bits.status := Mux(
     producedDetail === 0.U,
     AutoLinkStatus.Success,
     AutoLinkStatus.SourceFailure)
-  io.endpoint.produced.bits.detail := producedDetail
-  io.endpoint.produced.bits.data := 0.U
-  io.endpoint.transfer.ready := false.B
-  io.endpoint.transferred.valid := false.B
-  io.endpoint.transferred.bits := 0.U.asTypeOf(new AutoTransferDone(params.auto))
-  io.endpoint.release.ready := false.B
-  io.endpoint.complete.valid := false.B
-  io.endpoint.complete.bits := 0.U.asTypeOf(new AutoEvent(params.auto))
+  io.autoLink.reportOutput.bits.detail := producedDetail
+  io.autoLink.reportOutput.bits.data := 0.U
+  io.autoLink.requestCopy.ready := false.B
+  io.autoLink.reportCopy.valid := false.B
+  io.autoLink.reportCopy.bits := 0.U.asTypeOf(new AutoCopyResult(params.auto))
+  io.autoLink.requestCompute.ready := false.B
+  io.autoLink.reportCompute.valid := false.B
+  io.autoLink.reportCompute.bits := 0.U.asTypeOf(new AutoEvent(params.auto))
 
   def finish(detail: UInt): Unit = {
     producedValid := true.B
     producedDetail := detail
   }
 
-  when(io.endpoint.watch.fire) {
-    watch := io.endpoint.watch.bits
+  when(io.autoLink.watchOutput.fire) {
+    watch := io.autoLink.watchOutput.bits
     armed := true.B
     active := false.B
     issuedBytes := 0.U
@@ -155,7 +159,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams) extends Module {
     }
   }
 
-  when(io.endpoint.produced.fire) {
+  when(io.autoLink.reportOutput.fire) {
     armed := false.B
     active := false.B
     outstanding := false.B
@@ -235,17 +239,17 @@ class GemminiLinkEndpoint(
 
       adapter.io.write <> monitor.module.io.write
       adapter.io.ack <> monitor.module.io.ack
-      adapter.io.endpoint.watch <> FromAsyncBundle(link.watch)
-      link.produced <> ToAsyncBundle(
-        adapter.io.endpoint.produced,
+      adapter.io.autoLink.watchOutput <> FromAsyncBundle(link.watchOutput)
+      link.reportOutput <> ToAsyncBundle(
+        adapter.io.autoLink.reportOutput,
         AsyncQueueParams.singleton())
-      adapter.io.endpoint.transfer <> FromAsyncBundle(link.transfer)
-      link.transferred <> ToAsyncBundle(
-        adapter.io.endpoint.transferred,
+      adapter.io.autoLink.requestCopy <> FromAsyncBundle(link.requestCopy)
+      link.reportCopy <> ToAsyncBundle(
+        adapter.io.autoLink.reportCopy,
         AsyncQueueParams.singleton())
-      adapter.io.endpoint.release <> FromAsyncBundle(link.release)
-      link.complete <> ToAsyncBundle(
-        adapter.io.endpoint.complete,
+      adapter.io.autoLink.requestCompute <> FromAsyncBundle(link.requestCompute)
+      link.reportCompute <> ToAsyncBundle(
+        adapter.io.autoLink.reportCompute,
         AsyncQueueParams.singleton())
     }
   }
@@ -255,7 +259,8 @@ trait CanHaveGemminiLink {
   this: BaseSubsystem with InstantiatesHierarchicalElements with CanHaveAutoLink =>
   private val sbus = locateTLBusWrapper(SBUS)
 
-  val gemminiLink = p(GemminiLinkKey).map { params =>
+  val gemminiLink = p(GemminiLinkKey).map { attach =>
+    val params = attach.adapter
     val gemminis = totalTiles.values.toSeq.flatMap {
       case tile: RocketTile =>
         tile.roccs.collect { case accelerator: gemmini.Gemmini[_, _, _] => accelerator }
@@ -277,7 +282,7 @@ trait CanHaveGemminiLink {
       spm,
       params))
 
-    endpoint.node := autoLink.get.endpoint(params.endpoint)
+    endpoint.node := autoLink.get.endpoint(attach.portName)
     endpoint.clockNode := sbus.fixedClockNode
     endpoint.monitor.clockNode := sbus.fixedClockNode
     spm.clockNode := sbus.fixedClockNode

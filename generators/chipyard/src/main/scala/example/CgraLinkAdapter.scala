@@ -13,10 +13,8 @@ object CgraLinkStatus {
 
 case class CgraLinkParams(
   auto: AutoLinkParams,
-  endpoint: String,
   cgra: CGRAParams,
   packetCapacity: Int) {
-  require(auto.endpoints.exists(_.name == endpoint))
   require(packetCapacity > 0)
 
   val packetCountWidth: Int = log2Ceil(packetCapacity + 1)
@@ -26,8 +24,11 @@ case class CgraLinkParams(
 
 case class CgraLinkAttachParams(
   adapter: CgraLinkParams,
+  portName: String,
   controlAddress: BigInt,
-  controlBytes: Int)
+  controlBytes: Int) {
+  require(adapter.auto.endpoints.exists(_.name == portName))
+}
 
 case object CgraLinkKey extends Field[Option[CgraLinkAttachParams]](None)
 
@@ -60,13 +61,13 @@ class CgraLinkConfigAsync(params: CgraLinkParams) extends Bundle {
   val ack = Flipped(new AsyncBundle(new CgraLinkConfigAck(params), crossing))
 }
 
-/** Translates AutoLink transfers and releases into CGRA DMA and launch traffic. */
+/** Translates AutoLink copy and compute requests into CGRA traffic. */
 class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   val io = IO(new Bundle {
     val configIn = Flipped(Decoupled(new CgraLinkConfig(params)))
     val configAck = Decoupled(new CgraLinkConfigAck(params))
     val packetIn = Flipped(Decoupled(UInt(params.cgra.intraPktWidth.W)))
-    val endpoint = new AutoEndpointIO(params.auto)
+    val autoLink = new AutoEndpointIO(params.auto)
     val dmaRequest = Decoupled(new CgraLinkDmaRequest(params))
     val dmaCompletion = Flipped(Decoupled(new CgraLinkDmaCompletion(params)))
     val launchPacket = Decoupled(UInt(params.cgra.intraPktWidth.W))
@@ -74,25 +75,23 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
     val computeActive = Output(Bool())
   })
 
-  val Seq(
-    empty,
-    collect,
-    configResult,
-    armed,
-    issueDma,
-    waitDma,
-    reportTransfer,
-    launch,
-    waitCompute,
-    reportComplete) = Enum(10)
-  val state = RegInit(empty)
+  object ConfigState {
+    val idle :: collectPackets :: reportConfig :: holdConfig :: Nil = Enum(4)
+  }
+  object ExecState {
+    val idle :: issueDma :: waitDma :: reportCopy :: sendPackets :: waitCompute :: reportCompute :: Nil = Enum(7)
+  }
+
+  val configState = RegInit(ConfigState.idle)
+  val execState = RegInit(ExecState.idle)
   val config = Reg(new CgraLinkConfig(params))
-  val transfer = Reg(new AutoTransfer(params.auto))
+  val copy = Reg(new AutoCopyRequest(params.auto))
   val packets = Reg(Vec(params.packetCapacity, UInt(params.cgra.intraPktWidth.W)))
-  val packetIndex = RegInit(0.U(params.packetCountWidth.W))
+  val configIndex = RegInit(0.U(params.packetCountWidth.W))
+  val launchIndex = RegInit(0.U(params.packetCountWidth.W))
   val configStatus = RegInit(AutoLinkStatus.Success)
   val configDetail = RegInit(0.U(params.auto.detailWidth.W))
-  val transferDetail = RegInit(0.U(params.auto.detailWidth.W))
+  val copyDetail = RegInit(0.U(params.auto.detailWidth.W))
   val resultData = RegInit(0.U(params.auto.resultWidth.W))
 
   val configValid = io.configIn.bits.packetCount =/= 0.U &&
@@ -101,117 +100,121 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
     params.cgra.packetLayout.cmdLsb + params.cgra.cmdWidth - 1,
     params.cgra.packetLayout.cmdLsb)
   val packetValid = packetCommand === CGRACmdGenerated.CMD_LAUNCH.U
+  val configReady = configState === ConfigState.holdConfig
   val autoDmaTag = 0.U(params.cgra.dma.tagWidth.W)
 
-  io.configIn.ready := state === empty
-  io.packetIn.ready := state === collect
-  io.configAck.valid := state === configResult
+  io.configIn.ready := configState === ConfigState.idle
+  io.packetIn.ready := configState === ConfigState.collectPackets
+  io.configAck.valid := configState === ConfigState.reportConfig
   io.configAck.bits.status := configStatus
   io.configAck.bits.detail := configDetail
 
-  io.endpoint.watch.ready := false.B
-  io.endpoint.produced.valid := false.B
-  io.endpoint.produced.bits := 0.U.asTypeOf(new AutoEvent(params.auto))
-  io.endpoint.transfer.ready := state === armed
-  io.endpoint.transferred.valid := state === reportTransfer
-  io.endpoint.transferred.bits.task := transfer.task
-  io.endpoint.transferred.bits.status := Mux(
-    transferDetail === 0.U,
+  io.autoLink.watchOutput.ready := false.B
+  io.autoLink.reportOutput.valid := false.B
+  io.autoLink.reportOutput.bits := 0.U.asTypeOf(new AutoEvent(params.auto))
+  io.autoLink.requestCopy.ready := execState === ExecState.idle &&
+    !io.autoLink.requestCompute.valid
+  io.autoLink.reportCopy.valid := execState === ExecState.reportCopy
+  io.autoLink.reportCopy.bits.task := copy.task
+  io.autoLink.reportCopy.bits.status := Mux(
+    copyDetail === 0.U,
     AutoLinkStatus.Success,
     AutoLinkStatus.SinkFailure)
-  io.endpoint.transferred.bits.detail := transferDetail
-  io.endpoint.release.ready := state === armed
-  io.endpoint.complete.valid := state === reportComplete
-  io.endpoint.complete.bits.status := AutoLinkStatus.Success
-  io.endpoint.complete.bits.detail := 0.U
-  io.endpoint.complete.bits.data := resultData
+  io.autoLink.reportCopy.bits.detail := copyDetail
+  io.autoLink.requestCompute.ready := execState === ExecState.idle && configReady
+  io.autoLink.reportCompute.valid := execState === ExecState.reportCompute
+  io.autoLink.reportCompute.bits.status := AutoLinkStatus.Success
+  io.autoLink.reportCompute.bits.detail := 0.U
+  io.autoLink.reportCompute.bits.data := resultData
 
-  io.dmaRequest.valid := state === issueDma
-  io.dmaRequest.bits.sourceAddress := transfer.sourceAddress
+  io.dmaRequest.valid := execState === ExecState.issueDma
+  io.dmaRequest.bits.sourceAddress := copy.sourceAddress
   io.dmaRequest.bits.spmWordAddress :=
-    transfer.destinationOffset >> log2Ceil(params.wordBytes)
-  io.dmaRequest.bits.bytes := transfer.bytes
+    copy.destinationOffset >> log2Ceil(params.wordBytes)
+  io.dmaRequest.bits.bytes := copy.bytes
   io.dmaRequest.bits.dmaTag := autoDmaTag
-  io.dmaCompletion.ready := state === waitDma
+  io.dmaCompletion.ready := execState === ExecState.waitDma
 
-  io.launchPacket.valid := state === launch
-  io.launchPacket.bits := packets(packetIndex(params.packetIndexWidth - 1, 0))
-  io.computeResult.ready := state === waitCompute
-  io.computeActive := state === launch || state === waitCompute ||
-    state === reportComplete
+  io.launchPacket.valid := execState === ExecState.sendPackets
+  io.launchPacket.bits := packets(launchIndex(params.packetIndexWidth - 1, 0))
+  io.computeResult.ready := execState === ExecState.waitCompute
+  io.computeActive := execState === ExecState.sendPackets ||
+    execState === ExecState.waitCompute || execState === ExecState.reportCompute
 
   when(io.configIn.fire) {
     config := io.configIn.bits
-    packetIndex := 0.U
+    configIndex := 0.U
     when(configValid) {
       configStatus := AutoLinkStatus.Success
       configDetail := 0.U
-      state := collect
+      configState := ConfigState.collectPackets
     }.otherwise {
       configStatus := AutoLinkStatus.SinkFailure
       configDetail := CgraLinkStatus.BadConfig.U
-      state := configResult
+      configState := ConfigState.reportConfig
     }
   }
-
   when(io.packetIn.fire) {
     when(packetValid) {
-      packets(packetIndex(params.packetIndexWidth - 1, 0)) := io.packetIn.bits
-      when(packetIndex + 1.U === config.packetCount) {
-        state := configResult
+      packets(configIndex(params.packetIndexWidth - 1, 0)) := io.packetIn.bits
+      when(configIndex + 1.U === config.packetCount) {
+        configState := ConfigState.reportConfig
       }.otherwise {
-        packetIndex := packetIndex + 1.U
+        configIndex := configIndex + 1.U
       }
     }.otherwise {
       configStatus := AutoLinkStatus.SinkFailure
       configDetail := CgraLinkStatus.BadPacket.U
-      state := configResult
+      configState := ConfigState.reportConfig
     }
   }
-
   when(io.configAck.fire) {
-    state := Mux(configStatus === AutoLinkStatus.Success, armed, empty)
+    configState := Mux(
+      configStatus === AutoLinkStatus.Success,
+      ConfigState.holdConfig,
+      ConfigState.idle)
   }
 
-  when(io.endpoint.transfer.fire) {
-    transfer := io.endpoint.transfer.bits
-    transferDetail := 0.U
-    state := issueDma
+  when(io.autoLink.requestCopy.fire) {
+    copy := io.autoLink.requestCopy.bits
+    copyDetail := 0.U
+    execState := ExecState.issueDma
   }
   when(io.dmaRequest.fire) {
-    state := waitDma
+    execState := ExecState.waitDma
   }
   when(io.dmaCompletion.fire) {
     when(io.dmaCompletion.bits.dmaTag =/= autoDmaTag) {
-      transferDetail := CgraLinkStatus.DmaMismatch.U
+      copyDetail := CgraLinkStatus.DmaMismatch.U
     }
-    state := reportTransfer
+    execState := ExecState.reportCopy
   }
-  when(io.endpoint.transferred.fire) {
-    state := armed
+  when(io.autoLink.reportCopy.fire) {
+    execState := ExecState.idle
   }
 
-  when(io.endpoint.release.fire) {
-    when(io.endpoint.release.bits.start) {
-      packetIndex := 0.U
-      state := launch
+  when(io.autoLink.requestCompute.fire) {
+    when(io.autoLink.requestCompute.bits.start) {
+      launchIndex := 0.U
+      execState := ExecState.sendPackets
     }.otherwise {
-      state := empty
+      configState := ConfigState.idle
     }
   }
   when(io.launchPacket.fire) {
-    when(packetIndex + 1.U === config.packetCount) {
-      state := waitCompute
+    when(launchIndex + 1.U === config.packetCount) {
+      execState := ExecState.waitCompute
     }.otherwise {
-      packetIndex := packetIndex + 1.U
+      launchIndex := launchIndex + 1.U
     }
   }
   when(io.computeResult.fire) {
     resultData := io.computeResult.bits
-    state := reportComplete
+    execState := ExecState.reportCompute
   }
-  when(io.endpoint.complete.fire) {
-    state := empty
+  when(io.autoLink.reportCompute.fire) {
+    configState := ConfigState.idle
+    execState := ExecState.idle
   }
 }
 

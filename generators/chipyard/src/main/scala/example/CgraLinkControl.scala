@@ -96,9 +96,9 @@ trait CanHaveCgraLink {
       attach.controlAddress,
       attach.controlBytes))
 
-    cgra.autoNode.get := autoLink.get.endpoint(params.endpoint)
+    cgra.autoNode.get := autoLink.get.endpoint(attach.portName)
     cgra.linkConfigNode.get := control.configNode
-    control.resultNode := autoLink.get.result(params.endpoint)
+    control.resultNode := autoLink.get.result(attach.portName)
     control.clockNode := pbus.fixedClockNode
     pbus.coupleTo("cgra-link-control") {
       control.node := TLBuffer() := TLFragmenter(

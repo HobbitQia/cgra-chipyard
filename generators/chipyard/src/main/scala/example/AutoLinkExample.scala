@@ -5,7 +5,7 @@ object AutoLinkExample {
     baseAddress = GemminiExternalSpmGenerated.baseAddress,
     sizeBytes = GemminiExternalSpmGenerated.sizeBytes)
   val links: Seq[AutoLinkSpec] = AutoLinksGenerated.links
-  val transferBytes = 128
+  val copyBytes = 128
   val endpoints: Seq[AutoEndpointSpec] = Seq(
     AutoEndpointSpec(
       name = "gemmini",
@@ -16,14 +16,15 @@ object AutoLinkExample {
       buffer = None,
       localBytes = CGRAGenerated.params.dma.spmWords *
         CGRAGenerated.params.dataPayloadWidth / 8))
-  val table: Seq[AutoTransferSpec] = Seq(AutoTransferSpec(
+  val table: Seq[AutoCopySpec] = Seq(AutoCopySpec(
     route = 0,
-    sourceOffset = externalSpm.sizeBytes - transferBytes,
+    sourceOffset = externalSpm.sizeBytes - copyBytes,
     destinationOffset = 0,
-    bytes = transferBytes))
+    bytes = copyBytes))
   val params = AutoLinkParams(
     links = links,
     endpoints = endpoints,
     table = table,
-    beatBytes = CGRAGenerated.params.dma.dramDataWidth / 8)
+    beatBytes = CGRAGenerated.params.dma.dramDataWidth / 8,
+    copyDepth = 2)
 }

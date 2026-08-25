@@ -14,89 +14,102 @@ case object AutoLinkKey extends Field[Option[AutoLinkParams]](None)
 class WithAutoLink(params: AutoLinkParams)
     extends Config((_, _, _) => { case AutoLinkKey => Some(params) })
 
-class AutoTask(params: AutoLinkParams, index: Int) extends Module {
-  private val spec = params.transfer(index)
+class AutoCopyTask(params: AutoLinkParams, index: Int) extends Module {
+  private val spec = params.copy(index)
 
   val io = IO(new Bundle {
-    val produced = Flipped(Decoupled(new AutoEvent(params)))
-    val transfer = Decoupled(new AutoTransfer(params))
-    val transferred = Flipped(Decoupled(new AutoTransferDone(params)))
-    val finished = Valid(new AutoEvent(params))
-    val retire = Input(Bool())
-    val idle = Output(Bool())
+    val reportOutput = Flipped(Decoupled(new AutoEvent(params)))
+    val requestCopy = Decoupled(new AutoCopyRequest(params))
+    val reportCopy = Flipped(Decoupled(new AutoCopyResult(params)))
+    val reportDependency = Decoupled(new AutoEvent(params))
   })
 
-  val idle :: issue :: waitDone :: finished :: Nil = Enum(4)
+  val idle :: requestCopy :: waitCopy :: reportDependency :: Nil = Enum(4)
   val state = RegInit(idle)
   val event = Reg(new AutoEvent(params))
 
-  io.produced.ready := state === idle
-  io.transfer.valid := state === issue
-  io.transfer.bits.task := index.U
-  io.transfer.bits.sourceAddress := params.sourceAddress(index).U
-  io.transfer.bits.destinationOffset := spec.destinationOffset.U
-  io.transfer.bits.bytes := spec.bytes.U
-  io.transferred.ready := state === waitDone
-  io.finished.valid := state === finished
-  io.finished.bits := event
-  io.idle := state === idle
+  io.reportOutput.ready := state === idle
+  io.requestCopy.valid := state === requestCopy
+  io.requestCopy.bits.task := index.U
+  io.requestCopy.bits.sourceAddress := params.sourceAddress(index).U
+  io.requestCopy.bits.destinationOffset := spec.destinationOffset.U
+  io.requestCopy.bits.bytes := spec.bytes.U
+  io.reportCopy.ready := state === waitCopy
+  io.reportDependency.valid := state === reportDependency
+  io.reportDependency.bits := event
 
-  when(io.produced.fire) {
-    event := io.produced.bits
-    state := Mux(io.produced.bits.status === AutoLinkStatus.Success, issue, finished)
+  when(io.reportOutput.fire) {
+    event := io.reportOutput.bits
+    state := Mux(
+      io.reportOutput.bits.status === AutoLinkStatus.Success,
+      requestCopy,
+      reportDependency)
   }
-  when(io.transfer.fire) {
-    state := waitDone
+  when(io.requestCopy.fire) {
+    state := waitCopy
   }
-  when(io.transferred.fire) {
-    event.status := io.transferred.bits.status
-    event.detail := io.transferred.bits.detail
+  when(io.reportCopy.fire) {
+    event.status := io.reportCopy.bits.status
+    event.detail := io.reportCopy.bits.detail
     event.data := 0.U
-    state := finished
+    state := reportDependency
   }
-  when(io.retire) {
+  when(io.reportDependency.fire) {
     state := idle
   }
 }
 
 class AutoJoin(params: AutoLinkParams, inputCount: Int) extends Module {
   val io = IO(new Bundle {
-    val finished = Input(Vec(inputCount, Valid(new AutoEvent(params))))
-    val release = Decoupled(new AutoRelease)
-    val complete = Flipped(Decoupled(new AutoEvent(params)))
+    val dependency = Flipped(Vec(inputCount, Decoupled(new AutoEvent(params))))
+    val requestCompute = Decoupled(new AutoComputeRequest)
+    val reportCompute = Flipped(Decoupled(new AutoEvent(params)))
     val result = Decoupled(new AutoEvent(params))
-    val retire = Output(Bool())
   })
 
-  val waitTransfers :: release :: waitComplete :: result :: Nil = Enum(4)
-  val state = RegInit(waitTransfers)
+  val waitDependencies :: requestCompute :: waitCompute :: reportResult :: Nil = Enum(4)
+  val state = RegInit(waitDependencies)
+  val dependencies = Reg(Vec(inputCount, new AutoEvent(params)))
+  val dependencyValid = RegInit(VecInit(Seq.fill(inputCount)(false.B)))
   val resultEvent = Reg(new AutoEvent(params))
-  val failures = io.finished.map(event => event.valid && event.bits.status =/= AutoLinkStatus.Success)
-  val allFinished = io.finished.map(_.valid).reduce(_ && _)
+  val failures = (0 until inputCount).map { index =>
+    dependencyValid(index) && dependencies(index).status =/= AutoLinkStatus.Success
+  }
+  val allReceived = dependencyValid.reduce(_ && _)
   val failed = failures.reduce(_ || _)
 
-  io.release.valid := state === release
-  io.release.bits.start := !failed
-  io.complete.ready := state === waitComplete
-  io.result.valid := state === result
-  io.result.bits := resultEvent
-  io.retire := io.result.fire
-
-  when(state === waitTransfers && allFinished) {
-    when(failed) {
-      resultEvent := PriorityMux(failures.zip(io.finished.map(_.bits)))
+  for (index <- 0 until inputCount) {
+    io.dependency(index).ready := !dependencyValid(index)
+    when(io.dependency(index).fire) {
+      dependencies(index) := io.dependency(index).bits
+      dependencyValid(index) := true.B
     }
-    state := release
   }
-  when(io.release.fire) {
-    state := Mux(io.release.bits.start, waitComplete, result)
+
+  io.requestCompute.valid := state === requestCompute
+  io.requestCompute.bits.start := !failed
+  io.reportCompute.ready := state === waitCompute
+  io.result.valid := state === reportResult
+  io.result.bits := resultEvent
+
+  when(state === waitDependencies && allReceived) {
+    state := requestCompute
   }
-  when(io.complete.fire) {
-    resultEvent := io.complete.bits
-    state := result
+  when(io.requestCompute.fire) {
+    for (index <- 0 until inputCount) {
+      dependencyValid(index) := false.B
+    }
+    when(failed) {
+      resultEvent := PriorityMux(failures.zip(dependencies))
+    }
+    state := Mux(failed, reportResult, waitCompute)
+  }
+  when(io.reportCompute.fire) {
+    resultEvent := io.reportCompute.bits
+    state := reportResult
   }
   when(io.result.fire) {
-    state := waitTransfers
+    state := waitDependencies
   }
 }
 
@@ -117,32 +130,32 @@ class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters)
   override lazy val module = new FabricImpl
   class FabricImpl extends Impl {
     case class Port(
-      watch: DecoupledIO[AutoWatch],
-      produced: DecoupledIO[AutoEvent],
-      transfer: DecoupledIO[AutoTransfer],
-      transferred: DecoupledIO[AutoTransferDone],
-      release: DecoupledIO[AutoRelease],
-      complete: DecoupledIO[AutoEvent])
+      watchOutput: DecoupledIO[AutoWatch],
+      reportOutput: DecoupledIO[AutoEvent],
+      requestCopy: DecoupledIO[AutoCopyRequest],
+      reportCopy: DecoupledIO[AutoCopyResult],
+      requestCompute: DecoupledIO[AutoComputeRequest],
+      reportCompute: DecoupledIO[AutoEvent])
 
     withClockAndReset(clock, reset) {
       val ports = params.endpoints.map { endpoint =>
         val async = endpointNodes(endpoint.name).out.head._1
-        val watch = Wire(Decoupled(new AutoWatch(params)))
-        val transfer = Wire(Decoupled(new AutoTransfer(params)))
-        val release = Wire(Decoupled(new AutoRelease))
-        async.watch <> ToAsyncBundle(watch, AsyncQueueParams.singleton())
-        async.transfer <> ToAsyncBundle(transfer, AsyncQueueParams.singleton())
-        async.release <> ToAsyncBundle(release, AsyncQueueParams.singleton())
+        val watchOutput = Wire(Decoupled(new AutoWatch(params)))
+        val requestCopy = Wire(Decoupled(new AutoCopyRequest(params)))
+        val requestCompute = Wire(Decoupled(new AutoComputeRequest))
+        async.watchOutput <> ToAsyncBundle(watchOutput, AsyncQueueParams.singleton())
+        async.requestCopy <> ToAsyncBundle(requestCopy, AsyncQueueParams.singleton())
+        async.requestCompute <> ToAsyncBundle(requestCompute, AsyncQueueParams.singleton())
         endpoint.name -> Port(
-          watch,
-          FromAsyncBundle(async.produced),
-          transfer,
-          FromAsyncBundle(async.transferred),
-          release,
-          FromAsyncBundle(async.complete))
+          watchOutput,
+          FromAsyncBundle(async.reportOutput),
+          requestCopy,
+          FromAsyncBundle(async.reportCopy),
+          requestCompute,
+          FromAsyncBundle(async.reportCompute))
       }.toMap
       val tasks = params.table.indices.map(index =>
-        Module(new AutoTask(params, index)))
+        Module(new AutoCopyTask(params, index)))
 
       params.endpoints.foreach { endpoint =>
         val port = ports(endpoint.name)
@@ -150,27 +163,26 @@ class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters)
           params.route(index).source == endpoint.name)
 
         if (outgoing.isEmpty) {
-          port.watch.valid := false.B
-          port.watch.bits := 0.U.asTypeOf(new AutoWatch(params))
-          port.produced.ready := false.B
+          port.watchOutput.valid := false.B
+          port.watchOutput.bits := 0.U.asTypeOf(new AutoWatch(params))
+          port.reportOutput.ready := false.B
         } else {
-          val task = params.transfer(outgoing.head)
+          val copy = params.copy(outgoing.head)
           val armed = RegInit(false.B)
-          val tasksIdle = outgoing.map(index => tasks(index).io.idle).reduce(_ && _)
-          val tasksReady = outgoing.map(index => tasks(index).io.produced.ready).reduce(_ && _)
+          val tasksReady = outgoing.map(index => tasks(index).io.reportOutput.ready).reduce(_ && _)
 
-          port.watch.valid := !armed && tasksIdle
-          port.watch.bits.address := params.sourceAddress(outgoing.head).U
-          port.watch.bits.bytes := task.bytes.U
-          port.produced.ready := armed && tasksReady
+          port.watchOutput.valid := !armed && tasksReady
+          port.watchOutput.bits.address := params.sourceAddress(outgoing.head).U
+          port.watchOutput.bits.bytes := copy.bytes.U
+          port.reportOutput.ready := armed && tasksReady
           outgoing.foreach { index =>
-            tasks(index).io.produced.valid := port.produced.valid && armed && tasksReady
-            tasks(index).io.produced.bits := port.produced.bits
+            tasks(index).io.reportOutput.valid := port.reportOutput.valid && armed && tasksReady
+            tasks(index).io.reportOutput.bits := port.reportOutput.bits
           }
-          when(port.watch.fire) {
+          when(port.watchOutput.fire) {
             armed := true.B
           }
-          when(port.produced.fire) {
+          when(port.reportOutput.fire) {
             armed := false.B
           }
         }
@@ -182,35 +194,36 @@ class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters)
           params.route(index).destination == endpoint.name)
 
         if (incoming.isEmpty) {
-          port.transfer.valid := false.B
-          port.transfer.bits := 0.U.asTypeOf(new AutoTransfer(params))
-          port.transferred.ready := false.B
-          port.release.valid := false.B
-          port.release.bits := 0.U.asTypeOf(new AutoRelease)
-          port.complete.ready := false.B
+          port.requestCopy.valid := false.B
+          port.requestCopy.bits := 0.U.asTypeOf(new AutoCopyRequest(params))
+          port.reportCopy.ready := false.B
+          port.requestCompute.valid := false.B
+          port.requestCompute.bits := 0.U.asTypeOf(new AutoComputeRequest)
+          port.reportCompute.ready := false.B
         } else {
-          val transfer = Module(new Arbiter(new AutoTransfer(params), incoming.size))
-          incoming.zipWithIndex.foreach { case (link, input) =>
-            transfer.io.in(input) <> tasks(link).io.transfer
+          val copyArbiter = Module(new Arbiter(new AutoCopyRequest(params), incoming.size))
+          incoming.zipWithIndex.foreach { case (task, input) =>
+            copyArbiter.io.in(input) <> tasks(task).io.requestCopy
           }
-          port.transfer <> transfer.io.out
+          val copyQueue = Module(new Queue(new AutoCopyRequest(params), params.copyDepth))
+          copyQueue.io.enq <> copyArbiter.io.out
+          port.requestCopy <> copyQueue.io.deq
 
           incoming.foreach { index =>
-            tasks(index).io.transferred.valid := port.transferred.valid &&
-              port.transferred.bits.task === index.U
-            tasks(index).io.transferred.bits := port.transferred.bits
+            tasks(index).io.reportCopy.valid := port.reportCopy.valid &&
+              port.reportCopy.bits.task === index.U
+            tasks(index).io.reportCopy.bits := port.reportCopy.bits
           }
-          port.transferred.ready := incoming.map { index =>
-            tasks(index).io.transferred.ready && port.transferred.bits.task === index.U
+          port.reportCopy.ready := incoming.map { index =>
+            tasks(index).io.reportCopy.ready && port.reportCopy.bits.task === index.U
           }.reduce(_ || _)
 
           val join = Module(new AutoJoin(params, incoming.size))
-          incoming.zipWithIndex.foreach { case (link, input) =>
-            join.io.finished(input) := tasks(link).io.finished
-            tasks(link).io.retire := join.io.retire
+          incoming.zipWithIndex.foreach { case (task, input) =>
+            join.io.dependency(input) <> tasks(task).io.reportDependency
           }
-          port.release <> join.io.release
-          join.io.complete <> port.complete
+          port.requestCompute <> join.io.requestCompute
+          join.io.reportCompute <> port.reportCompute
 
           val result = resultNodes(endpoint.name).out.head._1
           result <> ToAsyncBundle(join.io.result, AsyncQueueParams.singleton())

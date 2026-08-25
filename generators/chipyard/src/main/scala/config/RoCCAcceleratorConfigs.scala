@@ -61,17 +61,18 @@ object CGRAMinimalGemminiAutoLinkRocketConfig {
     gemminiConfig.meshColumns * gemminiConfig.tileColumns * gemminiConfig.accType.getWidth / 8
 
   val autoLink = example.params
-  val gemminiLink = chipyard.example.GemminiLinkParams(
-    auto = autoLink,
-    endpoint = "gemmini",
-    spm = example.externalSpm,
-    beatBytes = writeBeatBytes)
+  val gemminiLink = chipyard.example.GemminiLinkAttachParams(
+    adapter = chipyard.example.GemminiLinkParams(
+      auto = autoLink,
+      spm = example.externalSpm,
+      beatBytes = writeBeatBytes),
+    portName = "gemmini")
   val cgraLink = chipyard.example.CgraLinkAttachParams(
     adapter = chipyard.example.CgraLinkParams(
       auto = autoLink,
-      endpoint = "cgra",
       cgra = chipyard.example.CGRAGenerated.params,
       packetCapacity = 16),
+    portName = "cgra",
     controlAddress = chipyard.example.CgraLinkControlGenerated.baseAddress,
     controlBytes = chipyard.example.CgraLinkControlGenerated.pageSizeBytes)
 }

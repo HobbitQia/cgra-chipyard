@@ -457,17 +457,17 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     val adapter = Module(new CgraLinkAdapter(linkParams))
     adapter.io.configIn <> FromAsyncBundle(config.config)
     config.ack <> ToAsyncBundle(adapter.io.configAck, AsyncQueueParams.singleton())
-    adapter.io.endpoint.watch <> FromAsyncBundle(endpoint.watch)
-    endpoint.produced <> ToAsyncBundle(
-      adapter.io.endpoint.produced,
+    adapter.io.autoLink.watchOutput <> FromAsyncBundle(endpoint.watchOutput)
+    endpoint.reportOutput <> ToAsyncBundle(
+      adapter.io.autoLink.reportOutput,
       AsyncQueueParams.singleton())
-    adapter.io.endpoint.transfer <> FromAsyncBundle(endpoint.transfer)
-    endpoint.transferred <> ToAsyncBundle(
-      adapter.io.endpoint.transferred,
+    adapter.io.autoLink.requestCopy <> FromAsyncBundle(endpoint.requestCopy)
+    endpoint.reportCopy <> ToAsyncBundle(
+      adapter.io.autoLink.reportCopy,
       AsyncQueueParams.singleton())
-    adapter.io.endpoint.release <> FromAsyncBundle(endpoint.release)
-    endpoint.complete <> ToAsyncBundle(
-      adapter.io.endpoint.complete,
+    adapter.io.autoLink.requestCompute <> FromAsyncBundle(endpoint.requestCompute)
+    endpoint.reportCompute <> ToAsyncBundle(
+      adapter.io.autoLink.reportCompute,
       AsyncQueueParams.singleton())
     adapter
   }
