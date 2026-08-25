@@ -223,8 +223,8 @@ class GemminiLinkEndpoint(
   val writePorts = TLXbar()
   val monitor = LazyModule(new GemminiLinkMonitor(params))
 
-  spm.readNode := readPorts
-  spm.writeNode := writePorts
+  spm.readNodes.foreach { node => node := readPorts }
+  spm.writeNodes.foreach { node => node := writePorts }
   readPorts :=* gemminiAccelerator.spad_read_nodes
   writePorts :=* TLWidthWidget(readBeatBytes) :=* TLBuffer() :=*
     gemminiAccelerator.spad_write_nodes
@@ -275,6 +275,7 @@ trait CanHaveGemminiLink {
       gemminiConfig.meshColumns * gemminiConfig.tileColumns * gemminiConfig.accType.getWidth / 8
     val spm = LazyModule(new GemminiExternalSpm(
       params.spm,
+      gemminiConfig.sp_banks,
       readBeatBytes,
       writeBeatBytes))
     val endpoint = LazyModule(new GemminiLinkEndpoint(
@@ -287,7 +288,7 @@ trait CanHaveGemminiLink {
     endpoint.monitor.clockNode := sbus.fixedClockNode
     spm.clockNode := sbus.fixedClockNode
     sbus.coupleTo("gemmini-ext-spm") {
-      endpoint.readPorts := TLFragmenter(
+      endpoint.readPorts := TLFIFOFixer() := TLFragmenter(
         params.auto.beatBytes,
         sbus.blockBytes) := TLWidthWidget(sbus) := _
     }
