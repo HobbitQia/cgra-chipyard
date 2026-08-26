@@ -24,7 +24,7 @@ case object GemminiExternalSpmWriterKey extends Field[Boolean](false)
 
 class WithGemminiExternalSpmWriter extends Config((_, _, _) => { case GemminiExternalSpmWriterKey => true })
 
-/** TileLink backing memory for Gemmini's external scratchpad. */
+/** TileLink memory for Gemmini result publication. */
 class GemminiExternalSpm(params: GemminiExternalSpmParams, bankCount: Int, readBeatBytes: Int, writeBeatBytes: Int)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
   require(isPow2(bankCount))
@@ -154,7 +154,7 @@ class GemminiExternalSpm(params: GemminiExternalSpmParams, bankCount: Int, readB
   }
 }
 
-/** Connects Gemmini and system-side readers to one external scratchpad. */
+/** Connects result publication memory to system-side readers and a writer. */
 class GemminiExternalSpmAttach(val gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float], params: GemminiExternalSpmParams)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
   private val gemminiConfig = gemminiAccelerator.config
@@ -173,20 +173,18 @@ class GemminiExternalSpmAttach(val gemminiAccelerator: gemmini.Gemmini[chisel3.S
 
   spm.readNodes.foreach { node => node := readPorts }
   spm.writeNodes.foreach { node => node := writePorts }
-  readPorts :=* gemminiAccelerator.spad_read_nodes
-  writePorts :=* TLWidthWidget(readBeatBytes) :=* TLBuffer() :=*
-    gemminiAccelerator.spad_write_nodes
   writePorts := writerNode
 
   override lazy val module = new AttachImpl
   class AttachImpl extends Impl
 }
 
-class GemminiExternalSpmWriter(gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float], readBeatBytes: Int)(implicit p: Parameters)
+class GemminiExternalSpmWriter(gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float])(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
   val node = TLIdentityNode()
+  private val dmaBeatBytes = gemminiAccelerator.config.dma_buswidth / 8
 
-  node := TLWidthWidget(readBeatBytes) := TLBuffer() :=
+  node := TLWidthWidget(dmaBeatBytes) := TLBuffer() :=
     gemminiAccelerator.spad.spad_writer.get.node
 
   override lazy val module = new WriterImpl
@@ -225,7 +223,7 @@ trait CanHaveGemminiExternalSpmWriter {
 
   val gemminiExternalSpmWriter = Option.when(p(GemminiExternalSpmWriterKey)) {
     val attach = gemminiExternalSpm.get
-    val writer = LazyModule(new GemminiExternalSpmWriter(attach.gemminiAccelerator, attach.readBeatBytes))
+    val writer = LazyModule(new GemminiExternalSpmWriter(attach.gemminiAccelerator))
 
     attach.writerNode := writer.node
     writer.clockNode := sbus.fixedClockNode

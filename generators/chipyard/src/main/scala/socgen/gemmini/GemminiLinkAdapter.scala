@@ -196,13 +196,14 @@ class GemminiLinkMonitor(params: GemminiLinkParams)(implicit p: Parameters)
   }
 }
 
-class GemminiLinkEndpoint(gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float], readBeatBytes: Int, params: GemminiLinkParams)(implicit p: Parameters)
+class GemminiLinkEndpoint(gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float], params: GemminiLinkParams)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
   val node = BundleBridgeSink[AutoEndpointAsyncLink]()
   val writerNode = TLIdentityNode()
   val monitor = LazyModule(new GemminiLinkMonitor(params))
+  private val dmaBeatBytes = gemminiAccelerator.config.dma_buswidth / 8
 
-  writerNode := monitor.node := TLWidthWidget(readBeatBytes) := TLBuffer() :=
+  writerNode := monitor.node := TLWidthWidget(dmaBeatBytes) := TLBuffer() :=
     gemminiAccelerator.spad.spad_writer.get.node
 
   override lazy val module = new EndpointImpl
@@ -238,7 +239,7 @@ trait CanHaveGemminiLink {
     val externalSpm = gemminiExternalSpm.get
     require(externalSpm.readBeatBytes == params.auto.beatBytes)
     require(externalSpm.writeBeatBytes == params.beatBytes)
-    val endpoint = LazyModule(new GemminiLinkEndpoint(externalSpm.gemminiAccelerator, externalSpm.readBeatBytes, params))
+    val endpoint = LazyModule(new GemminiLinkEndpoint(externalSpm.gemminiAccelerator, params))
 
     externalSpm.writerNode := endpoint.writerNode
     endpoint.node := autoLink.get.endpoint(attach.portName)

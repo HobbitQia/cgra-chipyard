@@ -15,8 +15,7 @@ import org.chipsalliance.cde.config.{Config}
 class CGRARocketConfig extends Config(
   new chipyard.config.WithCGRA() ++
   new freechips.rocketchip.rocket.WithNBigCores(1) ++
-  // CGRA DMA currently supports only a 128-bit system-bus beat.
-  new chipyard.config.WithSystemBusWidth(128) ++
+  new chipyard.config.WithSystemBusWidth(256) ++
   new chipyard.config.AbstractConfig)
 
 object CGRAMinimalGemminiRocketConfig {
@@ -42,8 +41,8 @@ object CGRAMinimalGemminiRocketConfig {
     sp_capacity = gemmini.CapacityInKilobytes(64),
     acc_capacity = gemmini.CapacityInKilobytes(32),
     dma_maxbytes = 64,
-    dma_buswidth = 128,
-    use_shared_ext_mem = true,
+    dma_buswidth = 256,
+    use_shared_ext_mem = false,
     use_tl_ext_mem = true,
     tl_ext_mem_base = externalSpm.baseAddress,
     sp_singleported = false,
@@ -56,7 +55,7 @@ class CGRAMinimalGemminiRocketConfig extends Config(
   new chipyard.config.WithCGRA() ++
   new gemmini.DefaultGemminiConfig(CGRAMinimalGemminiRocketConfig.minimalGemminiConfig) ++
   new freechips.rocketchip.rocket.WithNBigCores(1) ++
-  new chipyard.config.WithSystemBusWidth(128) ++
+  new chipyard.config.WithSystemBusWidth(256) ++
   new chipyard.config.AbstractConfig)
 
 object CGRAMinimalGemminiAutoLinkRocketConfig {
@@ -87,7 +86,7 @@ class CGRAMinimalGemminiAutoLinkRocketConfig extends Config(
   new gemmini.DefaultGemminiConfig(
     CGRAMinimalGemminiAutoLinkRocketConfig.gemminiConfig) ++
   new freechips.rocketchip.rocket.WithNBigCores(1) ++
-  new chipyard.config.WithSystemBusWidth(128) ++
+  new chipyard.config.WithSystemBusWidth(256) ++
   new chipyard.config.AbstractConfig)
 
 class ReRoCCTestConfig extends Config(
