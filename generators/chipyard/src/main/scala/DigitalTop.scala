@@ -43,6 +43,7 @@ class DigitalTop(implicit p: Parameters) extends ChipyardSystem
   with chipyard.socgen.link.CanHaveAutoLink // Optional automatic IP links
   with chipyard.socgen.gemmini.CanHaveGemminiLink // Optional Gemmini endpoint
   with chipyard.socgen.cgra.CanHaveCgraLink // Optional CGRA endpoint
+  with chipyard.socgen.aes.CanHaveAesLink // Optional AES endpoint
 {
   override lazy val module = new DigitalTopModule(this)
 }

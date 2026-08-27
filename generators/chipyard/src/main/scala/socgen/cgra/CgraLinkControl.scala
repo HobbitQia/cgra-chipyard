@@ -17,7 +17,7 @@ import org.chipsalliance.cde.config.Parameters
 import org.chipsalliance.diplomacy.lazymodule.LazyModule
 
 /** CPU configuration and result registers for the CGRA AutoLink adapter. */
-class CgraLinkControl(params: CgraLinkParams, address: BigInt, pageSizeBytes: Int)(implicit p: Parameters) extends ClockSinkDomain(ClockSinkParameters())(p) {
+class CgraLinkControl(params: CgraLinkParams, resultNames: Seq[String], address: BigInt, pageSizeBytes: Int)(implicit p: Parameters) extends ClockSinkDomain(ClockSinkParameters())(p) {
   private val device = new SimpleDevice("cgra-link-control", Seq("coredac,cgra-link-control"))
   val node = TLRegisterNode(
     address = Seq(AddressSet(address, pageSizeBytes - 1)),
@@ -25,7 +25,10 @@ class CgraLinkControl(params: CgraLinkParams, address: BigInt, pageSizeBytes: In
     beatBytes = 8,
     concurrency = 1)
   val configNode = BundleBridgeSource(() => new CgraLinkConfigAsync(params))
-  val resultNode = BundleBridgeSink[AsyncBundle[AutoEvent]]()
+  private val resultNodes = resultNames.map(name =>
+    name -> BundleBridgeSink[AsyncBundle[AutoEvent]]()).toMap
+
+  def resultNode(name: String): BundleBridgeSink[AsyncBundle[AutoEvent]] = resultNodes(name)
 
   override lazy val module = new ControlImpl
   class ControlImpl extends Impl {
@@ -33,7 +36,7 @@ class CgraLinkControl(params: CgraLinkParams, address: BigInt, pageSizeBytes: In
       val configLink = configNode.out.head._1
       val configOut = Wire(Decoupled(new CgraLinkConfig(params)))
       val configAck = FromAsyncBundle(configLink.ack)
-      val resultIn = FromAsyncBundle(resultNode.in.head._1)
+      val resultIn = resultNames.map(name => FromAsyncBundle(resultNodes(name).in.head._1))
       configLink.config <> ToAsyncBundle(configOut, AsyncQueueParams.singleton())
 
       val packetCount = RegInit(0.U(32.W))
@@ -42,19 +45,22 @@ class CgraLinkControl(params: CgraLinkParams, address: BigInt, pageSizeBytes: In
       configOut.bits.packetCount := packetCount(params.packetCountWidth - 1, 0)
       configSubmit.ready := configOut.ready
 
-      val results = Module(new Queue(new AutoEvent(params.auto), 2))
-      val resultArbiter = Module(new Arbiter(new AutoEvent(params.auto), 2))
-      resultArbiter.io.in(0) <> resultIn
-      resultArbiter.io.in(1).valid := configAck.valid &&
+      val results = Module(new Queue(new AutoEvent(params.auto), math.max(2, resultNames.size)))
+      val resultArbiter = Module(new Arbiter(new AutoEvent(params.auto), resultIn.size + 1))
+      resultIn.zipWithIndex.foreach { case (result, index) =>
+        resultArbiter.io.in(index) <> result
+      }
+      val configResult = resultArbiter.io.in(resultIn.size)
+      configResult.valid := configAck.valid &&
         configAck.bits.status =/= AutoLinkStatus.Success
-      resultArbiter.io.in(1).bits.status := configAck.bits.status
-      resultArbiter.io.in(1).bits.detail := configAck.bits.detail
-      resultArbiter.io.in(1).bits.data := 0.U
+      configResult.bits.status := configAck.bits.status
+      configResult.bits.detail := configAck.bits.detail
+      configResult.bits.data := 0.U
       results.io.enq <> resultArbiter.io.out
       configAck.ready := Mux(
         configAck.bits.status === AutoLinkStatus.Success,
         true.B,
-        resultArbiter.io.in(1).ready)
+        configResult.ready)
 
       val resultPop = Wire(Decoupled(UInt(1.W)))
       val result = RegInit(0.U.asTypeOf(new AutoEvent(params.auto)))
@@ -90,11 +96,13 @@ trait CanHaveCgraLink {
     require(cgras.size == 1)
     val params = attach.adapter
     val cgra = cgras.head
-    val control = LazyModule(new CgraLinkControl(params, attach.controlAddress, attach.controlBytes))
+    val control = LazyModule(new CgraLinkControl(params, attach.resultNames, attach.controlAddress, attach.controlBytes))
 
     cgra.autoNode.get := autoLink.get.endpoint(attach.portName)
     cgra.linkConfigNode.get := control.configNode
-    control.resultNode := autoLink.get.result(attach.portName)
+    attach.resultNames.foreach { name =>
+      control.resultNode(name) := autoLink.get.result(name)
+    }
     control.clockNode := pbus.fixedClockNode
     pbus.coupleTo("cgra-link-control") {
       control.node := TLBuffer() := TLFragmenter(

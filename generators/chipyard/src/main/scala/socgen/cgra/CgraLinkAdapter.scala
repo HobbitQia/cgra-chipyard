@@ -21,8 +21,16 @@ case class CgraLinkParams(auto: AutoLinkParams, cgra: CGRAParams, packetCapacity
   val wordBytes: Int = cgra.dataPayloadWidth / 8
 }
 
-case class CgraLinkAttachParams(adapter: CgraLinkParams, portName: String, controlAddress: BigInt, controlBytes: Int) {
+case class CgraLinkAttachParams(
+  adapter: CgraLinkParams,
+  portName: String,
+  resultNames: Seq[String],
+  controlAddress: BigInt,
+  controlBytes: Int) {
   require(adapter.auto.endpoints.exists(_.name == portName))
+  require(resultNames.nonEmpty && resultNames.distinct.size == resultNames.size)
+  require(resultNames.forall(name => adapter.auto.table.indices.exists(
+    index => adapter.auto.route(index).destination == name)))
 }
 
 case object CgraLinkKey extends Field[Option[CgraLinkAttachParams]](None)
@@ -87,6 +95,10 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   val configDetail = RegInit(0.U(params.auto.detailWidth.W))
   val copyDetail = RegInit(0.U(params.auto.detailWidth.W))
   val resultData = RegInit(0.U(params.auto.resultWidth.W))
+  val publicationArmed = RegInit(false.B)
+  val publicationPending = RegInit(false.B)
+  val publicationValid = RegInit(false.B)
+  val publicationData = RegInit(0.U(params.auto.resultWidth.W))
 
   val configValid = io.configIn.bits.packetCount =/= 0.U &&
     io.configIn.bits.packetCount <= params.packetCapacity.U
@@ -103,9 +115,11 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   io.configAck.bits.status := configStatus
   io.configAck.bits.detail := configDetail
 
-  io.autoLink.watchOutput.ready := false.B
-  io.autoLink.reportOutput.valid := false.B
-  io.autoLink.reportOutput.bits := 0.U.asTypeOf(new AutoEvent(params.auto))
+  io.autoLink.watchOutput.ready := !publicationArmed && !publicationValid
+  io.autoLink.reportOutput.valid := publicationValid
+  io.autoLink.reportOutput.bits.status := AutoLinkStatus.Success
+  io.autoLink.reportOutput.bits.detail := 0.U
+  io.autoLink.reportOutput.bits.data := publicationData
   io.autoLink.requestCopy.ready := execState === ExecState.idle &&
     !io.autoLink.requestCompute.valid
   io.autoLink.reportCopy.valid := execState === ExecState.reportCopy
@@ -134,6 +148,18 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   io.computeResult.ready := execState === ExecState.waitCompute
   io.computeActive := execState === ExecState.sendPackets ||
     execState === ExecState.waitCompute || execState === ExecState.reportCompute
+
+  when(io.autoLink.watchOutput.fire) {
+    publicationArmed := true.B
+  }
+  when(!publicationValid && publicationPending && publicationArmed) {
+    publicationArmed := false.B
+    publicationPending := false.B
+    publicationValid := true.B
+  }
+  when(io.autoLink.reportOutput.fire) {
+    publicationValid := false.B
+  }
 
   when(io.configIn.fire) {
     config := io.configIn.bits
@@ -204,6 +230,8 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   }
   when(io.computeResult.fire) {
     resultData := io.computeResult.bits
+    publicationData := io.computeResult.bits
+    publicationPending := true.B
     execState := ExecState.reportCompute
   }
   when(io.autoLink.reportCompute.fire) {

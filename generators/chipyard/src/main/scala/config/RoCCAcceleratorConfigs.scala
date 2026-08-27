@@ -1,8 +1,9 @@
 package chipyard
 
+import chipyard.socgen.aes.{AesLinkAttachParams, AesLinkParams, WithAesLink}
 import chipyard.socgen.cgra.{CgraLinkAttachParams, CgraLinkParams, WithCgraLink}
-import chipyard.socgen.config.AutoLinkExample
-import chipyard.socgen.generated.{CgraLinkControlGenerated, CGRASpmWindowGenerated, GemminiExternalSpmGenerated}
+import chipyard.socgen.config.{AutoLinkAesExample, AutoLinkExample}
+import chipyard.socgen.generated.{AesAutoJobGenerated, CgraLinkControlGenerated, CGRASpmWindowGenerated, GemminiExternalSpmGenerated}
 import chipyard.socgen.gemmini.{GemminiLinkAttachParams, GemminiLinkParams, WithGemminiExternalSpm, WithGemminiExternalSpmWriter, WithGemminiLink}
 import chipyard.socgen.link.WithAutoLink
 import org.chipsalliance.cde.config.{Config}
@@ -84,6 +85,7 @@ object CGRAMinimalGemminiAutoLinkRocketConfig {
       cgra = chipyard.example.CGRAGenerated.params,
       packetCapacity = 16),
     portName = "cgra",
+    resultNames = Seq("cgra"),
     controlAddress = CgraLinkControlGenerated.baseAddress,
     controlBytes = CgraLinkControlGenerated.pageSizeBytes)
 }
@@ -96,6 +98,52 @@ class CGRAMinimalGemminiAutoLinkRocketConfig extends Config(
   new chipyard.config.WithCGRA() ++
   new gemmini.DefaultGemminiConfig(
     CGRAMinimalGemminiAutoLinkRocketConfig.gemminiConfig) ++
+  new freechips.rocketchip.rocket.WithNBigCores(1) ++
+  new chipyard.config.WithSystemBusWidth(256) ++
+  new chipyard.config.AbstractConfig)
+
+object CGRAMinimalGemminiAESAutoLinkRocketConfig {
+  private val example = AutoLinkAesExample
+
+  val gemminiConfig = CGRAMinimalGemminiRocketConfig.minimalGemminiConfig
+  private val writeBeatBytes =
+    gemminiConfig.meshColumns * gemminiConfig.tileColumns * gemminiConfig.accType.getWidth / 8
+
+  val autoLink = example.params
+  val gemminiLink = GemminiLinkAttachParams(
+    adapter = GemminiLinkParams(auto = autoLink, beatBytes = writeBeatBytes),
+    portName = "gemmini")
+  val cgraLink = CgraLinkAttachParams(
+    adapter = CgraLinkParams(
+      auto = autoLink,
+      cgra = chipyard.example.CGRAGenerated.params,
+      packetCapacity = 16),
+    portName = "cgra",
+    resultNames = Seq("cgra", "aes"),
+    controlAddress = CgraLinkControlGenerated.baseAddress,
+    controlBytes = CgraLinkControlGenerated.pageSizeBytes)
+  val aesLink = AesLinkAttachParams(
+    adapter = AesLinkParams(
+      auto = autoLink,
+      key = AesAutoJobGenerated.key,
+      encrypt = AesAutoJobGenerated.encrypt,
+      ciphertextAddress = AesAutoJobGenerated.ciphertextAddress,
+      completionAddress = AesAutoJobGenerated.completionAddress),
+    portName = "aes")
+}
+
+class CGRAMinimalGemminiAESAutoLinkRocketConfig extends Config(
+  new WithCgraLink(CGRAMinimalGemminiAESAutoLinkRocketConfig.cgraLink) ++
+  new WithAesLink(CGRAMinimalGemminiAESAutoLinkRocketConfig.aesLink) ++
+  new WithGemminiLink(CGRAMinimalGemminiAESAutoLinkRocketConfig.gemminiLink) ++
+  new WithAutoLink(CGRAMinimalGemminiAESAutoLinkRocketConfig.autoLink) ++
+  new chipyard.example.WithCGRASpmWindow(CGRASpmWindowGenerated.params) ++
+  new aes.WithAESJobPort ++
+  new aes.WithAES256ECBAccel ++
+  new WithGemminiExternalSpm(CGRAMinimalGemminiRocketConfig.externalSpm) ++
+  new chipyard.config.WithCGRA() ++
+  new gemmini.DefaultGemminiConfig(
+    CGRAMinimalGemminiAESAutoLinkRocketConfig.gemminiConfig) ++
   new freechips.rocketchip.rocket.WithNBigCores(1) ++
   new chipyard.config.WithSystemBusWidth(256) ++
   new chipyard.config.AbstractConfig)
