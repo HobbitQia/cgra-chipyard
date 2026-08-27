@@ -173,7 +173,7 @@ lazy val chipyard = {
     Seq(
       testchipip, rocketchip, boom, rocketchip_blocks, rocketchip_inclusive_cache,
       icenet, tracegen,
-      constellation, barf, shuttle, rerocc,
+      constellation, barf, shuttle, rerocc, caliptra_aes,
     ).map(sbt.Project.projectToRef) ++
     (if (useChisel7) Seq() else Seq(sbt.Project.projectToRef(firrtl2_bridge))) ++
     (if (useChisel7) Seq() else Seq(sbt.Project.projectToRef(dsptools), sbt.Project.projectToRef(rocket_dsp_utils)))
@@ -214,6 +214,8 @@ lazy val chipyard = {
       if (useChisel7) file("tools/stage-chisel7/src/main/scala")
       else file("tools/stage/src/main/scala")
     })
+    .settings(Compile / unmanagedSourceDirectories +=
+      (ThisBuild / baseDirectory).value / "generators/caliptra-aes-acc/chipyard")
     .settings(dspExcludeSettings: _*)
 
   // Optional modules discovered via initialized submodules (no env or manifest)
@@ -229,7 +231,6 @@ lazy val chipyard = {
     "gemmini" -> gemmini,
     "nvdla" -> nvdla,
     "radiance" -> radiance,
-    "caliptra-aes-acc" -> caliptra_aes,
     "compress-acc" -> compressacc,
     "mempress" -> mempress,
     "fft-generator" -> fft_generator
@@ -379,7 +380,7 @@ lazy val tacit = withInitCheck((project in file("generators/tacit")), "tacit")
   .settings(libraryDependencies ++= rocketLibDeps.value)
   .settings(commonSettings)
 
-lazy val caliptra_aes = withInitCheck((project in file("generators/caliptra-aes-acc")), "caliptra-aes-acc")
+lazy val caliptra_aes = (project in file("generators/caliptra-aes-acc"))
   .dependsOn(rocketchip, rocc_acc_utils, testchipip)
   .settings(libraryDependencies ++= rocketLibDeps.value)
   .settings(commonSettings)
