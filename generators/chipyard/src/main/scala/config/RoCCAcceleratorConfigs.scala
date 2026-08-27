@@ -2,7 +2,7 @@ package chipyard
 
 import chipyard.socgen.cgra.{CgraLinkAttachParams, CgraLinkParams, WithCgraLink}
 import chipyard.socgen.config.AutoLinkExample
-import chipyard.socgen.generated.{CgraLinkControlGenerated, GemminiExternalSpmGenerated}
+import chipyard.socgen.generated.{CgraLinkControlGenerated, CGRASpmWindowGenerated, GemminiExternalSpmGenerated}
 import chipyard.socgen.gemmini.{GemminiLinkAttachParams, GemminiLinkParams, WithGemminiExternalSpm, WithGemminiExternalSpmWriter, WithGemminiLink}
 import chipyard.socgen.link.WithAutoLink
 import org.chipsalliance.cde.config.{Config}
@@ -50,6 +50,17 @@ object CGRAMinimalGemminiRocketConfig {
 }
 
 class CGRAMinimalGemminiRocketConfig extends Config(
+  new WithGemminiExternalSpmWriter ++
+  new WithGemminiExternalSpm(CGRAMinimalGemminiRocketConfig.externalSpm) ++
+  new chipyard.config.WithCGRA() ++
+  new gemmini.DefaultGemminiConfig(CGRAMinimalGemminiRocketConfig.minimalGemminiConfig) ++
+  new freechips.rocketchip.rocket.WithNBigCores(1) ++
+  new chipyard.config.WithSystemBusWidth(256) ++
+  new chipyard.config.AbstractConfig)
+
+class CGRAMinimalGemminiAESRocketConfig extends Config(
+  new chipyard.example.WithCGRASpmWindow(CGRASpmWindowGenerated.params) ++
+  new aes.WithAES256ECBAccel ++
   new WithGemminiExternalSpmWriter ++
   new WithGemminiExternalSpm(CGRAMinimalGemminiRocketConfig.externalSpm) ++
   new chipyard.config.WithCGRA() ++
