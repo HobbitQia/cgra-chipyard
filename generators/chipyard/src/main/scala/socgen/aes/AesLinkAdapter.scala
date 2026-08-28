@@ -69,7 +69,10 @@ class AesLinkAdapter(params: AesLinkParams) extends Module {
   io.autoLink.reportCopy.bits.status := AutoLinkStatus.Success
   io.autoLink.reportCopy.bits.detail := 0.U
 
-  io.autoLink.requestCompute.ready := active && copyReported && !computeAccepted
+  io.autoLink.requestCompute.ready := Mux(
+    io.autoLink.requestCompute.bits.start,
+    active && copyReported && !computeAccepted,
+    !active)
   io.autoLink.reportCompute.valid := active && computeAccepted && done
   io.autoLink.reportCompute.bits.status := AutoLinkStatus.Success
   io.autoLink.reportCompute.bits.detail := 0.U
@@ -93,8 +96,9 @@ class AesLinkAdapter(params: AesLinkParams) extends Module {
     copyReported := true.B
   }
   when(io.autoLink.requestCompute.fire) {
-    assert(io.autoLink.requestCompute.bits.start)
-    computeAccepted := true.B
+    when(io.autoLink.requestCompute.bits.start) {
+      computeAccepted := true.B
+    }
   }
   when(io.autoLink.reportCompute.fire) {
     active := false.B
