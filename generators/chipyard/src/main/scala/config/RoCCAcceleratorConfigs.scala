@@ -2,7 +2,7 @@ package chipyard
 
 import chipyard.socgen.aes.{AesLinkAttachParams, AesLinkParams, WithAesLink}
 import chipyard.socgen.cgra.{CgraLinkAttachParams, CgraLinkParams, WithCgraLink}
-import chipyard.socgen.generated.{AesAutoJobGenerated, AutoLinkGcGenerated, AutoLinkGcaGenerated, CgraLinkControlGenerated, CGRASpmWindowGenerated, GemminiExternalSpmGenerated}
+import chipyard.socgen.generated.{AesAutoJobGenerated, AutoLinkGenerated, CgraLinkControlGenerated, CGRASpmWindowGenerated, GemminiExternalSpmGenerated}
 import chipyard.socgen.gemmini.{GemminiLinkAttachParams, GemminiLinkParams, WithGemminiExternalSpm, WithGemminiExternalSpmWriter, WithGemminiLink}
 import chipyard.socgen.link.WithAutoLink
 import org.chipsalliance.cde.config.{Config}
@@ -74,7 +74,7 @@ object CGRAMinimalGemminiAutoLinkRocketConfig {
   private val writeBeatBytes =
     gemminiConfig.meshColumns * gemminiConfig.tileColumns * gemminiConfig.accType.getWidth / 8
 
-  val autoLink = AutoLinkGcGenerated.params
+  val autoLink = AutoLinkGenerated.params
   val gemminiLink = GemminiLinkAttachParams(adapter = GemminiLinkParams(auto = autoLink, beatBytes = writeBeatBytes), portName = "gemmini")
   val cgraLink = CgraLinkAttachParams(
     adapter = CgraLinkParams(
@@ -104,7 +104,7 @@ object CGRAMinimalGemminiAESAutoLinkRocketConfig {
   private val writeBeatBytes =
     gemminiConfig.meshColumns * gemminiConfig.tileColumns * gemminiConfig.accType.getWidth / 8
 
-  val autoLink = AutoLinkGcaGenerated.params
+  val autoLink = AutoLinkGenerated.params
   val gemminiLink = GemminiLinkAttachParams(
     adapter = GemminiLinkParams(auto = autoLink, beatBytes = writeBeatBytes),
     portName = "gemmini")
