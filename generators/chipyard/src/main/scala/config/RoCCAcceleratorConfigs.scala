@@ -42,7 +42,7 @@ object CGRAMinimalGemminiRocketConfig {
     acc_capacity = gemmini.CapacityInKilobytes(32),
     dma_maxbytes = 64,
     dma_buswidth = 256,
-    use_shared_ext_mem = false,
+    use_shared_ext_mem = true,
     use_tl_ext_mem = true,
     tl_ext_mem_base = externalSpm.baseAddress,
     sp_singleported = false,
