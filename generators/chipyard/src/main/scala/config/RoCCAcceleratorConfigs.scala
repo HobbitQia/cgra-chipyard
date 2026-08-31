@@ -2,8 +2,7 @@ package chipyard
 
 import chipyard.socgen.aes.{AesLinkAttachParams, AesLinkParams, WithAesLink}
 import chipyard.socgen.cgra.{CgraLinkAttachParams, CgraLinkParams, WithCgraLink}
-import chipyard.socgen.config.{AutoLinkAesExample, AutoLinkExample}
-import chipyard.socgen.generated.{AesAutoJobGenerated, CgraLinkControlGenerated, CGRASpmWindowGenerated, GemminiExternalSpmGenerated}
+import chipyard.socgen.generated.{AesAutoJobGenerated, AutoLinkGcGenerated, AutoLinkGcaGenerated, CgraLinkControlGenerated, CGRASpmWindowGenerated, GemminiExternalSpmGenerated}
 import chipyard.socgen.gemmini.{GemminiLinkAttachParams, GemminiLinkParams, WithGemminiExternalSpm, WithGemminiExternalSpmWriter, WithGemminiLink}
 import chipyard.socgen.link.WithAutoLink
 import org.chipsalliance.cde.config.{Config}
@@ -71,13 +70,11 @@ class CGRAMinimalGemminiAESRocketConfig extends Config(
   new chipyard.config.AbstractConfig)
 
 object CGRAMinimalGemminiAutoLinkRocketConfig {
-  private val example = AutoLinkExample
-
   val gemminiConfig = CGRAMinimalGemminiRocketConfig.minimalGemminiConfig
   private val writeBeatBytes =
     gemminiConfig.meshColumns * gemminiConfig.tileColumns * gemminiConfig.accType.getWidth / 8
 
-  val autoLink = example.params
+  val autoLink = AutoLinkGcGenerated.params
   val gemminiLink = GemminiLinkAttachParams(adapter = GemminiLinkParams(auto = autoLink, beatBytes = writeBeatBytes), portName = "gemmini")
   val cgraLink = CgraLinkAttachParams(
     adapter = CgraLinkParams(
@@ -103,13 +100,11 @@ class CGRAMinimalGemminiAutoLinkRocketConfig extends Config(
   new chipyard.config.AbstractConfig)
 
 object CGRAMinimalGemminiAESAutoLinkRocketConfig {
-  private val example = AutoLinkAesExample
-
   val gemminiConfig = CGRAMinimalGemminiRocketConfig.minimalGemminiConfig
   private val writeBeatBytes =
     gemminiConfig.meshColumns * gemminiConfig.tileColumns * gemminiConfig.accType.getWidth / 8
 
-  val autoLink = example.params
+  val autoLink = AutoLinkGcaGenerated.params
   val gemminiLink = GemminiLinkAttachParams(
     adapter = GemminiLinkParams(auto = autoLink, beatBytes = writeBeatBytes),
     portName = "gemmini")
