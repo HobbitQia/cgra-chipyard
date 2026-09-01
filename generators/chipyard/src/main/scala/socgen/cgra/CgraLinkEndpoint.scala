@@ -16,10 +16,10 @@ import freechips.rocketchip.util.{AsyncBundle, AsyncQueueParams, FromAsyncBundle
 import org.chipsalliance.cde.config.Parameters
 import org.chipsalliance.diplomacy.lazymodule.LazyModule
 
-/** CPU configuration and result registers for the CGRA AutoLink adapter. */
-class CgraLinkControl(params: CgraLinkParams, resultNames: Seq[String], address: BigInt, pageSizeBytes: Int)(implicit p: Parameters) extends ClockSinkDomain(ClockSinkParameters())(p) {
+/** SoC attachment and CPU-visible registers for the CGRA AutoLink adapter. */
+class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address: BigInt, pageSizeBytes: Int)(implicit p: Parameters) extends ClockSinkDomain(ClockSinkParameters())(p) {
   private val device = new SimpleDevice("cgra-link-control", Seq("coredac,cgra-link-control"))
-  val node = TLRegisterNode(
+  val controlNode = TLRegisterNode(
     address = Seq(AddressSet(address, pageSizeBytes - 1)),
     device = device,
     beatBytes = 8,
@@ -30,8 +30,8 @@ class CgraLinkControl(params: CgraLinkParams, resultNames: Seq[String], address:
 
   def resultNode(name: String): BundleBridgeSink[AsyncBundle[AutoEvent]] = resultNodes(name)
 
-  override lazy val module = new ControlImpl
-  class ControlImpl extends Impl {
+  override lazy val module = new EndpointImpl
+  class EndpointImpl extends Impl {
     withClockAndReset(clock, reset) {
       val configLink = configNode.out.head._1
       val configOut = Wire(Decoupled(new CgraLinkConfig(params)))
@@ -71,7 +71,7 @@ class CgraLinkControl(params: CgraLinkParams, resultNames: Seq[String], address:
       }
 
       import CgraLinkControlGenerated._
-      node.regmap(
+      controlNode.regmap(
         PACKET_COUNT -> Seq(RegField(32, packetCount)),
         CONFIG_SUBMIT -> Seq(RegField.w(1, configSubmit)),
         RESULT_VALID -> Seq(RegField.r(1, results.io.deq.valid)),
@@ -96,19 +96,19 @@ trait CanHaveCgraLink {
     require(cgras.size == 1)
     val params = attach.adapter
     val cgra = cgras.head
-    val control = LazyModule(new CgraLinkControl(params, attach.resultNames, attach.controlAddress, attach.controlBytes))
+    val endpoint = LazyModule(new CgraLinkEndpoint(params, attach.resultNames, attach.controlAddress, attach.controlBytes))
 
     cgra.autoNode.get := autoLink.get.endpoint(attach.portName)
-    cgra.linkConfigNode.get := control.configNode
+    cgra.linkConfigNode.get := endpoint.configNode
     attach.resultNames.foreach { name =>
-      control.resultNode(name) := autoLink.get.result(name)
+      endpoint.resultNode(name) := autoLink.get.result(name)
     }
-    control.clockNode := pbus.fixedClockNode
+    endpoint.clockNode := pbus.fixedClockNode
     pbus.coupleTo("cgra-link-control") {
-      control.node := TLBuffer() := TLFragmenter(
+      endpoint.controlNode := TLBuffer() := TLFragmenter(
         pbus.beatBytes,
         pbus.blockBytes) := _
     }
-    control
+    endpoint
   }
 }
