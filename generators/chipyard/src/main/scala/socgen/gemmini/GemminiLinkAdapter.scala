@@ -213,13 +213,17 @@ class GemminiLinkMonitor(params: GemminiLinkParams)(implicit p: Parameters)
 class GemminiLinkEndpoint(gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float], params: GemminiLinkParams)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
   val node = BundleBridgeSink[AutoEndpointAsyncLink]()
-  val cmdNode = BundleBridgeSource(() => new AsyncBundle(new RoCCCommand, AsyncQueueParams.singleton()))
+  val cmdNode = BundleBridgeSource(() =>
+    new AsyncBundle(
+      new RoCCCommand()(gemminiAccelerator.p),
+      AsyncQueueParams.singleton()))
   val writerNode = TLIdentityNode()
   val monitor = LazyModule(new GemminiLinkMonitor(params))
-  private val controlAddress = CgraLinkControlGenerated.baseAddress + CgraLinkControlGenerated.pageSizeBytes
   private val device = new SimpleDevice("gemmini-job", Seq("coredac,gemmini-job"))
   val controlNode = TLRegisterNode(
-    address = Seq(AddressSet(controlAddress, CgraLinkControlGenerated.pageSizeBytes - 1)),
+    address = Seq(AddressSet(
+      CgraLinkControlGenerated.gemminiJobAddress,
+      CgraLinkControlGenerated.pageSizeBytes - 1)),
     device = device,
     beatBytes = 8,
     concurrency = 1)
@@ -232,7 +236,9 @@ class GemminiLinkEndpoint(gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemm
   class EndpointImpl extends Impl {
     withClockAndReset(clock, reset) {
       val adapter = Module(new GemminiLinkAdapter(params))
-      val job = Module(new GemminiJobAdapter(gemminiAccelerator.config, params.auto))
+      val job = Module(new GemminiJobAdapter(
+        gemminiAccelerator.config,
+        params.auto)(gemminiAccelerator.p))
       val link = node.in.head._1
       val command = cmdNode.out.head._1
 
@@ -274,14 +280,14 @@ class GemminiLinkEndpoint(gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemm
       job.io.configIn.bits.outputRows := outputRows
       submit.ready := Mux(submit.bits.asBool, job.io.configIn.ready, true.B)
 
-      import GemminiJobControl._
+      import CgraLinkControlGenerated._
       controlNode.regmap(
-        ARow -> Seq(RegField(32, aRow)),
-        BRow -> Seq(RegField(32, bRow)),
-        AccAddress -> Seq(RegField(32, accAddress)),
-        OutputRow -> Seq(RegField(32, outputRow)),
-        OutputRows -> Seq(RegField(32, outputRows)),
-        Submit -> Seq(RegField.w(1, submit)))
+        GEMMINI_A_ROW -> Seq(RegField(32, aRow)),
+        GEMMINI_B_ROW -> Seq(RegField(32, bRow)),
+        GEMMINI_ACC_ADDRESS -> Seq(RegField(32, accAddress)),
+        GEMMINI_OUTPUT_ROW -> Seq(RegField(32, outputRow)),
+        GEMMINI_OUTPUT_ROWS -> Seq(RegField(32, outputRows)),
+        GEMMINI_SUBMIT -> Seq(RegField.w(1, submit)))
     }
   }
 }

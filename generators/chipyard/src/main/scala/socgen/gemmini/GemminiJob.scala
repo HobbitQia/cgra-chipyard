@@ -7,15 +7,6 @@ import freechips.rocketchip.tile.{OpcodeSet, RoCCCommand}
 import gemmini.GemminiISA._
 import org.chipsalliance.cde.config.Parameters
 
-object GemminiJobControl {
-  val ARow = 0x000
-  val BRow = 0x008
-  val AccAddress = 0x010
-  val OutputRow = 0x018
-  val OutputRows = 0x020
-  val Submit = 0x028
-}
-
 class GemminiJobDesc extends Bundle {
   val aRow = UInt(32.W)
   val bRow = UInt(32.W)

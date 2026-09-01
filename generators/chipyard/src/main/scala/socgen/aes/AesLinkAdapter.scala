@@ -20,19 +20,6 @@ object AesLinkStatus {
   val BadLength = 2
 }
 
-object AesJobControl {
-  val Source = 0x000
-  val Bytes = 0x008
-  val Destination = 0x010
-  val Completion = 0x018
-  val Key0 = 0x020
-  val Key1 = 0x028
-  val Key2 = 0x030
-  val Key3 = 0x038
-  val Encrypt = 0x040
-  val Submit = 0x048
-}
-
 case class AesLinkParams(
   auto: AutoLinkParams,
   key: BigInt,
@@ -188,11 +175,11 @@ class AesLinkEndpoint(params: AesLinkParams)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
   val autoNode = BundleBridgeSink[AutoEndpointAsyncLink]()
   val jobNode = BundleBridgeSource(() => new _root_.aes.AesJobAsyncLink)
-  private val controlAddress = CgraLinkControlGenerated.baseAddress +
-    2 * CgraLinkControlGenerated.pageSizeBytes
   private val device = new SimpleDevice("aes-job", Seq("coredac,aes-job"))
   val controlNode = TLRegisterNode(
-    address = Seq(AddressSet(controlAddress, CgraLinkControlGenerated.pageSizeBytes - 1)),
+    address = Seq(AddressSet(
+      CgraLinkControlGenerated.aesJobAddress,
+      CgraLinkControlGenerated.pageSizeBytes - 1)),
     device = device,
     beatBytes = 8,
     concurrency = 1)
@@ -237,18 +224,18 @@ class AesLinkEndpoint(params: AesLinkParams)(implicit p: Parameters)
         adapter.io.rootJob.ready,
         true.B)
 
-      import AesJobControl._
+      import CgraLinkControlGenerated._
       controlNode.regmap(
-        Source -> Seq(RegField(64, source)),
-        Bytes -> Seq(RegField(64, bytes)),
-        Destination -> Seq(RegField(64, destination)),
-        Completion -> Seq(RegField(64, completion)),
-        Key0 -> Seq(RegField(64, key(0))),
-        Key1 -> Seq(RegField(64, key(1))),
-        Key2 -> Seq(RegField(64, key(2))),
-        Key3 -> Seq(RegField(64, key(3))),
-        Encrypt -> Seq(RegField(1, encrypt)),
-        Submit -> Seq(RegField.w(1, submit)))
+        AES_SOURCE -> Seq(RegField(64, source)),
+        AES_BYTES -> Seq(RegField(64, bytes)),
+        AES_DESTINATION -> Seq(RegField(64, destination)),
+        AES_COMPLETION -> Seq(RegField(64, completion)),
+        AES_KEY0 -> Seq(RegField(64, key(0))),
+        AES_KEY1 -> Seq(RegField(64, key(1))),
+        AES_KEY2 -> Seq(RegField(64, key(2))),
+        AES_KEY3 -> Seq(RegField(64, key(3))),
+        AES_ENCRYPT -> Seq(RegField(1, encrypt)),
+        AES_SUBMIT -> Seq(RegField.w(1, submit)))
     }
   }
 }
