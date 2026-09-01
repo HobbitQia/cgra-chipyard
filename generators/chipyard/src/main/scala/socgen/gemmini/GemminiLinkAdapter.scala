@@ -6,8 +6,12 @@ import chipyard.socgen.link._
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.prci.{ClockSinkDomain, ClockSinkParameters}
 import freechips.rocketchip.subsystem.{BaseSubsystem, InstantiatesHierarchicalElements, SBUS}
+import freechips.rocketchip.regmapper.RegField
+import freechips.rocketchip.resources.SimpleDevice
+import freechips.rocketchip.tile.RoCCCommand
 import freechips.rocketchip.tilelink._
-import freechips.rocketchip.util.{AsyncQueueParams, FromAsyncBundle, ToAsyncBundle}
+import freechips.rocketchip.util.{AsyncBundle, AsyncQueueParams, FromAsyncBundle, ToAsyncBundle}
+import chipyard.socgen.generated.CgraLinkControlGenerated
 import org.chipsalliance.cde.config.{Config, Field, Parameters}
 import org.chipsalliance.diplomacy.lazymodule.LazyModule
 
@@ -52,6 +56,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams) extends Module {
     val write = Flipped(Valid(new GemminiLinkWrite(params)))
     val ack = Flipped(Valid(new GemminiLinkAck))
     val autoLink = new AutoEndpointIO(params.auto)
+    val completion = Valid(new AutoEvent(params.auto))
   })
 
   val watch = Reg(new AutoWatch(params.auto))
@@ -83,10 +88,19 @@ class GemminiLinkAdapter(params: GemminiLinkParams) extends Module {
   io.autoLink.requestCompute.ready := false.B
   io.autoLink.reportCompute.valid := false.B
   io.autoLink.reportCompute.bits := 0.U.asTypeOf(new AutoEvent(params.auto))
+  io.completion.valid := false.B
+  io.completion.bits := 0.U.asTypeOf(new AutoEvent(params.auto))
 
   def finish(detail: UInt): Unit = {
     producedValid := true.B
     producedDetail := detail
+    io.completion.valid := true.B
+    io.completion.bits.status := Mux(
+      detail === 0.U,
+      AutoLinkStatus.Success,
+      AutoLinkStatus.SourceFailure)
+    io.completion.bits.detail := detail
+    io.completion.bits.data := 0.U
   }
 
   when(io.autoLink.watchOutput.fire) {
@@ -199,8 +213,16 @@ class GemminiLinkMonitor(params: GemminiLinkParams)(implicit p: Parameters)
 class GemminiLinkEndpoint(gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float], params: GemminiLinkParams)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
   val node = BundleBridgeSink[AutoEndpointAsyncLink]()
+  val cmdNode = BundleBridgeSource(() => new AsyncBundle(new RoCCCommand, AsyncQueueParams.singleton()))
   val writerNode = TLIdentityNode()
   val monitor = LazyModule(new GemminiLinkMonitor(params))
+  private val controlAddress = CgraLinkControlGenerated.baseAddress + CgraLinkControlGenerated.pageSizeBytes
+  private val device = new SimpleDevice("gemmini-job", Seq("coredac,gemmini-job"))
+  val controlNode = TLRegisterNode(
+    address = Seq(AddressSet(controlAddress, CgraLinkControlGenerated.pageSizeBytes - 1)),
+    device = device,
+    beatBytes = 8,
+    concurrency = 1)
   private val dmaBeatBytes = gemminiAccelerator.config.dma_buswidth / 8
 
   writerNode := monitor.node := TLWidthWidget(dmaBeatBytes) := TLBuffer() :=
@@ -210,7 +232,9 @@ class GemminiLinkEndpoint(gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemm
   class EndpointImpl extends Impl {
     withClockAndReset(clock, reset) {
       val adapter = Module(new GemminiLinkAdapter(params))
+      val job = Module(new GemminiJobAdapter(gemminiAccelerator.config, params.auto))
       val link = node.in.head._1
+      val command = cmdNode.out.head._1
 
       adapter.io.write <> monitor.module.io.write
       adapter.io.ack <> monitor.module.io.ack
@@ -218,14 +242,46 @@ class GemminiLinkEndpoint(gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemm
       link.reportOutput <> ToAsyncBundle(
         adapter.io.autoLink.reportOutput,
         AsyncQueueParams.singleton())
-      adapter.io.autoLink.requestCopy <> FromAsyncBundle(link.requestCopy)
+      job.io.requestCopy <> FromAsyncBundle(link.requestCopy)
       link.reportCopy <> ToAsyncBundle(
-        adapter.io.autoLink.reportCopy,
+        job.io.reportCopy,
         AsyncQueueParams.singleton())
-      adapter.io.autoLink.requestCompute <> FromAsyncBundle(link.requestCompute)
+      job.io.requestCompute <> FromAsyncBundle(link.requestCompute)
       link.reportCompute <> ToAsyncBundle(
-        adapter.io.autoLink.reportCompute,
+        job.io.reportCompute,
         AsyncQueueParams.singleton())
+      adapter.io.autoLink.requestCopy.valid := false.B
+      adapter.io.autoLink.requestCopy.bits := 0.U.asTypeOf(new AutoCopyRequest(params.auto))
+      adapter.io.autoLink.reportCopy.ready := false.B
+      adapter.io.autoLink.requestCompute.valid := false.B
+      adapter.io.autoLink.requestCompute.bits := 0.U.asTypeOf(new AutoComputeRequest)
+      adapter.io.autoLink.reportCompute.ready := false.B
+
+      job.io.publication <> adapter.io.completion
+      command <> ToAsyncBundle(job.io.command, AsyncQueueParams.singleton())
+
+      val aRow = RegInit(0.U(32.W))
+      val bRow = RegInit(0.U(32.W))
+      val accAddress = RegInit(0.U(32.W))
+      val outputRow = RegInit(0.U(32.W))
+      val outputRows = RegInit(0.U(32.W))
+      val submit = Wire(Decoupled(UInt(1.W)))
+      job.io.configIn.valid := submit.valid && submit.bits.asBool
+      job.io.configIn.bits.aRow := aRow
+      job.io.configIn.bits.bRow := bRow
+      job.io.configIn.bits.accAddress := accAddress
+      job.io.configIn.bits.outputRow := outputRow
+      job.io.configIn.bits.outputRows := outputRows
+      submit.ready := Mux(submit.bits.asBool, job.io.configIn.ready, true.B)
+
+      import GemminiJobControl._
+      controlNode.regmap(
+        ARow -> Seq(RegField(32, aRow)),
+        BRow -> Seq(RegField(32, bRow)),
+        AccAddress -> Seq(RegField(32, accAddress)),
+        OutputRow -> Seq(RegField(32, outputRow)),
+        OutputRows -> Seq(RegField(32, outputRows)),
+        Submit -> Seq(RegField.w(1, submit)))
     }
   }
 }
@@ -241,10 +297,18 @@ trait CanHaveGemminiLink {
     require(externalSpm.writeBeatBytes == params.beatBytes)
     val endpoint = LazyModule(new GemminiLinkEndpoint(externalSpm.gemminiAccelerator, params))
 
+    require(externalSpm.gemminiAccelerator.cmdNode.nonEmpty)
+
     externalSpm.writerNode := endpoint.writerNode
     endpoint.node := autoLink.get.endpoint(attach.portName)
+    externalSpm.gemminiAccelerator.cmdNode.get := endpoint.cmdNode
     endpoint.clockNode := sbus.fixedClockNode
     endpoint.monitor.clockNode := sbus.fixedClockNode
+    sbus.coupleTo("gemmini-job") {
+      endpoint.controlNode := TLBuffer() := TLFragmenter(
+        endpoint.controlNode.beatBytes,
+        sbus.blockBytes) := TLWidthWidget(sbus) := _
+    }
     endpoint
   }
 }

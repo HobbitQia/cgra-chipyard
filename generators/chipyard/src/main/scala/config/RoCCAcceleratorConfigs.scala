@@ -93,6 +93,7 @@ class CGRAMinimalGemminiAutoLinkRocketConfig extends Config(
   new WithAutoLink(CGRAMinimalGemminiAutoLinkRocketConfig.autoLink) ++
   new WithGemminiExternalSpm(CGRAMinimalGemminiRocketConfig.externalSpm) ++
   new chipyard.config.WithCGRA() ++
+  new gemmini.WithGemminiCmdPort ++
   new gemmini.DefaultGemminiConfig(
     CGRAMinimalGemminiAutoLinkRocketConfig.gemminiConfig) ++
   new freechips.rocketchip.rocket.WithNBigCores(1) ++
@@ -137,6 +138,7 @@ class CGRAMinimalGemminiAESAutoLinkRocketConfig extends Config(
   new aes.WithAES256ECBAccel ++
   new WithGemminiExternalSpm(CGRAMinimalGemminiRocketConfig.externalSpm) ++
   new chipyard.config.WithCGRA() ++
+  new gemmini.WithGemminiCmdPort ++
   new gemmini.DefaultGemminiConfig(
     CGRAMinimalGemminiAESAutoLinkRocketConfig.gemminiConfig) ++
   new freechips.rocketchip.rocket.WithNBigCores(1) ++
