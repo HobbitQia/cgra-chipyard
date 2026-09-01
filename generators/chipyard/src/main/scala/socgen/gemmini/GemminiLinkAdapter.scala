@@ -8,7 +8,6 @@ import freechips.rocketchip.prci.{ClockSinkDomain, ClockSinkParameters}
 import freechips.rocketchip.subsystem.{BaseSubsystem, InstantiatesHierarchicalElements, SBUS}
 import freechips.rocketchip.regmapper.RegField
 import freechips.rocketchip.resources.SimpleDevice
-import freechips.rocketchip.tile.RoCCCommand
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.util.{AsyncBundle, AsyncQueueParams, FromAsyncBundle, ToAsyncBundle}
 import chipyard.socgen.generated.CgraLinkControlGenerated
@@ -210,12 +209,13 @@ class GemminiLinkMonitor(params: GemminiLinkParams)(implicit p: Parameters)
   }
 }
 
-class GemminiLinkEndpoint(gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float], params: GemminiLinkParams)(implicit p: Parameters)
+class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
+  private val gemminiAccelerator = gemminiRoCC.accelerator
   val node = BundleBridgeSink[AutoEndpointAsyncLink]()
   val cmdNode = BundleBridgeSource(() =>
     new AsyncBundle(
-      new RoCCCommand()(gemminiAccelerator.p),
+      new GemminiAutoCommand()(gemminiAccelerator.p),
       AsyncQueueParams.singleton()))
   val writerNode = TLIdentityNode()
   val monitor = LazyModule(new GemminiLinkMonitor(params))
@@ -301,13 +301,13 @@ trait CanHaveGemminiLink {
     val externalSpm = gemminiExternalSpm.get
     require(externalSpm.readBeatBytes == params.auto.beatBytes)
     require(externalSpm.writeBeatBytes == params.beatBytes)
-    val endpoint = LazyModule(new GemminiLinkEndpoint(externalSpm.gemminiAccelerator, params))
+    val endpoint = LazyModule(new GemminiLinkEndpoint(externalSpm.gemminiRoCC, params))
 
-    require(externalSpm.gemminiAccelerator.cmdNode.nonEmpty)
+    require(externalSpm.gemminiRoCC.cmdNode.nonEmpty)
 
     externalSpm.writerNode := endpoint.writerNode
     endpoint.node := autoLink.get.endpoint(attach.portName)
-    externalSpm.gemminiAccelerator.cmdNode.get := endpoint.cmdNode
+    externalSpm.gemminiRoCC.cmdNode.get := endpoint.cmdNode
     endpoint.clockNode := sbus.fixedClockNode
     endpoint.monitor.clockNode := sbus.fixedClockNode
     sbus.coupleTo("gemmini-job") {

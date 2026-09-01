@@ -27,7 +27,7 @@ class GemminiJobAdapter(
     val requestCompute = Flipped(Decoupled(new AutoComputeRequest))
     val reportCompute = Decoupled(new AutoEvent(auto))
     val publication = Flipped(Valid(new AutoEvent(auto)))
-    val command = Decoupled(new RoCCCommand)
+    val command = Decoupled(new GemminiAutoCommand)
   })
 
   object State {
@@ -139,7 +139,8 @@ class GemminiJobAdapter(
   io.reportCompute.valid := state === State.reportCompute
   io.reportCompute.bits := result
   io.command.valid := state === State.issue
-  io.command.bits := commands(commandIndex)
+  io.command.bits.command := commands(commandIndex)
+  io.command.bits.last := commandIndex === (commands.length - 1).U
 
   when(io.configIn.fire) {
     desc := io.configIn.bits

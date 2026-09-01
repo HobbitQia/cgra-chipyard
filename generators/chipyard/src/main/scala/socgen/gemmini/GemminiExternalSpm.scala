@@ -262,8 +262,9 @@ class GemminiExternalSpm(
 }
 
 /** Connects Gemmini and system traffic to one external scratchpad. */
-class GemminiExternalSpmAttach(val gemminiAccelerator: gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float], params: GemminiExternalSpmParams)(implicit p: Parameters)
+class GemminiExternalSpmAttach(val gemminiRoCC: GemminiRoCC, params: GemminiExternalSpmParams)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
+  val gemminiAccelerator = gemminiRoCC.accelerator
   private val gemminiConfig = gemminiAccelerator.config
   val readBeatBytes: Int = gemminiConfig.sp_width / 8
   val writeBeatBytes: Int =
@@ -316,13 +317,11 @@ trait CanHaveGemminiExternalSpm {
   val gemminiExternalSpm = p(GemminiExternalSpmKey).map { params =>
     val gemminis = totalTiles.values.toSeq.flatMap {
       case tile: RocketTile =>
-        tile.roccs.collect { case accelerator: gemmini.Gemmini[_, _, _] => accelerator }
+        tile.roccs.collect { case accelerator: GemminiRoCC => accelerator }
       case _ => Nil
     }
     require(gemminis.size == 1)
-    val gemminiAccelerator = gemminis.head.asInstanceOf[
-      gemmini.Gemmini[chisel3.SInt, gemmini.Float, gemmini.Float]]
-    val attach = LazyModule(new GemminiExternalSpmAttach(gemminiAccelerator, params))
+    val attach = LazyModule(new GemminiExternalSpmAttach(gemminis.head, params))
 
     attach.clockNode := sbus.fixedClockNode
     attach.spm.clockNode := sbus.fixedClockNode
