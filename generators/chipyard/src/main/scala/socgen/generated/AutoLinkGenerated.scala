@@ -7,12 +7,17 @@ import chipyard.socgen.link._
 object AutoLinkGenerated {
   val params = AutoLinkParams(
     links = Seq(
-      AutoLinkSpec(source = "gemmini", destination = "cgra")),
+      AutoLinkSpec(source = "aes", destination = "gemmini"),
+      AutoLinkSpec(source = "gemmini", destination = "cgra"),
+      AutoLinkSpec(source = "cgra", destination = "aes")),
     endpoints = Seq(
+      AutoEndpointSpec(name = "aes", buffer = Some(AutoBuffer(BigInt("60000000", 16), 256)), localBytes = 128),
       AutoEndpointSpec(name = "gemmini", buffer = Some(AutoBuffer(BigInt("60000000", 16), 65536)), localBytes = 65536),
-      AutoEndpointSpec(name = "cgra", buffer = None, localBytes = CGRAGenerated.params.dma.spmWords * CGRAGenerated.params.dataPayloadWidth / 8)),
+      AutoEndpointSpec(name = "cgra", buffer = Some(AutoBuffer(BigInt("60010000", 16), 512)), localBytes = 512)),
     table = Seq(
-      AutoCopySpec(route = 0, sourceOffset = 65408, destinationOffset = 0, bytes = 128)),
+      AutoCopySpec(route = 0, sourceOffset = 0, destinationOffset = 0, bytes = 256),
+      AutoCopySpec(route = 1, sourceOffset = 65408, destinationOffset = 0, bytes = 128),
+      AutoCopySpec(route = 2, sourceOffset = 0, destinationOffset = 0, bytes = 128)),
     beatBytes = CGRAGenerated.params.dma.dramDataWidth / 8,
     copyDepth = 2)
 }

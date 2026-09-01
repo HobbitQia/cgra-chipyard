@@ -115,7 +115,7 @@ object CGRAMinimalGemminiAESAutoLinkRocketConfig {
       cgra = chipyard.example.CGRAGenerated.params,
       packetCapacity = 16),
     portName = "cgra",
-    resultNames = Seq("cgra", "aes"),
+    resultNames = Seq("gemmini", "cgra", "aes"),
     controlAddress = CgraLinkControlGenerated.baseAddress,
     controlBytes = CgraLinkControlGenerated.pageSizeBytes)
   val aesLink = AesLinkAttachParams(
