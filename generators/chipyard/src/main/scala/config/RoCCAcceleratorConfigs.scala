@@ -75,7 +75,12 @@ object CGRAMinimalGemminiAutoLinkRocketConfig {
     gemminiConfig.meshColumns * gemminiConfig.tileColumns * gemminiConfig.accType.getWidth / 8
 
   val autoLink = AutoLinkGenerated.params
-  val gemminiLink = GemminiLinkAttachParams(adapter = GemminiLinkParams(auto = autoLink, beatBytes = writeBeatBytes), portName = "gemmini")
+  val gemminiLink = GemminiLinkAttachParams(
+    adapter = GemminiLinkParams(
+      auto = autoLink,
+      beatBytes = writeBeatBytes,
+      commandCapacity = 16),
+    portName = "gemmini")
   val cgraLink = CgraLinkAttachParams(
     adapter = CgraLinkParams(
       auto = autoLink,
@@ -95,7 +100,7 @@ class CGRAMinimalGemminiAutoLinkRocketConfig extends Config(
   new chipyard.config.WithCGRA() ++
   new WithGemminiRoCC(
     CGRAMinimalGemminiAutoLinkRocketConfig.gemminiConfig,
-    auto = true) ++
+    linkParams = Some(CGRAMinimalGemminiAutoLinkRocketConfig.gemminiLink.adapter)) ++
   new freechips.rocketchip.rocket.WithNBigCores(1) ++
   new chipyard.config.WithSystemBusWidth(256) ++
   new chipyard.config.AbstractConfig)
@@ -107,7 +112,10 @@ object CGRAMinimalGemminiAESAutoLinkRocketConfig {
 
   val autoLink = AutoLinkGenerated.params
   val gemminiLink = GemminiLinkAttachParams(
-    adapter = GemminiLinkParams(auto = autoLink, beatBytes = writeBeatBytes),
+    adapter = GemminiLinkParams(
+      auto = autoLink,
+      beatBytes = writeBeatBytes,
+      commandCapacity = 16),
     portName = "gemmini")
   val cgraLink = CgraLinkAttachParams(
     adapter = CgraLinkParams(
@@ -140,7 +148,7 @@ class CGRAMinimalGemminiAESAutoLinkRocketConfig extends Config(
   new chipyard.config.WithCGRA() ++
   new WithGemminiRoCC(
     CGRAMinimalGemminiAESAutoLinkRocketConfig.gemminiConfig,
-    auto = true) ++
+    linkParams = Some(CGRAMinimalGemminiAESAutoLinkRocketConfig.gemminiLink.adapter)) ++
   new freechips.rocketchip.rocket.WithNBigCores(1) ++
   new chipyard.config.WithSystemBusWidth(256) ++
   new chipyard.config.AbstractConfig)
