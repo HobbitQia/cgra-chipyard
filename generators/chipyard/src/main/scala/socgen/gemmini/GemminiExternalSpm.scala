@@ -36,6 +36,7 @@ class GemminiExternalSpm(
   require(params.sizeBytes % bankCount == 0)
   require(writeBeatBytes % readBeatBytes == 0)
   require(writeBeatBytes >= systemMaxBytes)
+  require(writeBeatBytes % systemMaxBytes == 0)
   private val bankBytes = params.sizeBytes / bankCount
   require(bankBytes % writeBeatBytes == 0)
   private val device = new SimpleDevice("gemmini-ext-spm", Seq("coredac,gemmini-ext-spm"))
@@ -81,7 +82,7 @@ class GemminiExternalSpm(
         supportsPutFull = TransferSizes(1, systemMaxBytes),
         supportsPutPartial = TransferSizes(1, systemMaxBytes),
         fifoId = Some(0))),
-      beatBytes = writeBeatBytes,
+      beatBytes = systemMaxBytes,
       minLatency = 1)))
   }
 
@@ -96,6 +97,8 @@ class GemminiExternalSpm(
         val lineIndexBits = log2Ceil(lineCount)
         val lineOffsetBits = log2Ceil(writeBeatBytes)
         val readIndexBits = log2Ceil(writeBeatBytes / readBeatBytes)
+        val systemBeatCount = writeBeatBytes / systemMaxBytes
+        val systemIndexBits = log2Ceil(systemBeatCount)
         val mem = SyncReadMem(lineCount, Vec(writeBeatBytes, UInt(8.W)))
 
         val readPending = RegInit(false.B)
@@ -115,7 +118,8 @@ class GemminiExternalSpm(
         val systemResponseRead = Reg(Bool())
         val systemSource = Reg(UInt(systemEdge.bundle.sourceBits.W))
         val systemSize = Reg(UInt(systemEdge.bundle.sizeBits.W))
-        val systemData = Reg(UInt((writeBeatBytes * 8).W))
+        val systemBeat = Reg(UInt(math.max(1, systemIndexBits).W))
+        val systemData = Reg(UInt((systemMaxBytes * 8).W))
 
         val incomingReadLine = read.a.bits.address(
           lineOffsetBits + lineIndexBits - 1,
@@ -151,6 +155,20 @@ class GemminiExternalSpm(
         val readData = mem.read(selectedReadLine, selectedReadValid)
         val readBeats = readData.asUInt.asTypeOf(
           Vec(writeBeatBytes / readBeatBytes, UInt((readBeatBytes * 8).W)))
+        val systemBeats = readData.asUInt.asTypeOf(
+          Vec(systemBeatCount, UInt((systemMaxBytes * 8).W)))
+        val systemWriteData = Wire(Vec(writeBeatBytes, UInt(8.W)))
+        val systemWriteMask = Wire(Vec(writeBeatBytes, Bool()))
+        val incomingSystemBeat = if (systemIndexBits == 0) {
+          0.U
+        } else {
+          system.a.bits.address(lineOffsetBits - 1, log2Ceil(systemMaxBytes))
+        }
+        for (beat <- 0 until systemBeatCount; byte <- 0 until systemMaxBytes) {
+          val index = beat * systemMaxBytes + byte
+          systemWriteData(index) := system.a.bits.data(8 * (byte + 1) - 1, 8 * byte)
+          systemWriteMask(index) := system.a.bits.mask(byte) && incomingSystemBeat === beat.U
+        }
 
         read.a.ready := selectRead
         read.d.valid := responseValid
@@ -214,11 +232,12 @@ class GemminiExternalSpm(
           systemSource := system.a.bits.source
           systemSize := system.a.bits.size
           readLine := incomingSystemLine
+          systemBeat := incomingSystemBeat
         }
         when(systemReadPending) {
           systemReadPending := false.B
           systemResponseValid := true.B
-          systemData := readData.asUInt
+          systemData := systemBeats(systemBeat)
         }
         when(selectSystemWrite) {
           systemResponseValid := true.B
@@ -233,9 +252,9 @@ class GemminiExternalSpm(
         when(selectedWriteValid) {
           mem.write(
             selectedWriteLine,
-            Mux(selectWrite, write.a.bits.data, system.a.bits.data)
+            Mux(selectWrite, write.a.bits.data, systemWriteData.asUInt)
               .asTypeOf(Vec(writeBeatBytes, UInt(8.W))),
-            Mux(selectWrite, write.a.bits.mask, system.a.bits.mask).asBools)
+            Mux(selectWrite, write.a.bits.mask, systemWriteMask.asUInt).asBools)
         }
       }
     }
