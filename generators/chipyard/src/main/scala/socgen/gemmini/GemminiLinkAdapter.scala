@@ -121,6 +121,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   io.configAck.bits.status := configStatus
   io.configAck.bits.detail := configDetail
 
+  // Only one sequence is supported; extra commands may execute before the automatic job completes.
   io.cpuCommand.ready := Mux(capture, true.B, !replay && io.command.ready)
   io.command.valid := Mux(replay, true.B, io.cpuCommand.valid && !capture)
   io.command.bits := Mux(
