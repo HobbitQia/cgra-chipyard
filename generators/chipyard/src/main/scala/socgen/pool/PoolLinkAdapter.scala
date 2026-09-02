@@ -9,8 +9,6 @@ case class PoolLinkParams(auto: AutoLinkParams)
 class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends Module {
   val io = IO(new Bundle {
     val configuredJob = Input(new PoolJob(params))
-    val manualStart = Flipped(Decoupled(new PoolJob(params)))
-    val manualDone = Decoupled(new PoolEvent)
     val job = Decoupled(new PoolJob(params))
     val inputDone = Flipped(Decoupled(new PoolEvent))
     val jobDone = Flipped(Decoupled(new PoolEvent))
@@ -18,17 +16,11 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
     val active = Output(Bool())
   })
 
-  object Role {
-    val idle :: manual :: automatic :: Nil = Enum(3)
-  }
   object AutoState {
     val idle :: running :: reportCopy :: waitCompute :: reportCompute :: Nil = Enum(5)
   }
 
-  val role = RegInit(Role.idle)
   val autoState = RegInit(AutoState.idle)
-  val manualResult = Reg(new PoolEvent)
-  val manualResultValid = RegInit(false.B)
   val copyTask = link.map(value => Reg(UInt(value.auto.taskWidth.W)))
   val copyStatus = RegInit(PoolStatus.Success)
   val doneStatus = RegInit(PoolStatus.Success)
@@ -39,7 +31,7 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
   val publicationValid = RegInit(false.B)
   val publicationStatus = RegInit(PoolStatus.Success)
 
-  val idle = role === Role.idle && !manualResultValid
+  val idle = autoState === AutoState.idle
   val autoRequest = link.map(_.auto).map { auto =>
     val port = io.autoLink.get
     val expectedBytes = io.configuredJob.inputHeight * io.configuredJob.inputWidth *
@@ -58,8 +50,7 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
     port.reportOutput.bits.detail := publicationStatus
     port.reportOutput.bits.data := 0.U
 
-    port.requestCopy.ready := idle && Mux(lengthValid, io.job.ready, true.B) &&
-      !io.manualStart.valid
+    port.requestCopy.ready := idle && Mux(lengthValid, io.job.ready, true.B)
     port.reportCopy.valid := autoState === AutoState.reportCopy
     port.reportCopy.bits.task := copyTask.get
     port.reportCopy.bits.status := Mux(
@@ -67,7 +58,10 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
       AutoLinkStatus.Success,
       AutoLinkStatus.SinkFailure)
     port.reportCopy.bits.detail := copyStatus
-    port.requestCompute.ready := autoState === AutoState.waitCompute
+    port.requestCompute.ready := Mux(
+      port.requestCompute.bits.start,
+      autoState === AutoState.waitCompute,
+      idle || autoState === AutoState.waitCompute)
     port.reportCompute.valid := autoState === AutoState.reportCompute
     port.reportCompute.bits.status := Mux(
       doneStatus === PoolStatus.Success,
@@ -85,7 +79,6 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
       publicationValid := false.B
     }
     when(port.requestCopy.fire) {
-      role := Role.automatic
       copyTask.get := port.requestCopy.bits.task
       copyStatus := Mux(lengthValid, PoolStatus.Success, PoolStatus.BadLength)
       doneStatus := PoolStatus.Success
@@ -99,36 +92,31 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
       when(port.requestCompute.bits.start) {
         autoState := Mux(doneSeen, AutoState.reportCompute, AutoState.waitCompute)
       }.otherwise {
-        role := Role.idle
         autoState := AutoState.idle
       }
     }
     when(port.reportCompute.fire) {
-      role := Role.idle
       autoState := AutoState.idle
       doneSeen := false.B
     }
-    (port.requestCopy.valid && idle && lengthValid && !io.manualStart.valid, autoJob)
+    (port.requestCopy.valid && idle && lengthValid, autoJob)
   }
 
   val autoJobValid = autoRequest.map(_._1).getOrElse(false.B)
   val autoJob = autoRequest.map(_._2).getOrElse(0.U.asTypeOf(new PoolJob(params)))
-  io.job.valid := autoJobValid || (io.manualStart.valid && idle)
-  io.job.bits := Mux(autoJobValid, autoJob, io.manualStart.bits)
-  io.manualStart.ready := io.job.ready && idle && !autoJobValid
-  io.manualDone.valid := manualResultValid
-  io.manualDone.bits := manualResult
-  io.inputDone.ready := role =/= Role.idle
-  io.jobDone.ready := role =/= Role.idle
-  io.active := role =/= Role.idle || manualResultValid
+  val requestPending = link.map { _ =>
+    io.autoLink.get.requestCopy.valid || io.autoLink.get.requestCompute.valid
+  }.getOrElse(false.B)
+  io.job.valid := autoJobValid
+  io.job.bits := autoJob
+  io.inputDone.ready := !idle
+  io.jobDone.ready := !idle
+  io.active := !idle || requestPending
 
-  when(io.manualStart.fire) {
-    role := Role.manual
-  }
   when(io.job.fire) {
     activeJob := io.job.bits
   }
-  when(io.inputDone.fire && role === Role.automatic) {
+  when(io.inputDone.fire) {
     copyStatus := io.inputDone.bits.status
     autoState := AutoState.reportCopy
   }
@@ -150,19 +138,10 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
         publicationValid := true.B
       }
     }
-    when(role === Role.manual) {
-      manualResult := io.jobDone.bits
-      manualResultValid := true.B
-    }.elsewhen(role === Role.automatic) {
-      doneStatus := io.jobDone.bits.status
-      doneSeen := true.B
-      when(autoState === AutoState.waitCompute) {
-        autoState := AutoState.reportCompute
-      }
+    doneStatus := io.jobDone.bits.status
+    doneSeen := true.B
+    when(autoState === AutoState.waitCompute) {
+      autoState := AutoState.reportCompute
     }
-  }
-  when(io.manualDone.fire) {
-    manualResultValid := false.B
-    role := Role.idle
   }
 }

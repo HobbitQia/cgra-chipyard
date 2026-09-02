@@ -25,17 +25,12 @@ class PoolAccelerator(opcodes: OpcodeSet, params: PoolParams)(implicit p: Parame
 class PoolAcceleratorImp(outer: PoolAccelerator, params: PoolParams)(implicit p: Parameters)
     extends LazyRoCCModuleImp(outer) {
   val engine = outer.engine.module
-  val configuredJob = RegInit(0.U.asTypeOf(new PoolJob(params)))
-  val manualStart = Wire(Decoupled(new PoolJob(params)))
-  val manualDone = Wire(Decoupled(new PoolEvent))
   val adapter = Module(new PoolLinkAdapter(params, outer.linkParams))
+  val configuredJob = RegInit(0.U.asTypeOf(new PoolJob(params)))
+  val manualActive = RegInit(false.B)
+  val lastStatus = RegInit(PoolStatus.Success)
 
   adapter.io.configuredJob := configuredJob
-  adapter.io.manualStart <> manualStart
-  manualDone <> adapter.io.manualDone
-  engine.io.job <> adapter.io.job
-  adapter.io.inputDone <> engine.io.inputDone
-  adapter.io.jobDone <> engine.io.done
 
   outer.linkParams.zip(outer.autoNode).foreach { case (_, node) =>
     val auto = node.in.head._1
@@ -49,23 +44,36 @@ class PoolAcceleratorImp(outer: PoolAccelerator, params: PoolParams)(implicit p:
 
   val cmd = io.cmd
   val funct = cmd.bits.inst.funct
-  val waiting = funct === PoolCommand.Wait.U
   val starting = funct === PoolCommand.Start.U
   val responseValid = RegInit(false.B)
   val responseData = RegInit(0.U(64.W))
   val responseRd = Reg(UInt(5.W))
-  val lastStatus = RegInit(PoolStatus.Success)
+  val idle = !manualActive && !adapter.io.active && !engine.io.busy
+  val manualStart = cmd.valid && starting && idle && !adapter.io.job.valid
 
-  manualStart.valid := cmd.valid && starting && !adapter.io.active
-  manualStart.bits := configuredJob
-  manualDone.ready := true.B
-  when(manualDone.fire) {
-    lastStatus := manualDone.bits.status
+  engine.io.job.valid := adapter.io.job.valid || manualStart
+  engine.io.job.bits := Mux(adapter.io.job.valid, adapter.io.job.bits, configuredJob)
+  adapter.io.job.ready := engine.io.job.ready && !manualActive
+
+  adapter.io.inputDone.valid := engine.io.inputDone.valid && !manualActive
+  adapter.io.inputDone.bits := engine.io.inputDone.bits
+  engine.io.inputDone.ready := manualActive || adapter.io.inputDone.ready
+
+  adapter.io.jobDone.valid := engine.io.done.valid && !manualActive
+  adapter.io.jobDone.bits := engine.io.done.bits
+  engine.io.done.ready := manualActive || adapter.io.jobDone.ready
+
+  when(manualStart && engine.io.job.ready) {
+    manualActive := true.B
+    lastStatus := PoolStatus.Success
+  }
+  when(engine.io.done.fire && manualActive) {
+    manualActive := false.B
+    lastStatus := engine.io.done.bits.status
   }
 
-  val configReady = !adapter.io.active && !responseValid
-  val waitReady = !adapter.io.active && !responseValid
-  cmd.ready := Mux(starting, manualStart.ready, Mux(waiting, waitReady, configReady))
+  val commandReady = idle && !responseValid && !adapter.io.job.valid
+  cmd.ready := Mux(starting, commandReady && engine.io.job.ready, commandReady)
 
   when(cmd.fire) {
     switch(funct) {
@@ -97,9 +105,6 @@ class PoolAcceleratorImp(outer: PoolAccelerator, params: PoolParams)(implicit p:
       is(PoolCommand.Mode.U) {
         configuredJob.mode := cmd.bits.rs1
       }
-      is(PoolCommand.Start.U) {
-        lastStatus := PoolStatus.Success
-      }
       is(PoolCommand.Wait.U) {
         responseValid := true.B
         responseData := lastStatus
@@ -115,7 +120,7 @@ class PoolAcceleratorImp(outer: PoolAccelerator, params: PoolParams)(implicit p:
     responseValid := false.B
   }
 
-  io.busy := adapter.io.active || responseValid
+  io.busy := !idle || responseValid
   io.interrupt := false.B
   io.mem.req.valid := false.B
   io.mem.req.bits := 0.U.asTypeOf(io.mem.req.bits)
