@@ -98,6 +98,7 @@ class CgraSpmReadMux(params: CGRASpmReadParams) extends Module {
   io.packed.resp.valid := locked && packed && io.spm.resp.valid
   io.packed.resp.bits := io.spm.resp.bits
   io.spm.resp.ready := locked && Mux(packed, io.packed.resp.ready, io.raw.resp.ready)
+  io.spm.busy := io.raw.busy || io.packed.busy
 
   when(io.spm.req.fire) {
     packed := selectPacked
@@ -169,6 +170,7 @@ class CgraPackedSpmManagerImp(
   io.req.valid := state === request && tensorByteValid
   io.req.bits := (bridge.outboundSpmWord.U + tensorByte).pad(params.addrWidth)
   io.resp.ready := state === response
+  io.busy := state =/= idle
 
   when(tl.a.fire) {
     assert(tl.a.bits.opcode === TLMessages.Get)

@@ -41,10 +41,12 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
 
       val job = RegInit(0.U(32.W))
       val packetCount = RegInit(0.U(32.W))
+      val expectedCompletions = RegInit(0.U(32.W))
       val configSubmit = Wire(Decoupled(UInt(1.W)))
       configOut.valid := configSubmit.valid && configSubmit.bits.asBool
       configOut.bits.job := job
       configOut.bits.packetCount := packetCount
+      configOut.bits.expectedCompletions := expectedCompletions
       configSubmit.ready := configOut.ready
 
       val results = Module(new Queue(new AutoEvent(params.auto), math.max(2, resultNames.size)))
@@ -84,7 +86,8 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
         RESULT_DETAIL -> Seq(RegField.r(32, result.detail)),
         RESULT_DATA -> Seq(RegField.r(32, result.data)),
         RESULT_STAGE -> Seq(RegField.r(32, result.stage)),
-        JOB -> Seq(RegField(32, job)))
+        JOB -> Seq(RegField(32, job)),
+        EXPECTED_COMPLETES -> Seq(RegField(32, expectedCompletions)))
     }
   }
 }
