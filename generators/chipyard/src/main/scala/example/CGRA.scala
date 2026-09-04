@@ -60,7 +60,9 @@ case class CGRASpmReadParams(
   words: Int = 0
 )
 
-case class CGRASpmWindowParams(baseAddress: BigInt)
+case class CGRASpmWindowParams(
+    baseAddress: BigInt,
+    bridge: Option[CgraTensorBridgeParams] = None)
 
 case object CGRASpmWindowKey extends Field[Option[CGRASpmWindowParams]](None)
 
@@ -531,18 +533,33 @@ class CGRAAccelerator(opcodes: OpcodeSet, params: CGRAParams = CGRAGenerated.par
   dmaAdapter.foreach { adapter =>
     dmaNode := TLWidthWidget(params.dma.dramDataWidth / 8) := adapter.node
   }
-  val spmManager = p(CGRASpmWindowKey).map { window =>
+  val spmWindow = p(CGRASpmWindowKey)
+  val spmManager = spmWindow.map { window =>
     require(params.spmRead.enabled,
       "CGRA SPM window requires a generated external SPM read interface")
+    window.bridge.foreach { bridge =>
+      require(bridge.outboundSpmWord + bridge.outboundWords <= params.spmRead.words)
+      require(bridge.inboundSpmWord + bridge.inboundWords <= params.spmRead.words)
+    }
     LazyModule(new CGRASpmReadManager(
       params.spmRead,
       window,
       p(SystemBusKey).beatBytes))
   }
+  val packedSpmManager = spmWindow.flatMap(_.bridge).map { bridge =>
+    LazyModule(new CgraPackedSpmManager(
+      params.spmRead,
+      bridge,
+      p(SystemBusKey).beatBytes,
+      p(SystemBusKey).blockBytes))
+  }
   private val spmNode = spmManager.map { manager =>
-    val node = TLIdentityNode()
     val bus = p(SystemBusKey)
+    val node: TLNode = if (packedSpmManager.isDefined) TLXbar() else TLIdentityNode()
     manager.node := TLFragmenter(bus.beatBytes, bus.blockBytes) := node
+    packedSpmManager.foreach { packed =>
+      packed.node := TLFragmenter(bus.beatBytes, bus.blockBytes) := node
+    }
     node
   }.getOrElse(TLIdentityNode())
   val linkParams = p(CgraLinkKey).map(_.adapter)
@@ -599,14 +616,27 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   cgra.io.address_lower := params.addressLower.U
   cgra.io.address_upper := params.addressUpper.U
 
+  val dmaRequant = outer.spmWindow.flatMap(_.bridge).map(_ => RegInit(false.B))
   outer.dmaAdapter.foreach { adapter =>
     val dmaAdapter = adapter.module.io
     dmaAdapter.readReq.valid := cgra.io.send_to_dram_rd_req_val.get
     dmaAdapter.readReq.bits := cgra.io.send_to_dram_rd_req_addr.get
     cgra.io.send_to_dram_rd_req_rdy.get := dmaAdapter.readReq.ready
-    cgra.io.recv_from_dram_rd_resp_val.get := dmaAdapter.readResp.valid
-    cgra.io.recv_from_dram_rd_resp_data.get := dmaAdapter.readResp.bits
-    dmaAdapter.readResp.ready := cgra.io.recv_from_dram_rd_resp_rdy.get
+    outer.spmWindow.flatMap(_.bridge) match {
+      case Some(bridgeParams) =>
+        val bridge = Module(new CgraDmaTensorBridge(
+          params.dma.dramDataWidth,
+          bridgeParams.inboundScale))
+        bridge.io.in <> dmaAdapter.readResp
+        bridge.io.transform := dmaRequant.get
+        cgra.io.recv_from_dram_rd_resp_val.get := bridge.io.out.valid
+        cgra.io.recv_from_dram_rd_resp_data.get := bridge.io.out.bits
+        bridge.io.out.ready := cgra.io.recv_from_dram_rd_resp_rdy.get
+      case None =>
+        cgra.io.recv_from_dram_rd_resp_val.get := dmaAdapter.readResp.valid
+        cgra.io.recv_from_dram_rd_resp_data.get := dmaAdapter.readResp.bits
+        dmaAdapter.readResp.ready := cgra.io.recv_from_dram_rd_resp_rdy.get
+    }
 
     dmaAdapter.writeReq.valid := cgra.io.send_to_dram_wr_req_val.get
     dmaAdapter.writeReq.bits.address := cgra.io.send_to_dram_wr_req_addr.get
@@ -619,13 +649,26 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   }
   outer.spmManager match {
     case Some(manager) =>
-      val spm = manager.module.io
-      cgra.io.recv_from_ext_spm_rd_req_val.get := spm.req.valid
-      cgra.io.recv_from_ext_spm_rd_req_addr.get := spm.req.bits
-      spm.req.ready := cgra.io.recv_from_ext_spm_rd_req_rdy.get
-      spm.resp.valid := cgra.io.send_to_ext_spm_rd_resp_val.get
-      spm.resp.bits := cgra.io.send_to_ext_spm_rd_resp_data.get
-      cgra.io.send_to_ext_spm_rd_resp_rdy.get := spm.resp.ready
+      outer.packedSpmManager match {
+        case Some(packedManager) =>
+          val mux = Module(new CgraSpmReadMux(params.spmRead))
+          mux.io.raw <> manager.module.io
+          mux.io.packed <> packedManager.module.io
+          cgra.io.recv_from_ext_spm_rd_req_val.get := mux.io.spm.req.valid
+          cgra.io.recv_from_ext_spm_rd_req_addr.get := mux.io.spm.req.bits
+          mux.io.spm.req.ready := cgra.io.recv_from_ext_spm_rd_req_rdy.get
+          mux.io.spm.resp.valid := cgra.io.send_to_ext_spm_rd_resp_val.get
+          mux.io.spm.resp.bits := cgra.io.send_to_ext_spm_rd_resp_data.get
+          cgra.io.send_to_ext_spm_rd_resp_rdy.get := mux.io.spm.resp.ready
+        case None =>
+          val spm = manager.module.io
+          cgra.io.recv_from_ext_spm_rd_req_val.get := spm.req.valid
+          cgra.io.recv_from_ext_spm_rd_req_addr.get := spm.req.bits
+          spm.req.ready := cgra.io.recv_from_ext_spm_rd_req_rdy.get
+          spm.resp.valid := cgra.io.send_to_ext_spm_rd_resp_val.get
+          spm.resp.bits := cgra.io.send_to_ext_spm_rd_resp_data.get
+          cgra.io.send_to_ext_spm_rd_resp_rdy.get := spm.resp.ready
+      }
     case None =>
       cgra.io.recv_from_ext_spm_rd_req_val.foreach(_ := false.B)
       cgra.io.recv_from_ext_spm_rd_req_addr.foreach(_ := 0.U)
@@ -1007,6 +1050,11 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         dmaSeqActive := true.B
         dmaInFlight := true.B
         dmaOwnerLink := false.B
+        outer.spmWindow.flatMap(_.bridge).foreach { bridge =>
+          dmaRequant.get := isDmaMvin &&
+            issueSpmAddr === bridge.inboundSpmWord.U &&
+            issueWords === bridge.inboundWords.U
+        }
       } .elsewhen (isDmaWait) {
         assert(dmaInFlight || dmaDoneValid,
           "DMA_WAIT issued without an in-flight or completed DMA command")
@@ -1046,6 +1094,11 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         dmaInFlight := true.B
         dmaOwnerLink := true.B
         linkDmaTag := request.bits.dmaTag
+        outer.spmWindow.flatMap(_.bridge).foreach { bridge =>
+          dmaRequant.get :=
+            request.bits.spmWordAddress === bridge.inboundSpmWord.U &&
+            (request.bits.bytes >> cgraWordByteShift) === bridge.inboundWords.U
+        }
       }
     }
   } else {
