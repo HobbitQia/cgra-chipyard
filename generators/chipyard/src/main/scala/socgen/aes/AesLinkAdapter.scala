@@ -54,6 +54,8 @@ class AesLinkAdapter(params: AesLinkParams) extends Module {
 
   io.autoLink.watchOutput.ready := !watchArmed && !outputValid
   io.autoLink.reportOutput.valid := outputValid
+  io.autoLink.reportOutput.bits.stage := 0.U
+  io.autoLink.reportOutput.bits.job := watch.job
   io.autoLink.reportOutput.bits.status := Mux(
     outputDetail === 0.U,
     AutoLinkStatus.Success,
@@ -91,6 +93,8 @@ class AesLinkAdapter(params: AesLinkParams) extends Module {
     role === Role.downstream && copyReported && !computeAccepted,
     idle)
   io.autoLink.reportCompute.valid := role === Role.downstream && computeAccepted && done
+  io.autoLink.reportCompute.bits.stage := 0.U
+  io.autoLink.reportCompute.bits.job := copy.job
   io.autoLink.reportCompute.bits.status := AutoLinkStatus.Success
   io.autoLink.reportCompute.bits.detail := 0.U
   io.autoLink.reportCompute.bits.data := 0.U
@@ -141,6 +145,8 @@ class AesLinkAdapter(params: AesLinkParams) extends Module {
   when(io.autoLink.requestCompute.fire) {
     when(io.autoLink.requestCompute.bits.start) {
       computeAccepted := true.B
+    }.otherwise {
+      watchArmed := false.B
     }
   }
   when(io.autoLink.reportCompute.fire) {

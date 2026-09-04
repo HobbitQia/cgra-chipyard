@@ -21,7 +21,7 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
   }
 
   val autoState = RegInit(AutoState.idle)
-  val copyTask = link.map(value => Reg(UInt(value.auto.taskWidth.W)))
+  val copyTask = link.map(value => Reg(UInt(value.auto.dependencyWidth.W)))
   val copyStatus = RegInit(PoolStatus.Success)
   val doneStatus = RegInit(PoolStatus.Success)
   val doneSeen = RegInit(false.B)
@@ -30,6 +30,7 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
   val publicationArmed = RegInit(false.B)
   val publicationValid = RegInit(false.B)
   val publicationStatus = RegInit(PoolStatus.Success)
+  val computeJob = link.map(value => Reg(UInt(value.auto.jobWidth.W)))
 
   val idle = autoState === AutoState.idle
   val autoRequest = link.map(_.auto).map { auto =>
@@ -43,6 +44,8 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
 
     port.watchOutput.ready := !publicationArmed && !publicationValid
     port.reportOutput.valid := publicationValid
+    port.reportOutput.bits.stage := 0.U
+    port.reportOutput.bits.job := watch.get.job
     port.reportOutput.bits.status := Mux(
       publicationStatus === PoolStatus.Success,
       AutoLinkStatus.Success,
@@ -63,6 +66,8 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
       autoState === AutoState.waitCompute,
       idle || autoState === AutoState.waitCompute)
     port.reportCompute.valid := autoState === AutoState.reportCompute
+    port.reportCompute.bits.stage := 0.U
+    port.reportCompute.bits.job := computeJob.get
     port.reportCompute.bits.status := Mux(
       doneStatus === PoolStatus.Success,
       AutoLinkStatus.Success,
@@ -89,10 +94,13 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
       autoState := AutoState.waitCompute
     }
     when(port.requestCompute.fire) {
+      computeJob.get := port.requestCompute.bits.job
       when(port.requestCompute.bits.start) {
         autoState := Mux(doneSeen || io.jobDone.fire, AutoState.reportCompute, AutoState.waitDone)
       }.otherwise {
         autoState := AutoState.idle
+        publicationArmed := false.B
+        publicationValid := false.B
       }
     }
     when(port.reportCompute.fire) {

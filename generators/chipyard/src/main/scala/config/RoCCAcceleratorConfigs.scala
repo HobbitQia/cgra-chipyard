@@ -88,7 +88,7 @@ object CGRAMinimalGemminiAutoLinkRocketConfig {
       cgra = chipyard.example.CGRAGenerated.params,
       packetCapacity = 16),
     portName = "cgra",
-    resultNames = Seq("cgra"),
+    resultNames = autoLink.resultNames,
     controlAddress = CgraLinkControlGenerated.baseAddress,
     controlBytes = CgraLinkControlGenerated.pageSizeBytes)
 }
@@ -124,7 +124,7 @@ object CGRAMinimalGemminiAESAutoLinkRocketConfig {
       cgra = chipyard.example.CGRAGenerated.params,
       packetCapacity = 16),
     portName = "cgra",
-    resultNames = Seq("gemmini", "cgra", "aes"),
+    resultNames = autoLink.resultNames,
     controlAddress = CgraLinkControlGenerated.baseAddress,
     controlBytes = CgraLinkControlGenerated.pageSizeBytes)
   val aesLink = AesLinkAttachParams(
@@ -183,7 +183,7 @@ object CGRAMinimalGemminiPoolAutoLinkRocketConfig {
       cgra = chipyard.example.CGRAGenerated.params,
       packetCapacity = 16),
     portName = "cgra",
-    resultNames = Seq("cgra", "pool"),
+    resultNames = autoLink.resultNames,
     controlAddress = CgraLinkControlGenerated.baseAddress,
     controlBytes = CgraLinkControlGenerated.pageSizeBytes)
   val poolLink = PoolLinkAttachParams(

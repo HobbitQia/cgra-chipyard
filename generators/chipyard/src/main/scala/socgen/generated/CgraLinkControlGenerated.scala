@@ -5,8 +5,9 @@ object CgraLinkControlGenerated {
   val baseAddress: BigInt = BigInt("60011000", 16)
   val gemminiJobAddress: BigInt = BigInt("60012000", 16)
   val aesJobAddress: BigInt = BigInt("60013000", 16)
+  val autoLinkAddress: BigInt = BigInt("60014000", 16)
   val pageSizeBytes: Int = 4096
-  val pageCount: Int = 3
+  val pageCount: Int = 4
   val PACKET_COUNT: Int = 0x000
   val CONFIG_SUBMIT: Int = 0x008
   val RESULT_VALID: Int = 0x010
@@ -14,6 +15,7 @@ object CgraLinkControlGenerated {
   val RESULT_STATUS: Int = 0x020
   val RESULT_DETAIL: Int = 0x028
   val RESULT_DATA: Int = 0x030
+  val RESULT_STAGE: Int = 0x038
   val GEMMINI_COMMAND_COUNT: Int = 0x000
   val GEMMINI_SUBMIT: Int = 0x008
   val GEMMINI_CAPTURE_READY: Int = 0x010
@@ -29,4 +31,5 @@ object CgraLinkControlGenerated {
   val AES_KEY3: Int = 0x038
   val AES_ENCRYPT: Int = 0x040
   val AES_SUBMIT: Int = 0x048
+  val AUTO_LINK_INPUT_READY: Int = 0x000
 }

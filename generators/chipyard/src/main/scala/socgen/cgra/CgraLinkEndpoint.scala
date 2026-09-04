@@ -53,6 +53,8 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       val configResult = resultArbiter.io.in(resultIn.size)
       configResult.valid := configAck.valid &&
         configAck.bits.status =/= AutoLinkStatus.Success
+      configResult.bits.stage := 0.U
+      configResult.bits.job := 0.U
       configResult.bits.status := configAck.bits.status
       configResult.bits.detail := configAck.bits.detail
       configResult.bits.data := 0.U
@@ -78,7 +80,8 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
         RESULT_POP -> Seq(RegField.w(1, resultPop)),
         RESULT_STATUS -> Seq(RegField.r(32, result.status)),
         RESULT_DETAIL -> Seq(RegField.r(32, result.detail)),
-        RESULT_DATA -> Seq(RegField.r(32, result.data)))
+        RESULT_DATA -> Seq(RegField.r(32, result.data)),
+        RESULT_STAGE -> Seq(RegField.r(32, result.stage)))
     }
   }
 }

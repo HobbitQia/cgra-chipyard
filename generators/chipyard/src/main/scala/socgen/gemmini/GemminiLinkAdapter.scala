@@ -93,7 +93,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   val commandIndex = RegInit(0.U(params.commandCountWidth.W))
   val configStatus = RegInit(AutoLinkStatus.Success)
   val configDetail = RegInit(0.U(params.auto.detailWidth.W))
-  val copyTask = Reg(UInt(params.auto.taskWidth.W))
+  val copyTask = Reg(UInt(params.auto.dependencyWidth.W))
   val computeResult = Reg(new AutoEvent(params.auto))
   val watch = Reg(new AutoWatch(params.auto))
   val armed = RegInit(false.B)
@@ -116,7 +116,8 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   val expectedSize = log2Ceil(params.beatBytes).U
   val fullMask = ((BigInt(1) << params.beatBytes) - 1).U
 
-  io.configIn.ready := configState === ConfigState.idle
+  io.configIn.ready := configState === ConfigState.idle ||
+    (configState === ConfigState.hold && execState === ExecState.idle)
   io.configAck.valid := configState === ConfigState.reportConfig
   io.configAck.bits.status := configStatus
   io.configAck.bits.detail := configDetail
@@ -134,6 +135,8 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
 
   io.autoLink.watchOutput.ready := !armed && !producedValid
   io.autoLink.reportOutput.valid := producedValid
+  io.autoLink.reportOutput.bits.stage := 0.U
+  io.autoLink.reportOutput.bits.job := watch.job
   io.autoLink.reportOutput.bits.status := Mux(
     producedDetail === 0.U,
     AutoLinkStatus.Success,
@@ -158,6 +161,8 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
     producedValid := true.B
     producedDetail := detail
     publication.valid := true.B
+    publication.bits.stage := 0.U
+    publication.bits.job := watch.job
     publication.bits.status := Mux(
       detail === 0.U,
       AutoLinkStatus.Success,
@@ -205,8 +210,9 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
       commandIndex := 0.U
       execState := ExecState.issue
     }.otherwise {
-      configState := ConfigState.idle
       execState := ExecState.idle
+      armed := false.B
+      producedValid := false.B
     }
   }
   when(replay && io.command.fire) {
@@ -221,7 +227,6 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
     execState := ExecState.reportCompute
   }
   when(io.autoLink.reportCompute.fire) {
-    configState := ConfigState.idle
     execState := ExecState.idle
   }
 
