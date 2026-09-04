@@ -8,6 +8,7 @@ class PoolReducer(params: PoolParams, beatBits: Int) extends Module {
   require(beatBits % params.elementBits == 0)
 
   val io = IO(new Bundle {
+    val clear = Input(Bool())
     val mode = Input(UInt(PoolMode.Width.W))
     val supported = Output(Bool())
     val input = Flipped(Decoupled(new PoolChunk(params, beatBits)))
@@ -45,6 +46,9 @@ class PoolReducer(params: PoolParams, beatBits: Int) extends Module {
     }
   }
   when(io.output.fire) {
+    outputValid := false.B
+  }
+  when(io.clear) {
     outputValid := false.B
   }
 }

@@ -28,6 +28,7 @@ class PoolReducerSpec extends AnyFlatSpec with ChiselScalatestTester {
         dut.io.input.valid.poke(false.B)
       }
 
+      dut.io.clear.poke(false.B)
       dut.io.mode.poke(PoolMode.Max)
       dut.io.output.ready.poke(false.B)
       dut.io.input.valid.poke(false.B)

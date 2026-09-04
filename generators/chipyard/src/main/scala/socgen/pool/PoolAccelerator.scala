@@ -49,7 +49,8 @@ class PoolAcceleratorImp(outer: PoolAccelerator, params: PoolParams)(implicit p:
   val responseData = RegInit(0.U(64.W))
   val responseRd = Reg(UInt(5.W))
   val idle = !manualActive && !adapter.io.active && !engine.io.busy
-  val manualStart = cmd.valid && starting && idle && !adapter.io.job.valid
+  val commandReady = idle && !responseValid && !adapter.io.job.valid
+  val manualStart = cmd.valid && starting && commandReady
 
   engine.io.job.valid := adapter.io.job.valid || manualStart
   engine.io.job.bits := Mux(adapter.io.job.valid, adapter.io.job.bits, configuredJob)
@@ -72,7 +73,6 @@ class PoolAcceleratorImp(outer: PoolAccelerator, params: PoolParams)(implicit p:
     lastStatus := engine.io.done.bits.status
   }
 
-  val commandReady = idle && !responseValid && !adapter.io.job.valid
   cmd.ready := Mux(starting, commandReady && engine.io.job.ready, commandReady)
 
   when(cmd.fire) {

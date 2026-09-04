@@ -17,7 +17,7 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
   })
 
   object AutoState {
-    val idle :: running :: reportCopy :: waitCompute :: reportCompute :: Nil = Enum(5)
+    val idle :: running :: reportCopy :: waitCompute :: waitDone :: reportCompute :: Nil = Enum(6)
   }
 
   val autoState = RegInit(AutoState.idle)
@@ -90,7 +90,7 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
     }
     when(port.requestCompute.fire) {
       when(port.requestCompute.bits.start) {
-        autoState := Mux(doneSeen, AutoState.reportCompute, AutoState.waitCompute)
+        autoState := Mux(doneSeen || io.jobDone.fire, AutoState.reportCompute, AutoState.waitDone)
       }.otherwise {
         autoState := AutoState.idle
       }
@@ -140,7 +140,7 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
     }
     doneStatus := io.jobDone.bits.status
     doneSeen := true.B
-    when(autoState === AutoState.waitCompute) {
+    when(autoState === AutoState.waitDone) {
       autoState := AutoState.reportCompute
     }
   }
