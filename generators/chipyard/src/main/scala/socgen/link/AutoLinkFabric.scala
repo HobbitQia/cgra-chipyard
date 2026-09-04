@@ -73,7 +73,7 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
   val dependencyValid = RegInit(VecInit(Seq.fill(math.max(1, incoming.size))(false.B)))
   val output = Reg(Vec(math.max(1, outgoing.size), new AutoEvent(params)))
   val outputValid = RegInit(VecInit(Seq.fill(math.max(1, outgoing.size))(false.B)))
-  val copyIndex = RegInit(0.U(math.max(1, log2Ceil(incomingCopies.size)).W))
+  val copyIndex = RegInit(0.U(math.max(1, log2Ceil(math.max(1, incomingCopies.size))).W))
   val failed = RegInit(false.B)
   val failure = Reg(new AutoEvent(params))
   val publicationSeen = RegInit(false.B)
