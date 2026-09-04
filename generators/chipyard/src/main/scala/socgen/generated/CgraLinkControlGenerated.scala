@@ -16,11 +16,13 @@ object CgraLinkControlGenerated {
   val RESULT_DETAIL: Int = 0x028
   val RESULT_DATA: Int = 0x030
   val RESULT_STAGE: Int = 0x038
+  val JOB: Int = 0x040
   val GEMMINI_COMMAND_COUNT: Int = 0x000
   val GEMMINI_SUBMIT: Int = 0x008
   val GEMMINI_CAPTURE_READY: Int = 0x010
   val GEMMINI_CONFIG_STATUS: Int = 0x018
   val GEMMINI_CONFIG_DETAIL: Int = 0x020
+  val GEMMINI_SELECT: Int = 0x028
   val AES_SOURCE: Int = 0x000
   val AES_BYTES: Int = 0x008
   val AES_DESTINATION: Int = 0x010

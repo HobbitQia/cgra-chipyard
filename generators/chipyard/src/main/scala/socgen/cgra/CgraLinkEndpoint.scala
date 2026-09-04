@@ -39,10 +39,12 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       val resultIn = resultNames.map(name => FromAsyncBundle(resultNodes(name).in.head._1))
       configLink.config <> ToAsyncBundle(configOut, AsyncQueueParams.singleton())
 
+      val job = RegInit(0.U(32.W))
       val packetCount = RegInit(0.U(32.W))
       val configSubmit = Wire(Decoupled(UInt(1.W)))
       configOut.valid := configSubmit.valid && configSubmit.bits.asBool
-      configOut.bits.packetCount := packetCount(params.packetCountWidth - 1, 0)
+      configOut.bits.job := job
+      configOut.bits.packetCount := packetCount
       configSubmit.ready := configOut.ready
 
       val results = Module(new Queue(new AutoEvent(params.auto), math.max(2, resultNames.size)))
@@ -81,7 +83,8 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
         RESULT_STATUS -> Seq(RegField.r(32, result.status)),
         RESULT_DETAIL -> Seq(RegField.r(32, result.detail)),
         RESULT_DATA -> Seq(RegField.r(32, result.data)),
-        RESULT_STAGE -> Seq(RegField.r(32, result.stage)))
+        RESULT_STAGE -> Seq(RegField.r(32, result.stage)),
+        JOB -> Seq(RegField(32, job)))
     }
   }
 }

@@ -84,13 +84,15 @@ class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams)(i
       configLink.config <> ToAsyncBundle(configOut, AsyncQueueParams.singleton())
       observe.event <> ToAsyncBundle(event, AsyncQueueParams.singleton())
 
+      val job = RegInit(0.U(32.W))
       val commandCount = RegInit(0.U(32.W))
       val configSubmit = Wire(Decoupled(UInt(1.W)))
       val ackValid = RegInit(false.B)
       val ackStatus = RegInit(AutoLinkStatus.Success)
       val ackDetail = RegInit(0.U(params.auto.detailWidth.W))
       configOut.valid := configSubmit.valid && configSubmit.bits.asBool
-      configOut.bits.commandCount := commandCount(params.commandCountWidth - 1, 0)
+      configOut.bits.job := job
+      configOut.bits.commandCount := commandCount
       configSubmit.ready := Mux(configSubmit.bits.asBool, configOut.ready, true.B)
       configAck.ready := true.B
 
@@ -109,7 +111,8 @@ class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams)(i
         GEMMINI_SUBMIT -> Seq(RegField.w(1, configSubmit)),
         GEMMINI_CAPTURE_READY -> Seq(RegField.r(1, ackValid)),
         GEMMINI_CONFIG_STATUS -> Seq(RegField.r(32, ackStatus)),
-        GEMMINI_CONFIG_DETAIL -> Seq(RegField.r(32, ackDetail)))
+        GEMMINI_CONFIG_DETAIL -> Seq(RegField.r(32, ackDetail)),
+        GEMMINI_SELECT -> Seq(RegField(32, job)))
     }
   }
 }

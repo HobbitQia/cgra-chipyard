@@ -780,11 +780,11 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   packetInputArbiter.io.dma <> dmaPacketCandidate
   linkAdapter match {
     case Some(adapter) =>
-      packetInputArbiter.io.launch <> adapter.io.launchPacket
+      packetInputArbiter.io.link <> adapter.io.jobPacket
       adapter.io.packetIn <> linkPacketCandidate
     case None =>
-      packetInputArbiter.io.launch.valid := false.B
-      packetInputArbiter.io.launch.bits := 0.U
+      packetInputArbiter.io.link.valid := false.B
+      packetInputArbiter.io.link.bits := 0.U
       linkPacketCandidate.ready := false.B
   }
   packetFifo.io.enq <> packetInputArbiter.io.out
@@ -823,7 +823,10 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   }
 
   linkAdapter.foreach { adapter =>
-    when(adapter.io.launchPacket.fire) {
+    val command = adapter.io.jobPacket.bits(pktCmdMsb, pktCmdLsb)
+    when(adapter.io.jobPacket.fire &&
+         (command === CGRACmdGenerated.CMD_LAUNCH.U(params.cmdWidth.W) ||
+          command === CGRACmdGenerated.CMD_RESUME.U(params.cmdWidth.W))) {
       noteLaunchIssued()
     }
   }
