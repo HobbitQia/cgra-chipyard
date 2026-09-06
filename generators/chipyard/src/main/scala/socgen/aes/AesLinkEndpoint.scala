@@ -60,21 +60,42 @@ class AesLinkEndpoint(params: AesLinkParams)(implicit p: Parameters)
       val completion = RegInit(0.U(64.W))
       val key = RegInit(VecInit(Seq.fill(4)(0.U(64.W))))
       val encrypt = RegInit(false.B)
-      val submit = Wire(Decoupled(UInt(1.W)))
+      val selectedJob = RegInit(0.U(32.W))
+      val submit = Wire(Decoupled(UInt(2.W)))
+      val configReady = RegInit(false.B)
+      val configDone = RegInit(false.B)
+      val configStatus = RegInit(AutoLinkStatus.Success)
+      val configDetail = RegInit(0.U(params.auto.detailWidth.W))
       val keyBytes = Cat(key.reverse).asTypeOf(
         Vec(_root_.aes.AES256Consts.KEY_SZ_BYTES, UInt(8.W)))
 
-      adapter.io.rootJob.valid := submit.valid && submit.bits.asBool
-      adapter.io.rootJob.bits.source.ip := source
-      adapter.io.rootJob.bits.source.isize := bytes
-      adapter.io.rootJob.bits.destination.op := destination
-      adapter.io.rootJob.bits.destination.cmpflag := completion
-      adapter.io.rootJob.bits.key := Cat(keyBytes)
-      adapter.io.rootJob.bits.encrypt := encrypt
+      adapter.io.configIn.valid := submit.valid && submit.bits(0)
+      adapter.io.configIn.bits.job := selectedJob
+      adapter.io.configIn.bits.start := submit.bits(1)
+      adapter.io.configIn.bits.descriptor.source.ip := source
+      adapter.io.configIn.bits.descriptor.source.isize := bytes
+      adapter.io.configIn.bits.descriptor.destination.op := destination
+      adapter.io.configIn.bits.descriptor.destination.cmpflag := completion
+      // Caliptra consumes the first key byte from the low UInt byte.
+      adapter.io.configIn.bits.descriptor.key := Cat(keyBytes)
+      adapter.io.configIn.bits.descriptor.encrypt := encrypt
       submit.ready := Mux(
-        submit.bits.asBool,
-        adapter.io.rootJob.ready,
+        submit.bits(0),
+        adapter.io.configIn.ready,
         true.B)
+
+      when(adapter.io.configIn.valid) {
+        configReady := false.B
+        configDone := false.B
+        configStatus := AutoLinkStatus.Success
+        configDetail := 0.U
+      }
+      when(adapter.io.configIn.fire) {
+        configReady := true.B
+        configDone := true.B
+        configStatus := adapter.io.configStatus
+        configDetail := adapter.io.configDetail
+      }
 
       import CgraLinkControlGenerated._
       controlNode.regmap(
@@ -87,7 +108,12 @@ class AesLinkEndpoint(params: AesLinkParams)(implicit p: Parameters)
         AES_KEY2 -> Seq(RegField(64, key(2))),
         AES_KEY3 -> Seq(RegField(64, key(3))),
         AES_ENCRYPT -> Seq(RegField(1, encrypt)),
-        AES_SUBMIT -> Seq(RegField.w(1, submit)))
+        AES_SUBMIT -> Seq(RegField.w(2, submit)),
+        AES_CONFIG_READY -> Seq(RegField.r(1, configReady)),
+        AES_CONFIG_DONE -> Seq(RegField.r(1, configDone)),
+        AES_CONFIG_STATUS -> Seq(RegField.r(32, configStatus)),
+        AES_CONFIG_DETAIL -> Seq(RegField.r(32, configDetail)),
+        AES_SELECT -> Seq(RegField(32, selectedJob)))
     }
   }
 }

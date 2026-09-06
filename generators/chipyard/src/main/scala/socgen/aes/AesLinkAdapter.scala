@@ -7,23 +7,28 @@ import chipyard.socgen.link._
 object AesLinkStatus {
   val BadAddress = 1
   val BadLength = 2
+  val BadConfig = 3
 }
 
-case class AesLinkParams(
-  auto: AutoLinkParams,
-  key: BigInt,
-  encrypt: Boolean,
-  ciphertextAddress: BigInt,
-  completionAddress: BigInt) {
-  require(key > 0 && key.bitLength <= 256)
-  require(ciphertextAddress >= 0 && ciphertextAddress.bitLength <= auto.addressWidth)
-  require(completionAddress >= 0 && completionAddress.bitLength <= auto.addressWidth)
+case class AesLinkParams(auto: AutoLinkParams) {
+  val jobCount: Int = auto.stages.count(_.endpoint == "aes")
+  require(jobCount > 0)
+
+  val jobIndexWidth: Int = math.max(1, log2Ceil(jobCount))
+}
+
+class AesLinkConfig extends Bundle {
+  val job = UInt(32.W)
+  val start = Bool()
+  val descriptor = new _root_.aes.AesJob
 }
 
 class AesLinkAdapter(params: AesLinkParams) extends Module {
   val io = IO(new Bundle {
     val autoLink = new AutoEndpointIO(params.auto)
-    val rootJob = Flipped(Decoupled(new _root_.aes.AesJob))
+    val configIn = Flipped(Decoupled(new AesLinkConfig))
+    val configStatus = Output(UInt(AutoLinkStatus.Width.W))
+    val configDetail = Output(UInt(params.auto.detailWidth.W))
     val job = Decoupled(new _root_.aes.AesJob)
     val inputReadDone = Flipped(Decoupled(Bool()))
     val jobDone = Flipped(Decoupled(Bool()))
@@ -34,23 +39,45 @@ class AesLinkAdapter(params: AesLinkParams) extends Module {
   }
 
   val role = RegInit(Role.idle)
+  val jobs = Reg(Vec(params.jobCount, new _root_.aes.AesJob))
+  val jobValid = RegInit(VecInit(Seq.fill(params.jobCount)(false.B)))
+  val rootJob = Reg(UInt(params.auto.jobWidth.W))
+  val rootPending = RegInit(false.B)
   val watch = Reg(new AutoWatch(params.auto))
   val watchArmed = RegInit(false.B)
   val outputValid = RegInit(false.B)
   val outputDetail = RegInit(0.U(params.auto.detailWidth.W))
   val copy = Reg(new AutoCopyRequest(params.auto))
+  val copyDetail = RegInit(0.U(params.auto.detailWidth.W))
   val readDone = RegInit(false.B)
   val copyReported = RegInit(false.B)
   val done = RegInit(false.B)
   val computeAccepted = RegInit(false.B)
 
-  val idle = role === Role.idle && !outputValid
-  val rootAddressValid = io.rootJob.bits.destination.op === watch.address
-  val rootLengthValid = io.rootJob.bits.source.isize === watch.bytes
-  val rootValid = rootAddressValid && rootLengthValid
+  def selected[T <: Data](values: Vec[T], job: UInt): T = {
+    if (params.jobCount == 1) values.head else values(job(params.jobIndexWidth - 1, 0))
+  }
+
+  val idle = role === Role.idle && !rootPending && !outputValid
+  val configJobValid = io.configIn.bits.job < params.jobCount.U
+  val rootJobValid = io.configIn.bits.job === watch.job
+  val rootAddressValid = io.configIn.bits.descriptor.destination.op === watch.address
+  val rootLengthValid = io.configIn.bits.descriptor.source.isize === watch.bytes
+  val rootValid = rootJobValid && rootAddressValid && rootLengthValid
+  val configValid = configJobValid && (!io.configIn.bits.start || rootValid)
+  val requestJob = io.autoLink.requestCopy.bits.job
+  val requestJobValid = requestJob < params.jobCount.U && selected(jobValid, requestJob)
   val downstreamLaunch = io.autoLink.requestCopy.valid && idle
-  val rootReady = idle && watchArmed && !io.autoLink.requestCopy.valid &&
-    !io.autoLink.requestCompute.valid
+
+  // Do not overwrite a descriptor while its job is waiting for the AES port.
+  io.configIn.ready := idle && !io.autoLink.requestCopy.valid &&
+    !io.autoLink.requestCompute.valid &&
+    (!io.configIn.bits.start || !configJobValid || watchArmed)
+  io.configStatus := Mux(configValid, AutoLinkStatus.Success,
+    Mux(!configJobValid || !rootJobValid, AutoLinkStatus.SinkFailure, AutoLinkStatus.SourceFailure))
+  io.configDetail := Mux(configValid, 0.U,
+    Mux(!configJobValid || !rootJobValid, AesLinkStatus.BadConfig.U,
+      Mux(!rootAddressValid, AesLinkStatus.BadAddress.U, AesLinkStatus.BadLength.U)))
 
   io.autoLink.watchOutput.ready := !watchArmed && !outputValid
   io.autoLink.reportOutput.valid := outputValid
@@ -64,20 +91,13 @@ class AesLinkAdapter(params: AesLinkParams) extends Module {
   io.autoLink.reportOutput.bits.data := 0.U
 
   val downstreamJob = Wire(new _root_.aes.AesJob)
+  downstreamJob := selected(jobs, requestJob)
   downstreamJob.source.ip := io.autoLink.requestCopy.bits.sourceAddress
   downstreamJob.source.isize := io.autoLink.requestCopy.bits.bytes
-  // Caliptra consumes the first key byte from the low UInt byte.
-  val keyBytes = params.key.U(_root_.aes.AES256Consts.KEY_SZ_BITS.W)
-    .asTypeOf(Vec(_root_.aes.AES256Consts.KEY_SZ_BYTES, UInt(8.W)))
-  downstreamJob.key := Cat(keyBytes)
-  downstreamJob.encrypt := params.encrypt.B
-  downstreamJob.destination.op := params.ciphertextAddress.U
-  downstreamJob.destination.cmpflag := params.completionAddress.U
 
-  io.job.valid := downstreamLaunch || (io.rootJob.valid && rootReady && rootValid)
-  io.job.bits := Mux(downstreamLaunch, downstreamJob, io.rootJob.bits)
-  io.rootJob.ready := rootReady && Mux(rootValid, io.job.ready, true.B)
-  io.autoLink.requestCopy.ready := io.job.ready && idle
+  io.job.valid := rootPending || (downstreamLaunch && requestJobValid)
+  io.job.bits := Mux(rootPending, selected(jobs, rootJob), downstreamJob)
+  io.autoLink.requestCopy.ready := idle && Mux(requestJobValid, io.job.ready, true.B)
 
   io.inputReadDone.ready := role === Role.root || (role === Role.downstream && !readDone)
   io.jobDone.ready := (role === Role.root && !outputValid) ||
@@ -85,13 +105,16 @@ class AesLinkAdapter(params: AesLinkParams) extends Module {
 
   io.autoLink.reportCopy.valid := role === Role.downstream && readDone && !copyReported
   io.autoLink.reportCopy.bits.task := copy.task
-  io.autoLink.reportCopy.bits.status := AutoLinkStatus.Success
-  io.autoLink.reportCopy.bits.detail := 0.U
+  io.autoLink.reportCopy.bits.status := Mux(
+    copyDetail === 0.U,
+    AutoLinkStatus.Success,
+    AutoLinkStatus.SinkFailure)
+  io.autoLink.reportCopy.bits.detail := copyDetail
 
   io.autoLink.requestCompute.ready := Mux(
     io.autoLink.requestCompute.bits.start,
     role === Role.downstream && copyReported && !computeAccepted,
-    idle)
+    idle || (role === Role.downstream && copyReported && copyDetail =/= 0.U))
   io.autoLink.reportCompute.valid := role === Role.downstream && computeAccepted && done
   io.autoLink.reportCompute.bits.stage := 0.U
   io.autoLink.reportCompute.bits.job := copy.job
@@ -99,24 +122,36 @@ class AesLinkAdapter(params: AesLinkParams) extends Module {
   io.autoLink.reportCompute.bits.detail := 0.U
   io.autoLink.reportCompute.bits.data := 0.U
 
+  when(io.configIn.fire) {
+    when(configJobValid) {
+      selected(jobValid, io.configIn.bits.job) := configValid
+      when(configValid) {
+        selected(jobs, io.configIn.bits.job) := io.configIn.bits.descriptor
+      }
+    }
+    when(io.configIn.bits.start) {
+      when(configValid) {
+        rootJob := io.configIn.bits.job
+        rootPending := true.B
+      }.elsewhen(watchArmed) {
+        outputValid := true.B
+        outputDetail := io.configDetail
+      }
+    }
+  }
   when(io.autoLink.watchOutput.fire) {
     watch := io.autoLink.watchOutput.bits
     watchArmed := true.B
   }
-  when(io.rootJob.fire && !rootValid) {
-    outputValid := true.B
-    outputDetail := Mux(
-      !rootAddressValid,
-      AesLinkStatus.BadAddress.U,
-      AesLinkStatus.BadLength.U)
-  }
-  when(io.job.fire && !downstreamLaunch) {
+  when(io.job.fire && rootPending) {
     role := Role.root
+    rootPending := false.B
   }
   when(io.autoLink.requestCopy.fire) {
     role := Role.downstream
     copy := io.autoLink.requestCopy.bits
-    readDone := false.B
+    copyDetail := Mux(requestJobValid, 0.U, AesLinkStatus.BadConfig.U)
+    readDone := !requestJobValid
     copyReported := false.B
     done := false.B
     computeAccepted := false.B
@@ -146,7 +181,12 @@ class AesLinkAdapter(params: AesLinkParams) extends Module {
     when(io.autoLink.requestCompute.bits.start) {
       computeAccepted := true.B
     }.otherwise {
+      role := Role.idle
       watchArmed := false.B
+      readDone := false.B
+      copyReported := false.B
+      done := false.B
+      computeAccepted := false.B
     }
   }
   when(io.autoLink.reportCompute.fire) {

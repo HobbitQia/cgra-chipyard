@@ -2,7 +2,7 @@ package chipyard
 
 import chipyard.socgen.aes.{AesLinkAttachParams, AesLinkParams, WithAesLink}
 import chipyard.socgen.cgra.{CgraLinkAttachParams, CgraLinkParams, WithCgraLink}
-import chipyard.socgen.generated.{AesAutoJobGenerated, AutoLinkGenerated, CgraLinkControlGenerated, CGRASpmWindowGenerated, GemminiExternalSpmGenerated}
+import chipyard.socgen.generated.{AutoLinkGenerated, CgraLinkControlGenerated, CGRASpmWindowGenerated, GemminiExternalSpmGenerated}
 import chipyard.socgen.gemmini.{GemminiLinkAttachParams, GemminiLinkParams, WithGemminiExternalSpm, WithGemminiExternalSpmWriter, WithGemminiLink, WithGemminiRoCC}
 import chipyard.socgen.link.WithAutoLink
 import chipyard.socgen.pool.{PoolLinkAttachParams, PoolLinkParams, PoolParams, WithPoolAccelerator, WithPoolLink}
@@ -128,12 +128,7 @@ object CGRAMinimalGemminiAESAutoLinkRocketConfig {
     controlAddress = CgraLinkControlGenerated.baseAddress,
     controlBytes = CgraLinkControlGenerated.pageSizeBytes)
   val aesLink = AesLinkAttachParams(
-    adapter = AesLinkParams(
-      auto = autoLink,
-      key = AesAutoJobGenerated.key,
-      encrypt = AesAutoJobGenerated.encrypt,
-      ciphertextAddress = AesAutoJobGenerated.ciphertextAddress,
-      completionAddress = AesAutoJobGenerated.completionAddress),
+    adapter = AesLinkParams(auto = autoLink),
     portName = "aes")
 }
 

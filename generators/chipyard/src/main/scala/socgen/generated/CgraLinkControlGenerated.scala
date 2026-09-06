@@ -35,5 +35,10 @@ object CgraLinkControlGenerated {
   val AES_KEY3: Int = 0x038
   val AES_ENCRYPT: Int = 0x040
   val AES_SUBMIT: Int = 0x048
+  val AES_CONFIG_READY: Int = 0x050
+  val AES_CONFIG_DONE: Int = 0x058
+  val AES_CONFIG_STATUS: Int = 0x060
+  val AES_CONFIG_DETAIL: Int = 0x068
+  val AES_SELECT: Int = 0x070
   val AUTO_LINK_INPUT_READY: Int = 0x000
 }
