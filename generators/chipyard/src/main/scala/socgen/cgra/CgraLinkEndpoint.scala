@@ -16,6 +16,14 @@ import freechips.rocketchip.util.{AsyncBundle, AsyncQueueParams, FromAsyncBundle
 import org.chipsalliance.cde.config.Parameters
 import org.chipsalliance.diplomacy.lazymodule.LazyModule
 
+class CgraLinkResult(params: CgraLinkParams) extends Bundle {
+  val stage = UInt(32.W)
+  val job = UInt(32.W)
+  val status = UInt(AutoLinkStatus.Width.W)
+  val detail = UInt(params.auto.detailWidth.W)
+  val data = UInt(params.auto.resultWidth.W)
+}
+
 /** SoC attachment and CPU-visible registers for the CGRA AutoLink adapter. */
 class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address: BigInt, pageSizeBytes: Int)(implicit p: Parameters) extends ClockSinkDomain(ClockSinkParameters())(p) {
   private val device = new SimpleDevice("cgra-link-control", Seq("coredac,cgra-link-control"))
@@ -49,16 +57,23 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       configOut.bits.expectedCompletions := expectedCompletions
       configSubmit.ready := configOut.ready
 
-      val results = Module(new Queue(new AutoEvent(params.auto), math.max(2, resultNames.size)))
-      val resultArbiter = Module(new Arbiter(new AutoEvent(params.auto), resultIn.size + 1))
+      val results = Module(new Queue(new CgraLinkResult(params), math.max(2, resultNames.size)))
+      val resultArbiter = Module(new Arbiter(new CgraLinkResult(params), resultIn.size + 1))
       resultIn.zipWithIndex.foreach { case (result, index) =>
-        resultArbiter.io.in(index) <> result
+        val input = resultArbiter.io.in(index)
+        input.valid := result.valid
+        input.bits := result.bits
+        result.ready := input.ready
       }
       val configResult = resultArbiter.io.in(resultIn.size)
       configResult.valid := configAck.valid &&
         configAck.bits.status =/= AutoLinkStatus.Success
-      configResult.bits.stage := 0.U
-      configResult.bits.job := 0.U
+      val configStages = params.auto.stages.zipWithIndex.collect {
+        case (stage, index) if stage.endpoint == "cgra" => stage.job.U -> index.U(32.W)
+      }
+      // An invalid job has no corresponding graph stage.
+      configResult.bits.stage := MuxLookup(configAck.bits.job, ~0.U(32.W))(configStages)
+      configResult.bits.job := configAck.bits.job
       configResult.bits.status := configAck.bits.status
       configResult.bits.detail := configAck.bits.detail
       configResult.bits.data := 0.U
@@ -69,7 +84,7 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
         configResult.ready)
 
       val resultPop = Wire(Decoupled(UInt(1.W)))
-      val result = RegInit(0.U.asTypeOf(new AutoEvent(params.auto)))
+      val result = RegInit(0.U.asTypeOf(new CgraLinkResult(params)))
       resultPop.ready := Mux(resultPop.bits.asBool, results.io.deq.valid, true.B)
       results.io.deq.ready := resultPop.valid && resultPop.bits.asBool
       when(results.io.deq.fire) {
@@ -86,6 +101,7 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
         RESULT_DETAIL -> Seq(RegField.r(32, result.detail)),
         RESULT_DATA -> Seq(RegField.r(32, result.data)),
         RESULT_STAGE -> Seq(RegField.r(32, result.stage)),
+        RESULT_JOB -> Seq(RegField.r(32, result.job)),
         JOB -> Seq(RegField(32, job)),
         EXPECTED_COMPLETES -> Seq(RegField(32, expectedCompletions)))
     }

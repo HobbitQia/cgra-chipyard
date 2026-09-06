@@ -48,6 +48,7 @@ class CgraLinkConfig(params: CgraLinkParams) extends Bundle {
 }
 
 class CgraLinkConfigAck(params: CgraLinkParams) extends Bundle {
+  val job = UInt(32.W)
   val status = UInt(AutoLinkStatus.Width.W)
   val detail = UInt(params.auto.detailWidth.W)
 }
@@ -169,6 +170,7 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   io.configIn.ready := configState === ConfigState.idle && execState === ExecState.idle
   io.packetIn.ready := configState === ConfigState.collectPackets
   io.configAck.valid := configState === ConfigState.reportConfig
+  io.configAck.bits.job := config.job
   io.configAck.bits.status := configStatus
   io.configAck.bits.detail := configDetail
 

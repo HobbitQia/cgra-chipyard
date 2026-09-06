@@ -52,6 +52,7 @@ class GemminiRoCCModule(outer: GemminiRoCC)(implicit p: Parameters)
       AsyncQueueParams.singleton())
     adapter.io.cpuCommand <> io.cmd
     gemmini.io.cmd <> adapter.io.command
+    adapter.io.nativeBusy := gemmini.io.busy
     adapter.io.autoBusy
   }.getOrElse {
     gemmini.io.cmd <> io.cmd

@@ -55,6 +55,8 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
     val output = Vec(outgoing.size, Decoupled(new AutoEvent(params)))
     val claim = Decoupled(UInt(params.jobWidth.W))
     val release = Output(Bool())
+    val finished = Output(Bool())
+    val rearm = Input(Bool())
     val watchOutput = Decoupled(new AutoWatch(params))
     val reportOutput = Flipped(Decoupled(new AutoEvent(params)))
     val requestCopy = Decoupled(new AutoCopyRequest(params))
@@ -65,7 +67,7 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
   })
 
   object State {
-    val waitDependencies :: claim :: armWatch :: requestCopy :: waitCopy :: requestCompute :: waitCompute :: waitExternal :: release :: Nil = Enum(9)
+    val waitDependencies :: claim :: armWatch :: requestCopy :: waitCopy :: requestCompute :: waitCompute :: waitExternal :: release :: waitRearm :: Nil = Enum(10)
   }
 
   val state = RegInit(if (external) State.claim else State.waitDependencies)
@@ -116,6 +118,7 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
   io.claim.valid := state === State.claim
   io.claim.bits := spec.job.U
   io.release := state === State.release
+  io.finished := state === State.waitRearm
 
   io.watchOutput.valid := state === State.armWatch
   io.watchOutput.bits.job := spec.job.U
@@ -259,6 +262,9 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
     computeSeen := false.B
     resultValid := false.B
     result := 0.U.asTypeOf(new AutoEvent(params))
+    state := State.waitRearm
+  }
+  when(state === State.waitRearm && io.rearm) {
     state := (if (external) State.claim else State.waitDependencies)
   }
 }
@@ -304,6 +310,9 @@ class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters) extends Clo
           FromAsyncBundle(async.reportCompute))
       }.toMap
       val stages = params.stages.indices.map(stage => Module(new AutoStage(params, stage)))
+      // Start the next round only after every stage has released its endpoint.
+      val rearm = stages.map(_.io.finished).reduce(_ && _)
+      stages.foreach(_.io.rearm := rearm)
 
       params.dependencies.indices.foreach { dependency =>
         val spec = params.dependencies(dependency)

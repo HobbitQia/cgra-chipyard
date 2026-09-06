@@ -1242,10 +1242,10 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   // ---- RoCC Command Ready ----
   val dmaIssueReady = !dmaInFlight && !dmaDoneValid && !dmaSeqActive &&
                       !dmaAdapterBusy && !linkDmaDonePending
+  // Completed results live in the wrapper and survive the local CGRA reset.
   localResetSafe := packetFifoEmpty && !packetInputArbiter.io.out.valid &&
                     !dmaSeqActive && !dmaInFlight && !dmaAdapterBusy &&
-                    !dmaDoneValid && !linkDmaDonePending &&
-                    !expectLoadResponse && !loadRespValid && !spmReadBusy &&
+                    !expectLoadResponse && !spmReadBusy &&
                     !cgra.io.send_to_cpu_pkt_val
   linkAdapter.foreach { adapter =>
     adapter.io.dmaRequest.ready := dmaIssueReady && state === s_idle &&

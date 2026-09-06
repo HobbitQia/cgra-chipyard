@@ -78,6 +78,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
     val configAck = Decoupled(new GemminiLinkConfigAck(params))
     val cpuCommand = Flipped(Decoupled(new RoCCCommand))
     val command = Decoupled(new RoCCCommand)
+    val nativeBusy = Input(Bool())
     val event = Flipped(Decoupled(new GemminiLinkEvent(params)))
     val autoLink = new AutoEndpointIO(params.auto)
     val autoBusy = Output(Bool())
@@ -87,7 +88,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
     val idle :: reportConfig :: collect :: Nil = Enum(3)
   }
   object ExecState {
-    val idle :: reportCopy :: waitCompute :: issue :: waitOutput :: reportCompute :: Nil = Enum(6)
+    val idle :: reportCopy :: waitCompute :: issue :: waitComplete :: reportCompute :: Nil = Enum(6)
   }
 
   val configState = RegInit(ConfigState.idle)
@@ -120,7 +121,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   val beatError = RegInit(0.U(params.auto.detailWidth.W))
   val producedValid = RegInit(false.B)
   val producedDetail = RegInit(0.U(params.auto.detailWidth.W))
-  val publication = Wire(Valid(new AutoEvent(params.auto)))
+  val outputPending = RegInit(false.B)
 
   val configJobValid = io.configIn.bits.job < params.jobCount.U
   val configValid = configJobValid && io.configIn.bits.commandCount =/= 0.U &&
@@ -156,7 +157,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
     commands(replayAddress),
     io.cpuCommand.bits)
   io.event.ready := true.B
-  io.autoBusy := replay || execState === ExecState.waitOutput ||
+  io.autoBusy := replay || execState === ExecState.waitComplete ||
     execState === ExecState.reportCompute
 
   io.autoLink.watchOutput.ready := !armed && !producedValid
@@ -169,8 +170,9 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
     AutoLinkStatus.SourceFailure)
   io.autoLink.reportOutput.bits.detail := producedDetail
   io.autoLink.reportOutput.bits.data := 0.U
-  io.autoLink.requestCopy.ready := execState === ExecState.idle &&
-    configState === ConfigState.idle && !io.configIn.valid
+  io.autoLink.requestCopy.ready :=
+    (execState === ExecState.idle || execState === ExecState.waitCompute) &&
+      configState === ConfigState.idle && !io.configIn.valid
   io.autoLink.reportCopy.valid := execState === ExecState.reportCopy
   io.autoLink.reportCopy.bits.task := copyTask
   io.autoLink.reportCopy.bits.status := copyStatus
@@ -180,21 +182,18 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
       configState === ConfigState.idle && !io.configIn.valid
   io.autoLink.reportCompute.valid := execState === ExecState.reportCompute
   io.autoLink.reportCompute.bits := computeResult
-  publication.valid := false.B
-  publication.bits := 0.U.asTypeOf(new AutoEvent(params.auto))
 
   def finish(detail: UInt): Unit = {
     producedValid := true.B
     producedDetail := detail
-    publication.valid := true.B
-    publication.bits.stage := 0.U
-    publication.bits.job := watch.job
-    publication.bits.status := Mux(
+    outputPending := false.B
+    computeResult := 0.U.asTypeOf(new AutoEvent(params.auto))
+    computeResult.job := watch.job
+    computeResult.status := Mux(
       detail === 0.U,
       AutoLinkStatus.Success,
       AutoLinkStatus.SourceFailure)
-    publication.bits.detail := detail
-    publication.bits.data := 0.U
+    computeResult.detail := detail
   }
 
   when(io.configIn.fire) {
@@ -243,15 +242,17 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   }
   when(io.autoLink.requestCompute.fire) {
     computeJob := io.autoLink.requestCompute.bits.job
+    computeResult := 0.U.asTypeOf(new AutoEvent(params.auto))
+    computeResult.job := io.autoLink.requestCompute.bits.job
+    computeResult.status := AutoLinkStatus.Success
     when(io.autoLink.requestCompute.bits.start) {
       when(requestJobValid) {
         commandIndex := 0.U
         execState := ExecState.issue
       }.otherwise {
-        computeResult := 0.U.asTypeOf(new AutoEvent(params.auto))
-        computeResult.job := io.autoLink.requestCompute.bits.job
         computeResult.status := AutoLinkStatus.SinkFailure
         computeResult.detail := GemminiLinkStatus.BadConfig.U
+        outputPending := false.B
         when(armed) {
           producedValid := true.B
           producedDetail := GemminiLinkStatus.BadConfig.U
@@ -262,17 +263,17 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
       execState := ExecState.idle
       armed := false.B
       producedValid := false.B
+      outputPending := false.B
     }
   }
   when(replay && io.command.fire) {
     when(commandIndex + 1.U === selected(jobCommandCount, computeJob)) {
-      execState := ExecState.waitOutput
+      execState := ExecState.waitComplete
     }.otherwise {
       commandIndex := commandIndex + 1.U
     }
   }
-  when(execState === ExecState.waitOutput && publication.valid) {
-    computeResult := publication.bits
+  when(execState === ExecState.waitComplete && !io.nativeBusy && !outputPending) {
     execState := ExecState.reportCompute
   }
   when(io.autoLink.reportCompute.fire) {
@@ -281,6 +282,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
 
   when(io.autoLink.watchOutput.fire) {
     watch := io.autoLink.watchOutput.bits
+    outputPending := true.B
     armed := true.B
     active := false.B
     issuedBytes := 0.U
