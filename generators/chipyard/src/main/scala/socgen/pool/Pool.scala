@@ -2,10 +2,6 @@ package chipyard.socgen.pool
 
 import chisel3._
 import chisel3.util._
-import freechips.rocketchip.diplomacy._
-import freechips.rocketchip.tilelink._
-import org.chipsalliance.cde.config.Parameters
-import org.chipsalliance.diplomacy.lazymodule.LazyModule
 
 case class PoolParams(
   elementBits: Int = 32,
@@ -85,26 +81,15 @@ class PoolOutput(params: PoolParams, beatBits: Int) extends Bundle {
   val lanes = UInt((beatBits / params.elementBits).W)
 }
 
-class PoolEngine(params: PoolParams)(implicit p: Parameters) extends LazyModule {
-  val node = TLClientNode(Seq(TLMasterPortParameters.v1(Seq(TLMasterParameters.v1(
-    name = "pool-dma",
-    sourceId = IdRange(0, 2 * params.maxInflight),
-    requestFifo = false)))))
-
-  override lazy val module = new PoolEngineImp(this, params)
-}
-
-class PoolEngineImp(outer: PoolEngine, params: PoolParams)(implicit p: Parameters)
-    extends LazyModuleImp(outer) {
+class PoolEngine(params: PoolParams, beatBits: Int) extends Module {
   val io = IO(new Bundle {
     val job = Flipped(Decoupled(new PoolJob(params)))
     val inputDone = Decoupled(new PoolEvent)
     val done = Decoupled(new PoolEvent)
     val busy = Output(Bool())
+    val dma = new PoolDmaIO(params, beatBits)
   })
 
-  val (tl, edge) = outer.node.out(0)
-  val beatBits = tl.a.bits.data.getWidth
   val beatBytes = beatBits / 8
   val beatShift = log2Ceil(beatBytes)
   val laneCount = beatBits / params.elementBits
@@ -145,6 +130,11 @@ class PoolEngineImp(outer: PoolEngine, params: PoolParams)(implicit p: Parameter
   val outputQueue = Module(new PoolQueue(new PoolOutput(params, beatBits), params.fifoDepth))
   val splitter = Module(new PoolWriteSplitter(params, beatBits))
   val writeDma = Module(new PoolWriteDma(params, beatBits))
+
+  io.dma.readRequest <> readDma.io.request
+  readDma.io.response <> io.dma.readResponse
+  io.dma.writeRequest <> writeDma.io.request
+  writeDma.io.response <> io.dma.writeResponse
 
   val paddedHeight = io.job.bits.inputHeight + (io.job.bits.padHeight << 1)
   val paddedWidth = io.job.bits.inputWidth + (io.job.bits.padWidth << 1)
@@ -390,57 +380,4 @@ class PoolEngineImp(outer: PoolEngine, params: PoolParams)(implicit p: Parameter
     failed := false.B
     state := State.idle
   }
-
-  val readSource = readDma.io.request.bits.source
-  val writeSource = writeDma.io.request.bits.source + params.maxInflight.U
-  val (getLegal, get) = edge.Get(readSource, readDma.io.request.bits.address, beatShift.U)
-  val (putLegal, put) = edge.Put(
-    writeSource,
-    writeDma.io.request.bits.address,
-    beatShift.U,
-    writeDma.io.request.bits.data,
-    writeDma.io.request.bits.mask)
-  val a = Module(new RRArbiter(chiselTypeOf(tl.a.bits), 2))
-
-  a.io.in(0).valid := readDma.io.request.valid
-  a.io.in(0).bits := get
-  readDma.io.request.ready := a.io.in(0).ready
-  a.io.in(1).valid := writeDma.io.request.valid
-  a.io.in(1).bits := put
-  writeDma.io.request.ready := a.io.in(1).ready
-  tl.a <> a.io.out
-
-  when(a.io.in(0).fire) {
-    assert(getLegal)
-  }
-  when(a.io.in(1).fire) {
-    assert(putLegal)
-  }
-
-  val readResponse = tl.d.bits.source < params.maxInflight.U
-  readDma.io.response.valid := tl.d.valid && readResponse
-  readDma.io.response.bits.source := tl.d.bits.source
-  readDma.io.response.bits.data := tl.d.bits.data
-  readDma.io.response.bits.denied := tl.d.bits.denied
-  readDma.io.response.bits.corrupt := tl.d.bits.corrupt
-  writeDma.io.response.valid := tl.d.valid && !readResponse
-  writeDma.io.response.bits.source := tl.d.bits.source - params.maxInflight.U
-  writeDma.io.response.bits.data := tl.d.bits.data
-  writeDma.io.response.bits.denied := tl.d.bits.denied
-  writeDma.io.response.bits.corrupt := tl.d.bits.corrupt
-  tl.d.ready := Mux(readResponse, readDma.io.response.ready, writeDma.io.response.ready)
-
-  when(tl.d.fire) {
-    assert(edge.done(tl.d))
-    assert(tl.d.bits.opcode === Mux(
-      readResponse,
-      TLMessages.AccessAckData,
-      TLMessages.AccessAck))
-  }
-
-  tl.b.ready := true.B
-  tl.c.valid := false.B
-  tl.c.bits := DontCare
-  tl.e.valid := false.B
-  tl.e.bits := DontCare
 }

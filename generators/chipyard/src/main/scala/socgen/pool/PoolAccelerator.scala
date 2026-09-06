@@ -13,9 +13,9 @@ import org.chipsalliance.diplomacy.lazymodule.LazyModule
 
 class PoolAccelerator(opcodes: OpcodeSet, params: PoolParams)(implicit p: Parameters)
     extends LazyRoCC(opcodes) {
-  val engine = LazyModule(new PoolEngine(params))
+  val bus = LazyModule(new PoolTileLink(params))
   private val dmaNode = TLIdentityNode()
-  dmaNode := TLWidthWidget(p(SystemBusKey).beatBytes) := engine.node
+  dmaNode := TLWidthWidget(p(SystemBusKey).beatBytes) := bus.node
   val linkParams = p(PoolLinkKey).map(_.adapter)
   val autoNode = linkParams.map(_ => BundleBridgeSink[AutoEndpointAsyncLink]())
   override val tlNode: TLNode = dmaNode
@@ -24,12 +24,14 @@ class PoolAccelerator(opcodes: OpcodeSet, params: PoolParams)(implicit p: Parame
 
 class PoolAcceleratorImp(outer: PoolAccelerator, params: PoolParams)(implicit p: Parameters)
     extends LazyRoCCModuleImp(outer) {
-  val engine = outer.engine.module
+  val bus = outer.bus.module
+  val engine = Module(new PoolEngine(params, bus.beatBits))
   val adapter = Module(new PoolLinkAdapter(params, outer.linkParams))
   val configuredJob = RegInit(0.U.asTypeOf(new PoolJob(params)))
   val manualActive = RegInit(false.B)
   val lastStatus = RegInit(PoolStatus.Success)
 
+  bus.io <> engine.io.dma
   adapter.io.configuredJob := configuredJob
 
   outer.linkParams.zip(outer.autoNode).foreach { case (_, node) =>

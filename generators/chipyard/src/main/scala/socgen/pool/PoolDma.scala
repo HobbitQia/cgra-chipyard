@@ -2,6 +2,10 @@ package chipyard.socgen.pool
 
 import chisel3._
 import chisel3.util._
+import freechips.rocketchip.diplomacy._
+import freechips.rocketchip.tilelink._
+import org.chipsalliance.cde.config.Parameters
+import org.chipsalliance.diplomacy.lazymodule.LazyModule
 
 class PoolReadRequest(params: PoolParams) extends Bundle {
   val address = UInt(params.addressBits.W)
@@ -32,6 +36,13 @@ class PoolDmaResponse(params: PoolParams, beatBits: Int) extends Bundle {
   val data = UInt(beatBits.W)
   val denied = Bool()
   val corrupt = Bool()
+}
+
+class PoolDmaIO(params: PoolParams, beatBits: Int) extends Bundle {
+  val readRequest = Decoupled(new PoolReadIssue(params))
+  val readResponse = Flipped(Decoupled(new PoolDmaResponse(params, beatBits)))
+  val writeRequest = Decoupled(new PoolWriteIssue(params, beatBits))
+  val writeResponse = Flipped(Decoupled(new PoolDmaResponse(params, beatBits)))
 }
 
 class PoolReadBeat(beatBits: Int) extends Bundle {
@@ -278,4 +289,74 @@ class PoolWriteDma(params: PoolParams, beatBits: Int) extends Module {
     valid.foreach(_ := false.B)
     lastReturned := false.B
   }
+}
+
+class PoolTileLink(params: PoolParams)(implicit p: Parameters) extends LazyModule {
+  val node = TLClientNode(Seq(TLMasterPortParameters.v1(Seq(TLMasterParameters.v1(
+    name = "pool-dma",
+    sourceId = IdRange(0, 2 * params.maxInflight),
+    requestFifo = false)))))
+
+  override lazy val module = new PoolTileLinkImp(this, params)
+}
+
+class PoolTileLinkImp(outer: PoolTileLink, params: PoolParams)(implicit p: Parameters)
+    extends LazyModuleImp(outer) {
+  val (tl, edge) = outer.node.out(0)
+  val beatBits = tl.a.bits.data.getWidth
+  val beatShift = log2Ceil(beatBits / 8)
+  val io = IO(Flipped(new PoolDmaIO(params, beatBits)))
+
+  val readSource = io.readRequest.bits.source
+  val writeSource = io.writeRequest.bits.source + params.maxInflight.U
+  val (getLegal, get) = edge.Get(readSource, io.readRequest.bits.address, beatShift.U)
+  val (putLegal, put) = edge.Put(
+    writeSource,
+    io.writeRequest.bits.address,
+    beatShift.U,
+    io.writeRequest.bits.data,
+    io.writeRequest.bits.mask)
+  val a = Module(new RRArbiter(chiselTypeOf(tl.a.bits), 2))
+
+  a.io.in(0).valid := io.readRequest.valid
+  a.io.in(0).bits := get
+  io.readRequest.ready := a.io.in(0).ready
+  a.io.in(1).valid := io.writeRequest.valid
+  a.io.in(1).bits := put
+  io.writeRequest.ready := a.io.in(1).ready
+  tl.a <> a.io.out
+
+  when(a.io.in(0).fire) {
+    assert(getLegal)
+  }
+  when(a.io.in(1).fire) {
+    assert(putLegal)
+  }
+
+  val readResponse = tl.d.bits.source < params.maxInflight.U
+  io.readResponse.valid := tl.d.valid && readResponse
+  io.readResponse.bits.source := tl.d.bits.source
+  io.readResponse.bits.data := tl.d.bits.data
+  io.readResponse.bits.denied := tl.d.bits.denied
+  io.readResponse.bits.corrupt := tl.d.bits.corrupt
+  io.writeResponse.valid := tl.d.valid && !readResponse
+  io.writeResponse.bits.source := tl.d.bits.source - params.maxInflight.U
+  io.writeResponse.bits.data := tl.d.bits.data
+  io.writeResponse.bits.denied := tl.d.bits.denied
+  io.writeResponse.bits.corrupt := tl.d.bits.corrupt
+  tl.d.ready := Mux(readResponse, io.readResponse.ready, io.writeResponse.ready)
+
+  when(tl.d.fire) {
+    assert(edge.done(tl.d))
+    assert(tl.d.bits.opcode === Mux(
+      readResponse,
+      TLMessages.AccessAckData,
+      TLMessages.AccessAck))
+  }
+
+  tl.b.ready := true.B
+  tl.c.valid := false.B
+  tl.c.bits := DontCare
+  tl.e.valid := false.B
+  tl.e.bits := DontCare
 }
