@@ -49,6 +49,7 @@ class CgraLinkConfig(params: CgraLinkParams) extends Bundle {
 
 class CgraLinkConfigAck(params: CgraLinkParams) extends Bundle {
   val job = UInt(32.W)
+  val done = Bool()
   val status = UInt(AutoLinkStatus.Width.W)
   val detail = UInt(params.auto.detailWidth.W)
 }
@@ -112,6 +113,7 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   val priorJobComplete = RegInit(false.B)
   val expectedCompletions = Reg(UInt(params.packetCountWidth.W))
   val completed = RegInit(0.U(params.packetCountWidth.W))
+  val configDone = RegInit(false.B)
   val configStatus = RegInit(AutoLinkStatus.Success)
   val configDetail = RegInit(0.U(params.auto.detailWidth.W))
   val copyDetail = RegInit(0.U(params.auto.detailWidth.W))
@@ -171,6 +173,7 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   io.packetIn.ready := configState === ConfigState.collectPackets
   io.configAck.valid := configState === ConfigState.reportConfig
   io.configAck.bits.job := config.job
+  io.configAck.bits.done := configDone
   io.configAck.bits.status := configStatus
   io.configAck.bits.detail := configDetail
 
@@ -232,16 +235,18 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
     configSawLaunch := false.B
     configSawConfig := false.B
     configFailed := false.B
-    when(configValid) {
+    configDone := !configValid
+    when(configJobValid) {
       selected(jobValid, io.configIn.bits.job) := false.B
+    }
+    when(configValid) {
       configStatus := AutoLinkStatus.Success
       configDetail := 0.U
-      configState := ConfigState.collectPackets
     }.otherwise {
       configStatus := AutoLinkStatus.SinkFailure
       configDetail := CgraLinkStatus.BadConfig.U
-      configState := ConfigState.reportConfig
     }
+    configState := ConfigState.reportConfig
   }
   when(io.packetIn.fire) {
     when(packetInOrder && !configFailed) {
@@ -271,13 +276,17 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
         configStatus := AutoLinkStatus.SinkFailure
         configDetail := CgraLinkStatus.BadPacket.U
       }
+      configDone := true.B
       configState := ConfigState.reportConfig
     }.otherwise {
       configIndex := configIndex + 1.U
     }
   }
   when(io.configAck.fire) {
-    configState := ConfigState.idle
+    configState := Mux(
+      configDone,
+      ConfigState.idle,
+      ConfigState.collectPackets)
   }
 
   when(io.autoLink.requestCopy.fire) {

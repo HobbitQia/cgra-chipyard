@@ -19,6 +19,10 @@ object CgraLinkControlGenerated {
   val JOB: Int = 0x040
   val EXPECTED_COMPLETES: Int = 0x048
   val RESULT_JOB: Int = 0x050
+  val CONFIG_READY: Int = 0x058
+  val CONFIG_DONE: Int = 0x060
+  val CONFIG_STATUS: Int = 0x068
+  val CONFIG_DETAIL: Int = 0x070
   val GEMMINI_COMMAND_COUNT: Int = 0x000
   val GEMMINI_SUBMIT: Int = 0x008
   val GEMMINI_CAPTURE_READY: Int = 0x010

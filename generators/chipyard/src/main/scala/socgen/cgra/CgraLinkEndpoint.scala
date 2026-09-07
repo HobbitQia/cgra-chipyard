@@ -51,37 +51,42 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       val packetCount = RegInit(0.U(32.W))
       val expectedCompletions = RegInit(0.U(32.W))
       val configSubmit = Wire(Decoupled(UInt(1.W)))
-      configOut.valid := configSubmit.valid && configSubmit.bits.asBool
+      val configPending = RegInit(false.B)
+      val configReady = RegInit(false.B)
+      val configDone = RegInit(false.B)
+      val configStatus = RegInit(AutoLinkStatus.Success)
+      val configDetail = RegInit(0.U(params.auto.detailWidth.W))
+      configOut.valid := configSubmit.valid && configSubmit.bits.asBool && !configPending
       configOut.bits.job := job
       configOut.bits.packetCount := packetCount
       configOut.bits.expectedCompletions := expectedCompletions
-      configSubmit.ready := configOut.ready
+      configSubmit.ready := Mux(configSubmit.bits.asBool, configOut.ready && !configPending, true.B)
+      configAck.ready := true.B
+
+      when(configOut.fire) {
+        configPending := true.B
+        configReady := false.B
+        configDone := false.B
+        configStatus := AutoLinkStatus.Success
+        configDetail := 0.U
+      }
+      when(configAck.fire) {
+        configPending := !configAck.bits.done
+        configReady := true.B
+        configDone := configAck.bits.done
+        configStatus := configAck.bits.status
+        configDetail := configAck.bits.detail
+      }
 
       val results = Module(new Queue(new CgraLinkResult(params), math.max(2, resultNames.size)))
-      val resultArbiter = Module(new Arbiter(new CgraLinkResult(params), resultIn.size + 1))
+      val resultArbiter = Module(new Arbiter(new CgraLinkResult(params), resultIn.size))
       resultIn.zipWithIndex.foreach { case (result, index) =>
         val input = resultArbiter.io.in(index)
         input.valid := result.valid
         input.bits := result.bits
         result.ready := input.ready
       }
-      val configResult = resultArbiter.io.in(resultIn.size)
-      configResult.valid := configAck.valid &&
-        configAck.bits.status =/= AutoLinkStatus.Success
-      val configStages = params.auto.stages.zipWithIndex.collect {
-        case (stage, index) if stage.endpoint == "cgra" => stage.job.U -> index.U(32.W)
-      }
-      // An invalid job has no corresponding graph stage.
-      configResult.bits.stage := MuxLookup(configAck.bits.job, ~0.U(32.W))(configStages)
-      configResult.bits.job := configAck.bits.job
-      configResult.bits.status := configAck.bits.status
-      configResult.bits.detail := configAck.bits.detail
-      configResult.bits.data := 0.U
       results.io.enq <> resultArbiter.io.out
-      configAck.ready := Mux(
-        configAck.bits.status === AutoLinkStatus.Success,
-        true.B,
-        configResult.ready)
 
       val resultPop = Wire(Decoupled(UInt(1.W)))
       val result = RegInit(0.U.asTypeOf(new CgraLinkResult(params)))
@@ -103,7 +108,11 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
         RESULT_STAGE -> Seq(RegField.r(32, result.stage)),
         RESULT_JOB -> Seq(RegField.r(32, result.job)),
         JOB -> Seq(RegField(32, job)),
-        EXPECTED_COMPLETES -> Seq(RegField(32, expectedCompletions)))
+        EXPECTED_COMPLETES -> Seq(RegField(32, expectedCompletions)),
+        CONFIG_READY -> Seq(RegField.r(1, configReady)),
+        CONFIG_DONE -> Seq(RegField.r(1, configDone)),
+        CONFIG_STATUS -> Seq(RegField.r(32, configStatus)),
+        CONFIG_DETAIL -> Seq(RegField.r(32, configDetail)))
     }
   }
 }
