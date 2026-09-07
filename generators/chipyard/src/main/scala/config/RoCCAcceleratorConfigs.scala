@@ -80,7 +80,9 @@ object CGRAMinimalGemminiAutoLinkRocketConfig {
     adapter = GemminiLinkParams(
       auto = autoLink,
       beatBytes = writeBeatBytes,
-      commandCapacity = 16),
+      commandCapacity = 16,
+      maxInflight = gemminiConfig.max_in_flight_mem_reqs *
+        (1 + gemminiConfig.dma_maxbytes / (gemminiConfig.dma_buswidth / 8))),
     portName = "gemmini")
   val cgraLink = CgraLinkAttachParams(
     adapter = CgraLinkParams(
@@ -106,6 +108,19 @@ class CGRAMinimalGemminiAutoLinkRocketConfig extends Config(
   new chipyard.config.WithSystemBusWidth(256) ++
   new chipyard.config.AbstractConfig)
 
+class CgraConvRocketConfig extends Config(
+  new WithCgraLink(CGRAMinimalGemminiAutoLinkRocketConfig.cgraLink) ++
+  new WithGemminiLink(CGRAMinimalGemminiAutoLinkRocketConfig.gemminiLink) ++
+  new WithAutoLink(CGRAMinimalGemminiAutoLinkRocketConfig.autoLink) ++
+  new WithGemminiExternalSpm(CGRAMinimalGemminiRocketConfig.externalSpm) ++
+  new chipyard.config.WithCGRA() ++
+  new WithGemminiRoCC(
+    CGRAMinimalGemminiAutoLinkRocketConfig.gemminiConfig.copy(has_loop_conv = true),
+    linkParams = Some(CGRAMinimalGemminiAutoLinkRocketConfig.gemminiLink.adapter)) ++
+  new freechips.rocketchip.rocket.WithNBigCores(1) ++
+  new chipyard.config.WithSystemBusWidth(256) ++
+  new chipyard.config.AbstractConfig)
+
 object CGRAMinimalGemminiAESAutoLinkRocketConfig {
   val gemminiConfig = CGRAMinimalGemminiRocketConfig.minimalGemminiConfig
   private val writeBeatBytes =
@@ -116,7 +131,9 @@ object CGRAMinimalGemminiAESAutoLinkRocketConfig {
     adapter = GemminiLinkParams(
       auto = autoLink,
       beatBytes = writeBeatBytes,
-      commandCapacity = 16),
+      commandCapacity = 16,
+      maxInflight = gemminiConfig.max_in_flight_mem_reqs *
+        (1 + gemminiConfig.dma_maxbytes / (gemminiConfig.dma_buswidth / 8))),
     portName = "gemmini")
   val cgraLink = CgraLinkAttachParams(
     adapter = CgraLinkParams(
@@ -170,7 +187,9 @@ object CGRAMinimalGemminiPoolAutoLinkRocketConfig {
     adapter = GemminiLinkParams(
       auto = autoLink,
       beatBytes = writeBeatBytes,
-      commandCapacity = 16),
+      commandCapacity = 16,
+      maxInflight = gemminiConfig.max_in_flight_mem_reqs *
+        (1 + gemminiConfig.dma_maxbytes / (gemminiConfig.dma_buswidth / 8))),
     portName = "gemmini")
   val cgraLink = CgraLinkAttachParams(
     adapter = CgraLinkParams(
@@ -222,7 +241,9 @@ object CGRAMinimalGemminiResidualAutoLinkRocketConfig {
     adapter = GemminiLinkParams(
       auto = autoLink,
       beatBytes = writeBeatBytes,
-      commandCapacity = 7),
+      commandCapacity = 7,
+      maxInflight = gemminiConfig.max_in_flight_mem_reqs *
+        (1 + gemminiConfig.dma_maxbytes / (gemminiConfig.dma_buswidth / 8))),
     portName = "gemmini")
   val cgraLink = CgraLinkAttachParams(
     adapter = CgraLinkParams(

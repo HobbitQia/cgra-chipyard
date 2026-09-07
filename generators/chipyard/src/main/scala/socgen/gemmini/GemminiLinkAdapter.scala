@@ -17,9 +17,10 @@ object GemminiLinkStatus {
   val BadConfig = 6
 }
 
-case class GemminiLinkParams(auto: AutoLinkParams, beatBytes: Int, commandCapacity: Int) {
+case class GemminiLinkParams(auto: AutoLinkParams, beatBytes: Int, commandCapacity: Int, maxInflight: Int = 1) {
   require(isPow2(beatBytes))
   require(commandCapacity > 0)
+  require(maxInflight > 0)
 
   val jobCount: Int = auto.stages.count(_.endpoint == "gemmini")
   require(jobCount > 0)
@@ -27,6 +28,10 @@ case class GemminiLinkParams(auto: AutoLinkParams, beatBytes: Int, commandCapaci
   val commandCountWidth: Int = log2Ceil(commandCapacity + 1)
   val commandAddressWidth: Int = math.max(1, log2Ceil(jobCount * commandCapacity))
   val jobIndexWidth: Int = math.max(1, log2Ceil(jobCount))
+  val publicationBytes: Int = auto.dependencies.flatMap { dependency =>
+    dependency.source.filter(index => auto.stage(index).endpoint == "gemmini")
+      .flatMap(_ => dependency.copy.map(_.bytes))
+  }.foldLeft(1)(math.max)
 }
 
 class GemminiLinkWrite(params: GemminiLinkParams) extends Bundle {
@@ -46,8 +51,18 @@ class GemminiLinkAck extends Bundle {
 
 class GemminiLinkEvent(params: GemminiLinkParams) extends Bundle {
   val isAck = Bool()
+  val local = Bool()
   val write = new GemminiLinkWrite(params)
   val ack = new GemminiLinkAck
+}
+
+class GemminiPublicationEntry(params: GemminiLinkParams) extends Bundle {
+  val valid = Bool()
+  val local = Bool()
+  val source = UInt(16.W)
+  val bytes = UInt(log2Ceil(params.beatBytes + 1).W)
+  val size = UInt(8.W)
+  val error = UInt(params.auto.detailWidth.W)
 }
 
 class GemminiLinkConfig(params: GemminiLinkParams) extends Bundle {
@@ -114,15 +129,11 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   val computeJob = RegInit(0.U(params.auto.jobWidth.W))
   val watch = Reg(new AutoWatch(params.auto))
   val armed = RegInit(false.B)
-  val active = RegInit(false.B)
-  val issuedBytes = RegInit(0.U(params.auto.lengthWidth.W))
   val acknowledgedBytes = RegInit(0.U(params.auto.lengthWidth.W))
-  val outstanding = RegInit(false.B)
-  val source = Reg(UInt(16.W))
-  val pendingBytes = Reg(UInt(log2Ceil(params.beatBytes + 1).W))
-  val pendingSize = Reg(UInt(8.W))
-  val beatValid = RegInit(false.B)
-  val beatError = RegInit(0.U(params.auto.detailWidth.W))
+  val pending = RegInit(VecInit(Seq.fill(params.maxInflight)(
+    0.U.asTypeOf(new GemminiPublicationEntry(params)))))
+  val coverage = RegInit(0.U(params.publicationBytes.W))
+  val outstanding = VecInit(pending.map(_.valid))
   val producedValid = RegInit(false.B)
   val producedDetail = RegInit(0.U(params.auto.detailWidth.W))
   val outputPending = RegInit(false.B)
@@ -163,7 +174,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   io.autoBusy := replay || execState === ExecState.waitComplete ||
     execState === ExecState.reportCompute
 
-  io.autoLink.watchOutput.ready := !armed && !producedValid
+  io.autoLink.watchOutput.ready := !armed && !producedValid && !outstanding.asUInt.orR
   io.autoLink.reportOutput.valid := producedValid
   io.autoLink.reportOutput.bits.stage := 0.U
   io.autoLink.reportOutput.bits.job := watch.job
@@ -291,19 +302,18 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
     watch := io.autoLink.watchOutput.bits
     outputPending := true.B
     armed := true.B
-    active := false.B
-    issuedBytes := 0.U
     acknowledgedBytes := 0.U
-    outstanding := false.B
+    coverage := 0.U
   }
 
   when(armed && !producedValid && io.event.fire && !io.event.bits.isAck) {
     val write = io.event.bits.write
-    val expectedAddress = watch.address + issuedBytes
     val firstLane = PriorityEncoder(write.mask)
     val byteCount = PopCount(write.mask)
     val beatAddress = write.address & (~(params.beatBytes - 1).U(64.W))
-    val addressValid = beatAddress + firstLane === expectedAddress
+    val firstAddress = beatAddress + firstLane
+    val offset = firstAddress - watch.address
+    val addressValid = firstAddress >= watch.address && offset < watch.bytes
     val requestBytes = MuxLookup(write.size, 0.U(log2Ceil(params.beatBytes + 1).W))(
       (0 to log2Ceil(params.beatBytes)).map(size => size.U -> (1 << size).U))
     val laneOffset = write.address & (params.beatBytes - 1).U
@@ -315,64 +325,69 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
     val opcodeValid = (write.opcode === TLMessages.PutFullData && write.mask === requestMask) ||
       write.opcode === TLMessages.PutPartialData
     val shapeValid = requestValid && opcodeValid && contiguous && (write.mask & ~requestMask) === 0.U
-    val nextIssued = issuedBytes +& byteCount
-    val withinPublication = nextIssued <= watch.bytes
+    val endOffset = offset +& byteCount
+    val withinPublication = endOffset <= watch.bytes
+    val written = VecInit((0 until params.publicationBytes).map(byte =>
+      byte.U >= offset && byte.U < endOffset)).asUInt
+    val overlap = (written & coverage).orR
+    val matches = VecInit(pending.map(entry => entry.valid &&
+      entry.local === io.event.bits.local && entry.source === write.source))
+    val free = VecInit(pending.map(entry => !entry.valid))
+    val slot = PriorityEncoder(free.asUInt)
+    val error = Mux(!addressValid, GemminiLinkStatus.BadAddress.U,
+      Mux(!shapeValid, GemminiLinkStatus.BadBeat.U,
+        Mux(!withinPublication || overlap, GemminiLinkStatus.BadOrder.U, 0.U)))
 
-    active := true.B
-    when(outstanding) {
-      beatValid := false.B
-      beatError := GemminiLinkStatus.BadOrder.U
+    when(matches.asUInt.orR) {
+      pending(PriorityEncoder(matches.asUInt)).error := GemminiLinkStatus.BadOrder.U
+    }.elsewhen(!free.asUInt.orR) {
+      finish(GemminiLinkStatus.BadOrder.U)
     }.otherwise {
-      outstanding := true.B
-      source := write.source
-      pendingBytes := byteCount
-      pendingSize := write.size
-      beatValid := addressValid && shapeValid && withinPublication
-      beatError := Mux(
-        !addressValid,
-        GemminiLinkStatus.BadAddress.U,
-        Mux(!shapeValid, GemminiLinkStatus.BadBeat.U, GemminiLinkStatus.BadOrder.U))
-      when(addressValid && shapeValid && withinPublication) {
-        issuedBytes := nextIssued
+      pending(slot).valid := true.B
+      pending(slot).local := io.event.bits.local
+      pending(slot).source := write.source
+      pending(slot).bytes := byteCount
+      pending(slot).size := write.size
+      pending(slot).error := error
+      when(error === 0.U) {
+        coverage := coverage | written
       }
     }
   }
 
-  when(active && !producedValid && io.event.fire && io.event.bits.isAck) {
+  when(io.event.fire && io.event.bits.isAck) {
     val ack = io.event.bits.ack
-    when(!outstanding) {
-      finish(GemminiLinkStatus.BadOrder.U)
-    }.otherwise {
-      val responseShapeValid = ack.source === source &&
-        ack.size === pendingSize
-      val responseValid = beatValid && responseShapeValid &&
-        !ack.denied && !ack.corrupt
+    val matches = VecInit(pending.map(entry => entry.valid &&
+      entry.local === io.event.bits.local && entry.source === ack.source))
+    val slot = PriorityEncoder(matches.asUInt)
+    val entry = pending(slot)
+    when(matches.asUInt.orR) {
+      pending(slot).valid := false.B
+    }
+    when(armed && !producedValid) {
       val detail = Mux(
         ack.denied,
         GemminiLinkStatus.Denied.U,
         Mux(
           ack.corrupt,
           GemminiLinkStatus.Corrupt.U,
-          Mux(!responseShapeValid, GemminiLinkStatus.BadBeat.U, beatError)))
-      val nextBytes = Mux(
-        responseValid,
-        acknowledgedBytes + pendingBytes,
-        acknowledgedBytes)
-
-      acknowledgedBytes := nextBytes
-      outstanding := false.B
-      when(!responseValid) {
+          Mux(ack.size =/= entry.size, GemminiLinkStatus.BadBeat.U, entry.error)))
+      val nextBytes = acknowledgedBytes + entry.bytes
+      when(!matches.asUInt.orR) {
+        finish(GemminiLinkStatus.BadOrder.U)
+      }.elsewhen(detail =/= 0.U) {
         finish(detail)
-      }.elsewhen(nextBytes === watch.bytes) {
-        finish(0.U)
+      }.otherwise {
+        acknowledgedBytes := nextBytes
+        when(nextBytes === watch.bytes && PopCount(outstanding) === 1.U) {
+          finish(0.U)
+        }
       }
     }
   }
 
   when(io.autoLink.reportOutput.fire) {
     armed := false.B
-    active := false.B
-    outstanding := false.B
     producedValid := false.B
   }
 }

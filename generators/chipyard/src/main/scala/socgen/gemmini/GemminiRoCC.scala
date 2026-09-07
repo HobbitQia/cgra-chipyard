@@ -2,8 +2,9 @@ package chipyard.socgen.gemmini
 
 import chisel3._
 import chipyard.socgen.link.AutoEndpointAsyncLink
-import freechips.rocketchip.diplomacy.BundleBridgeSink
+import freechips.rocketchip.diplomacy.{AddressSet, BundleBridgeSink}
 import freechips.rocketchip.tile.{BuildRoCC, LazyRoCC, LazyRoCCModuleImp}
+import freechips.rocketchip.tilelink.{TLFilter, TLFragmenter, TLIdentityNode, TLXbar}
 import freechips.rocketchip.util.{AsyncQueueParams, FromAsyncBundle, ToAsyncBundle}
 import org.chipsalliance.cde.config.{Config, Parameters}
 import org.chipsalliance.diplomacy.lazymodule.LazyModule
@@ -20,8 +21,18 @@ class GemminiRoCC(
   val configNode = linkParams.map(params => BundleBridgeSink[GemminiLinkConfigAsync]())
   val observeNode = linkParams.map(params => BundleBridgeSink[GemminiLinkObserveAsync]())
 
-  override val atlNode = accelerator.atlNode
-  override val tlNode = accelerator.tlNode
+  private val externalSpm = p(GemminiExternalSpmKey).get
+  private val localRange = AddressSet(externalSpm.baseAddress, externalSpm.sizeBytes - 1)
+  private val dma = TLXbar()
+  private val outward = TLIdentityNode()
+  val localNode = TLIdentityNode()
+
+  dma := accelerator.node
+  localNode := TLFragmenter(config.dma_buswidth / 8, config.dma_maxbytes, alwaysMin = true) := dma
+  outward := TLFilter(TLFilter.mSubtract(localRange)) := dma
+
+  override val atlNode = if (config.use_dedicated_tl_port) accelerator.atlNode else outward
+  override val tlNode = if (config.use_dedicated_tl_port) outward else accelerator.tlNode
   override val stlNode = accelerator.stlNode
   override lazy val module = new GemminiRoCCModule(this)
 }

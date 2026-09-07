@@ -54,6 +54,7 @@ class GemminiPublicationSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.watch.bits.job.poke(0.U)
     dut.io.event.valid.poke(false.B)
     dut.io.event.bits.isAck.poke(false.B)
+    dut.io.event.bits.local.poke(false.B)
     dut.io.event.bits.write.source.poke(7.U)
     dut.io.event.bits.ack.source.poke(7.U)
     dut.io.event.bits.ack.denied.poke(false.B)
@@ -69,8 +70,11 @@ class GemminiPublicationSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.watch.valid.poke(false.B)
     }
 
-    def write(address: Int, size: Int, mask: BigInt, partial: Boolean = true): Unit = {
+    def write(address: Int, size: Int, mask: BigInt, partial: Boolean = true,
+        source: Int = 7, local: Boolean = false): Unit = {
       dut.io.event.bits.isAck.poke(false.B)
+      dut.io.event.bits.local.poke(local.B)
+      dut.io.event.bits.write.source.poke(source.U)
       dut.io.event.bits.write.address.poke(address.U)
       dut.io.event.bits.write.size.poke(size.U)
       dut.io.event.bits.write.mask.poke(mask.U)
@@ -85,8 +89,10 @@ class GemminiPublicationSpec extends AnyFlatSpec with ChiselScalatestTester {
       }
     }
 
-    def ack(size: Int): Unit = {
+    def ack(size: Int, source: Int = 7, local: Boolean = false): Unit = {
       dut.io.event.bits.isAck.poke(true.B)
+      dut.io.event.bits.local.poke(local.B)
+      dut.io.event.bits.ack.source.poke(source.U)
       dut.io.event.bits.ack.size.poke(size.U)
       dut.io.event.valid.poke(true.B)
       dut.clock.step()
@@ -165,6 +171,68 @@ class GemminiPublicationSpec extends AnyFlatSpec with ChiselScalatestTester {
       driver.write(0x2010, 4, BigInt("ffff0000", 16), partial = false)
       driver.ack(4)
       driver.result(GemminiLinkStatus.BadOrder)
+    }
+  }
+
+  it should "match reordered writes and acknowledgements across source namespaces and reuse slots" in {
+    test(new GemminiPublicationHarness(params.copy(maxInflight = 3))) { dut =>
+      val driver = new Driver(dut)
+      val lower = BigInt("ffff", 16)
+      val upper = BigInt("ffff0000", 16)
+      driver.watch(0x2000, 64)
+      driver.write(0x2030, 4, upper, partial = false, source = 7)
+      driver.write(0x2000, 4, lower, partial = false, source = 7, local = true)
+      driver.write(0x2020, 4, lower, partial = false, source = 8)
+      driver.ack(4, source = 8)
+      dut.io.result.valid.expect(false.B)
+      driver.write(0x2010, 4, upper, partial = false, source = 8)
+      driver.ack(4, source = 7, local = true)
+      dut.io.result.valid.expect(false.B)
+      driver.ack(4, source = 8)
+      dut.io.result.valid.expect(false.B)
+      driver.ack(4, source = 7)
+      driver.result()
+    }
+  }
+
+  it should "reject repeated byte coverage before and after acknowledgement" in {
+    test(new GemminiPublicationHarness(params.copy(maxInflight = 2))) { dut =>
+      val driver = new Driver(dut)
+      val full = BigInt("ffffffff", 16)
+      driver.watch(0x2000, 64)
+      driver.write(0x2000, 5, full, partial = false, source = 1)
+      driver.write(0x2000, 5, full, partial = false, source = 2, local = true)
+      driver.ack(5, source = 1)
+      dut.io.result.valid.expect(false.B)
+      driver.ack(5, source = 2, local = true)
+      driver.result(GemminiLinkStatus.BadOrder)
+
+      driver.watch(0x2000, 64)
+      driver.write(0x2000, 5, full, partial = false, source = 1)
+      driver.ack(5, source = 1)
+      dut.io.result.valid.expect(false.B)
+      driver.write(0x2000, 5, full, partial = false, source = 1)
+      driver.ack(5, source = 1)
+      driver.result(GemminiLinkStatus.BadOrder)
+    }
+  }
+
+  it should "drain other sources after a failed acknowledgement before accepting a new watch" in {
+    test(new GemminiPublicationHarness(params.copy(maxInflight = 2))) { dut =>
+      val driver = new Driver(dut)
+      val full = BigInt("ffffffff", 16)
+      driver.watch(0x2000, 64)
+      driver.write(0x2000, 5, full, partial = false, source = 1)
+      driver.write(0x2020, 5, full, partial = false, source = 2, local = true)
+      driver.ack(4, source = 1)
+      driver.result(GemminiLinkStatus.BadBeat)
+      dut.io.watch.ready.expect(false.B)
+      driver.ack(5, source = 2, local = true)
+      dut.io.result.valid.expect(false.B)
+      driver.watch(0x2000, 32)
+      driver.write(0x2000, 5, full, partial = false, source = 2, local = true)
+      driver.ack(5, source = 2, local = true)
+      driver.result()
     }
   }
 }

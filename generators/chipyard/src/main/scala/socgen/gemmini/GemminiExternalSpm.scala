@@ -285,6 +285,7 @@ class GemminiExternalSpmAttach(val gemminiRoCC: GemminiRoCC, params: GemminiExte
   val writePorts = TLXbar()
   val systemPorts = TLXbar()
   val writerNode = TLIdentityNode()
+  val localNode = TLIdentityNode()
 
   spm.readNodes.foreach { node => node := readPorts }
   spm.writeNodes.foreach { node => node := writePorts }
@@ -293,6 +294,10 @@ class GemminiExternalSpmAttach(val gemminiRoCC: GemminiRoCC, params: GemminiExte
   writePorts :=* TLWidthWidget(readBeatBytes) :=* TLBuffer() :=*
     gemminiAccelerator.spad_write_nodes
   writePorts := writerNode
+  systemPorts := TLFIFOFixer() := TLWidthWidget(systemMaxBytes) := localNode
+  if (gemminiRoCC.linkParams.isEmpty) {
+    localNode := gemminiRoCC.localNode
+  }
 
   override lazy val module = new AttachImpl
   class AttachImpl extends Impl
