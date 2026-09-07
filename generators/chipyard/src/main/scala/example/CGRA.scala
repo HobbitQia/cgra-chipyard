@@ -2,7 +2,7 @@ package chipyard.example
 
 import chisel3._
 import chisel3.util._
-import chipyard.socgen.cgra.{CgraDmaTensorBridge, CgraLinkAdapter, CgraLinkConfigAsync, CgraLinkKey, CgraPacketArbiter, CgraResetController, CgraSpmManager, CgraTensorBridgeParams}
+import chipyard.socgen.cgra.{CgraDmaTensorBridge, CgraLinkAdapter, CgraLinkConfigAsync, CgraLinkKey, CgraPackedReader, CgraReadRequest, CgraPacketArbiter, CgraResetController, CgraSpmManager, CgraTensorBridgeParams}
 import chipyard.socgen.link.AutoEndpointAsyncLink
 
 import org.chipsalliance.cde.config.{Parameters, Field, Config}
@@ -247,7 +247,7 @@ class CGRADmaWriteRequest(params: CGRAParams) extends Bundle {
 }
 
 class CGRATileLinkDmaAdapterIO(params: CGRAParams) extends Bundle {
-  val readReq = Flipped(Decoupled(UInt(params.dma.dramAddrWidth.W)))
+  val readReq = Flipped(Decoupled(new CgraReadRequest(params.dma.dramAddrWidth, params.dma.dramDataWidth)))
   val readResp = Decoupled(UInt(params.dma.dramDataWidth.W))
   val writeReq = Flipped(Decoupled(new CGRADmaWriteRequest(params)))
   val writeResp = Decoupled(Bool())
@@ -285,6 +285,7 @@ class CGRATileLinkDmaAdapterImp(
     val state = RegInit(idle)
     val requestIsWrite = RegInit(false.B)
     val requestAddress = Reg(UInt(params.dma.dramAddrWidth.W))
+    val requestSize = Reg(UInt(log2Ceil(lgBeatBytes + 1).W))
     val requestData = Reg(UInt(params.dma.dramDataWidth.W))
     val requestMask = Reg(UInt(params.dma.dramMaskWidth.W))
     val readResponseData = Reg(UInt(params.dma.dramDataWidth.W))
@@ -303,14 +304,16 @@ class CGRATileLinkDmaAdapterImp(
     }
 
     when (io.readReq.fire) {
-      assert(io.readReq.bits(lgBeatBytes - 1, 0) === 0.U,
-        "CGRA DMA read address must be 16-byte aligned")
+      assert(io.readReq.bits.lgSize <= lgBeatBytes.U &&
+        (io.readReq.bits.address & ((1.U((beatBytes + 1).W) << io.readReq.bits.lgSize) - 1.U)) === 0.U,
+        "CGRA DMA read must be naturally aligned and fit one beat")
       if (params.dma.dramAddrWidth > addressWidth) {
-        assert(!io.readReq.bits(params.dma.dramAddrWidth - 1, addressWidth).orR,
+        assert(!io.readReq.bits.address(params.dma.dramAddrWidth - 1, addressWidth).orR,
           "CGRA DMA read physical address exceeds TileLink address width")
       }
       requestIsWrite := false.B
-      requestAddress := io.readReq.bits
+      requestAddress := io.readReq.bits.address
+      requestSize := io.readReq.bits.lgSize
       state := sendA
     }
 
@@ -335,7 +338,7 @@ class CGRATileLinkDmaAdapterImp(
     val (getLegal, get) = edge.Get(
       fromSource = 0.U,
       toAddress = tlAddress,
-      lgSize = lgBeatBytes.U)
+      lgSize = requestSize)
     val (putFullLegal, putFull) = edge.Put(
       fromSource = 0.U,
       toAddress = tlAddress,
@@ -383,7 +386,7 @@ class CGRATileLinkDmaAdapterImp(
         when (requestIsWrite) {
           state := holdWrite
         } .otherwise {
-          readResponseData := tl.d.bits.data
+          readResponseData := tl.d.bits.data >> (requestAddress(lgBeatBytes - 1, 0) << 3)
           state := holdRead
         }
       }
@@ -511,25 +514,37 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   cgra.io.address_upper := params.addressUpper.U
 
   val dmaRequant = outer.spmWindow.flatMap(_.bridge).map(_ => RegInit(false.B))
+  val dmaPacked = RegInit(false.B)
+  val packedReader = outer.dmaAdapter.map { _ =>
+    val reader = Module(new CgraPackedReader(params.dma.dramDataWidth,
+      params.dma.dramAddrWidth, params.dma.nbytesWidth))
+    reader.io.packed := dmaPacked
+    reader.io.start.valid := false.B
+    reader.io.start.bits := 0.U.asTypeOf(reader.io.start.bits)
+    reader
+  }
   outer.dmaAdapter.foreach { adapter =>
     val dmaAdapter = adapter.module.io
-    dmaAdapter.readReq.valid := cgra.io.send_to_dram_rd_req_val.get
-    dmaAdapter.readReq.bits := cgra.io.send_to_dram_rd_req_addr.get
-    cgra.io.send_to_dram_rd_req_rdy.get := dmaAdapter.readReq.ready
+    val reader = packedReader.get.io
+    reader.nativeReq.valid := cgra.io.send_to_dram_rd_req_val.get
+    reader.nativeReq.bits := cgra.io.send_to_dram_rd_req_addr.get
+    cgra.io.send_to_dram_rd_req_rdy.get := reader.nativeReq.ready
+    dmaAdapter.readReq <> reader.memoryReq
+    reader.memoryResp <> dmaAdapter.readResp
     outer.spmWindow.flatMap(_.bridge) match {
       case Some(bridgeParams) =>
         val bridge = Module(new CgraDmaTensorBridge(
           params.dma.dramDataWidth,
           bridgeParams.inboundScale))
-        bridge.io.in <> dmaAdapter.readResp
+        bridge.io.in <> reader.nativeResp
         bridge.io.transform := dmaRequant.get
         cgra.io.recv_from_dram_rd_resp_val.get := bridge.io.out.valid
         cgra.io.recv_from_dram_rd_resp_data.get := bridge.io.out.bits
         bridge.io.out.ready := cgra.io.recv_from_dram_rd_resp_rdy.get
       case None =>
-        cgra.io.recv_from_dram_rd_resp_val.get := dmaAdapter.readResp.valid
-        cgra.io.recv_from_dram_rd_resp_data.get := dmaAdapter.readResp.bits
-        dmaAdapter.readResp.ready := cgra.io.recv_from_dram_rd_resp_rdy.get
+        cgra.io.recv_from_dram_rd_resp_val.get := reader.nativeResp.valid
+        cgra.io.recv_from_dram_rd_resp_data.get := reader.nativeResp.bits
+        reader.nativeResp.ready := cgra.io.recv_from_dram_rd_resp_rdy.get
     }
 
     dmaAdapter.writeReq.valid := cgra.io.send_to_dram_wr_req_val.get
@@ -557,7 +572,8 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       cgra.io.recv_from_ext_spm_rd_req_addr.foreach(_ := 0.U)
       cgra.io.send_to_ext_spm_rd_resp_rdy.foreach(_ := false.B)
   }
-  val dmaAdapterBusy = outer.dmaAdapter.map(_.module.io.busy).getOrElse(false.B)
+  val dmaAdapterBusy = outer.dmaAdapter.map(_.module.io.busy).getOrElse(false.B) ||
+    packedReader.map(_.io.busy).getOrElse(false.B)
   val linkAdapter = outer.linkParams.map { linkParams =>
     val endpoint = outer.autoNode.get.in.head._1
     val config = outer.linkConfigNode.get.in.head._1
@@ -628,8 +644,10 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val isResult    = funct === CGRARoCCGenerated.RESULT.U
   val isRawPktTop = funct === CGRARoCCGenerated.RAW_PKT_TOP.U
   val isLoadResult = funct === CGRARoCCGenerated.LOAD_RESULT.U
+  val isDmaPacked = params.dma.enabled.B &&
+    funct === CGRARoCCGenerated.DMA_MVIN_I8_ASYNC.U
   val isDmaMvin = params.dma.enabled.B &&
-                  (funct === CGRARoCCGenerated.DMA_MVIN_ASYNC.U)
+                  ((funct === CGRARoCCGenerated.DMA_MVIN_ASYNC.U) || isDmaPacked)
   val isDmaMvout = params.dma.enabled.B &&
                    (funct === CGRARoCCGenerated.DMA_MVOUT_ASYNC.U)
   val isDmaIssue = isDmaMvin || isDmaMvout
@@ -931,23 +949,31 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
             "DMA descriptor has nonzero bits outside the generated layout")
         }
         assert(issueNbytes =/= 0.U, "DMA byte count must be nonzero")
-        assert(issueNbytes(dmaBeatByteShift - 1, 0) === 0.U,
-          "DMA byte count must be a multiple of 16 bytes")
+        assert(Mux(isDmaPacked,
+          issueNbytes(cgraWordByteShift - 1, 0) === 0.U,
+          issueNbytes(dmaBeatByteShift - 1, 0) === 0.U),
+          "DMA destination byte count must align to its transfer format")
         assert(issueSpmEnd <= params.dma.spmWords.U,
           "DMA descriptor exceeds the software-visible SPM range")
-        assert(rs1(dmaBeatByteShift - 1, 0) === 0.U,
+        assert(isDmaPacked || rs1(dmaBeatByteShift - 1, 0) === 0.U,
           "DMA DRAM address must be 16-byte aligned")
         assert(!issueDramEnd(xLen), "DMA address plus length overflows xLen")
 
         dmaSeqDramAddr := rs1
         dmaSeqDescriptor := rs2
+        dmaPacked := isDmaPacked
+        packedReader.foreach { reader =>
+          reader.io.start.valid := isDmaPacked
+          reader.io.start.bits.address := rs1
+          reader.io.start.bits.bytes := issueWords
+        }
         dmaSeqIsMvin := isDmaMvin
         dmaSeqPhase := 0.U
         dmaSeqActive := true.B
         dmaInFlight := true.B
         dmaOwnerLink := false.B
         outer.spmWindow.flatMap(_.bridge).foreach { bridge =>
-          dmaRequant.get := isDmaMvin &&
+          dmaRequant.get := isDmaMvin && !isDmaPacked &&
             issueSpmAddr === bridge.inboundSpmWord.U &&
             issueWords === bridge.inboundWords.U
         }
@@ -982,6 +1008,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         (request.bits.bytes << params.dma.descriptorNbytesLsb) |
         (request.bits.dmaTag << params.dma.descriptorTagLsb)
       when(request.fire) {
+        dmaPacked := false.B
         dmaSeqDramAddr := request.bits.sourceAddress
         dmaSeqDescriptor := descriptor
         dmaSeqIsMvin := true.B
@@ -1079,6 +1106,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     if (params.dma.enabled) {
       val pktOpaqueMsb = pktOpaqueLsb + params.dma.tagWidth - 1
       when (recvCmd === CGRACmdGenerated.CMD_DMA_DONE.U(params.cmdWidth.W)) {
+        dmaPacked := false.B
         val payloadTag = recvPkt(pktDataPayloadLsb + params.dma.tagWidth - 1,
                                  pktDataPayloadLsb)
         val opaqueTag = recvPkt(pktOpaqueMsb, pktOpaqueLsb)

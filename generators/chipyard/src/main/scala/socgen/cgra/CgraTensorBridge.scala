@@ -37,6 +37,119 @@ object CgraRequant {
     apply(value, params).asUInt(7, 0)
 }
 
+class CgraReadRequest(addressWidth: Int, beatBits: Int) extends Bundle {
+  val address = UInt(addressWidth.W)
+  val lgSize = UInt(log2Ceil(log2Ceil(beatBits / 8) + 1).W)
+}
+
+class CgraPackedReader(beatBits: Int, addressWidth: Int, lengthWidth: Int) extends Module {
+  require(beatBits >= 32 && isPow2(beatBits))
+
+  private val beatBytes = beatBits / 8
+  private val lanes = beatBits / 32
+  private val lgBeatBytes = log2Ceil(beatBytes)
+  private val countWidth = log2Ceil(beatBytes + 1)
+
+  val io = IO(new Bundle {
+    val packed = Input(Bool())
+    val start = Flipped(Valid(new Bundle {
+      val address = UInt(addressWidth.W)
+      val bytes = UInt(lengthWidth.W)
+    }))
+    val nativeReq = Flipped(Decoupled(UInt(addressWidth.W)))
+    val nativeResp = Decoupled(UInt(beatBits.W))
+    val memoryReq = Decoupled(new CgraReadRequest(addressWidth, beatBits))
+    val memoryResp = Flipped(Decoupled(UInt(beatBits.W)))
+    val busy = Output(Bool())
+  })
+
+  val idle :: fetch :: waitData :: respond :: Nil = Enum(4)
+  val state = RegInit(idle)
+  val active = RegInit(false.B)
+  val rawBusy = RegInit(false.B)
+  val address = Reg(UInt(addressWidth.W))
+  val nativeAddress = Reg(UInt(addressWidth.W))
+  val remaining = Reg(UInt(lengthWidth.W))
+  val cache = RegInit(0.U(beatBits.W))
+  val cached = RegInit(0.U(countWidth.W))
+  val requestBytes = Reg(UInt(countWidth.W))
+
+  val size = WireDefault(0.U(io.memoryReq.bits.lgSize.getWidth.W))
+  for (lg <- 1 to lgBeatBytes) {
+    when(address(lg - 1, 0) === 0.U && remaining >= (1 << lg).U &&
+      beatBytes.U - cached >= (1 << lg).U) {
+      size := lg.U
+    }
+  }
+  val fetchBytes = (1.U(countWidth.W) << size)(countWidth - 1, 0)
+  val mask = ((1.U((beatBits + 1).W) << (requestBytes << 3)) - 1.U)(beatBits - 1, 0)
+  val expanded = VecInit((0 until lanes).map { lane =>
+    val value = cache(8 * lane + 7, 8 * lane)
+    Mux(lane.U < cached, Cat(Fill(24, value(7)), value), 0.U(32.W))
+  }).asUInt
+
+  io.nativeReq.ready := io.memoryReq.ready
+  io.nativeResp.valid := io.memoryResp.valid
+  io.nativeResp.bits := io.memoryResp.bits
+  io.memoryReq.valid := io.nativeReq.valid
+  io.memoryReq.bits.address := io.nativeReq.bits
+  io.memoryReq.bits.lgSize := lgBeatBytes.U
+  io.memoryResp.ready := io.nativeResp.ready
+  io.busy := Mux(io.packed, active, rawBusy)
+
+  when(!io.packed) {
+    when(io.nativeReq.fire) { rawBusy := true.B }
+    when(io.nativeResp.fire) { rawBusy := false.B }
+  }
+
+  when(io.packed) {
+    io.nativeReq.ready := state === idle && active
+    io.nativeResp.valid := state === respond
+    io.nativeResp.bits := expanded
+    io.memoryReq.valid := state === fetch
+    io.memoryReq.bits.address := address
+    io.memoryReq.bits.lgSize := size
+    io.memoryResp.ready := state === waitData
+
+    when(io.nativeReq.fire) {
+      assert(io.nativeReq.bits === nativeAddress, "Packed DMA requests must be sequential")
+      nativeAddress := nativeAddress + beatBytes.U
+      state := Mux(cached === 0.U, fetch, respond)
+    }
+    when(io.memoryReq.fire) {
+      requestBytes := fetchBytes
+      state := waitData
+    }
+    when(io.memoryResp.fire) {
+      cache := cache | ((io.memoryResp.bits & mask) << (cached << 3))
+      cached := cached + requestBytes
+      address := address + requestBytes
+      remaining := remaining - requestBytes
+      state := Mux(cached + requestBytes === beatBytes.U || remaining === requestBytes,
+        respond, fetch)
+    }
+    when(io.nativeResp.fire) {
+      cache := cache >> (lanes * 8)
+      cached := Mux(cached > lanes.U, cached - lanes.U, 0.U)
+      state := idle
+      when(remaining === 0.U && cached <= lanes.U) {
+        active := false.B
+      }
+    }
+  }
+
+  when(io.start.valid) {
+    address := io.start.bits.address
+    nativeAddress := io.start.bits.address
+    remaining := io.start.bits.bytes
+    cache := 0.U
+    cached := 0.U
+    state := idle
+    active := true.B
+    rawBusy := false.B
+  }
+}
+
 class CgraDmaTensorBridge(beatBits: Int, scale: CgraRequantParams) extends Module {
   require(beatBits > 0 && beatBits % 32 == 0)
 

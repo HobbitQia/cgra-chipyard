@@ -17,6 +17,7 @@ object CGRARoCCGenerated {
   val DMA_WAIT = 14
   val SPM_PKT_HI = 15
   val SPM_PKT_TOP = 16
+  val DMA_MVIN_I8_ASYNC = 17
 }
 
 object CGRACmdGenerated {
