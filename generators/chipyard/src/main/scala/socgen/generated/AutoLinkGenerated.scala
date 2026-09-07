@@ -14,12 +14,12 @@ object AutoLinkGenerated {
     dependencies = Seq(
       AutoDependencySpec(source = None, destination = 0, copy = None),
       AutoDependencySpec(source = Some(0), destination = 1, copy = Some(AutoCopySpec(sourceOffset = 65280, destinationOffset = 384, bytes = 128))),
-      AutoDependencySpec(source = Some(1), destination = 2, copy = Some(AutoCopySpec(sourceOffset = 512, destinationOffset = 0, bytes = 32))),
+      AutoDependencySpec(source = Some(1), destination = 2, copy = Some(AutoCopySpec(sourceOffset = 0, destinationOffset = 0, bytes = 32))),
       AutoDependencySpec(source = None, destination = 3, copy = None),
       AutoDependencySpec(source = Some(2), destination = 3, copy = Some(AutoCopySpec(sourceOffset = 65408, destinationOffset = 128, bytes = 128)))),
     endpoints = Seq(
       AutoEndpointSpec(name = "gemmini", buffer = Some(AutoBuffer(BigInt("60000000", 16), 65536)), localBytes = 65536),
-      AutoEndpointSpec(name = "cgra", buffer = Some(AutoBuffer(BigInt("60010000", 16), 576)), localBytes = 512)),
+      AutoEndpointSpec(name = "cgra", buffer = Some(AutoBuffer(BigInt("60010000", 16), 64)), localBytes = 512)),
     beatBytes = CGRAGenerated.params.dma.dramDataWidth / 8,
     controlAddress = CgraLinkControlGenerated.autoLinkAddress,
     controlBytes = CgraLinkControlGenerated.pageSizeBytes)

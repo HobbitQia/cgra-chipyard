@@ -2,13 +2,12 @@ package chipyard.example
 
 import chisel3._
 import chisel3.util._
-import chipyard.socgen.cgra.{CgraLinkAdapter, CgraLinkConfigAsync, CgraLinkKey, CgraPacketArbiter, CgraResetController}
+import chipyard.socgen.cgra.{CgraDmaTensorBridge, CgraLinkAdapter, CgraLinkConfigAsync, CgraLinkKey, CgraPacketArbiter, CgraResetController, CgraSpmManager, CgraTensorBridgeParams}
 import chipyard.socgen.link.AutoEndpointAsyncLink
 
 import org.chipsalliance.cde.config.{Parameters, Field, Config}
 import freechips.rocketchip.tile._
 import freechips.rocketchip.diplomacy._
-import freechips.rocketchip.resources.SimpleDevice
 import freechips.rocketchip.subsystem.SystemBusKey
 import freechips.rocketchip.tilelink._
 import freechips.rocketchip.util.{AsyncQueueParams, FromAsyncBundle, ToAsyncBundle}
@@ -62,7 +61,10 @@ case class CGRASpmReadParams(
 
 case class CGRASpmWindowParams(
     baseAddress: BigInt,
-    bridge: Option[CgraTensorBridgeParams] = None)
+    sizeBytes: Int,
+    bridge: Option[CgraTensorBridgeParams] = None) {
+  val quantize: Boolean = bridge.isDefined
+}
 
 case object CGRASpmWindowKey extends Field[Option[CGRASpmWindowParams]](None)
 
@@ -232,112 +234,6 @@ class CGRASpmReadIO(params: CGRASpmReadParams) extends Bundle {
   val req = Decoupled(UInt(params.addrWidth.W))
   val resp = Flipped(Decoupled(UInt(params.dataWidth.W)))
   val busy = Output(Bool())
-}
-
-class CGRASpmReadManager(
-    params: CGRASpmReadParams,
-    window: CGRASpmWindowParams,
-    beatBytes: Int)(implicit p: Parameters)
-    extends LazyModule {
-  require(params.enabled)
-  require(params.dataWidth % 8 == 0)
-  private val wordBytes = params.dataWidth / 8
-  private val windowBytes = params.words * wordBytes
-  require(isPow2(wordBytes))
-  require(isPow2(windowBytes))
-  require(isPow2(beatBytes))
-  require(beatBytes % wordBytes == 0)
-  require((window.baseAddress & (windowBytes - 1)) == 0)
-  require(params.words <= (BigInt(1) << params.addrWidth))
-
-  private val device = new SimpleDevice("cgra-spm", Seq("coredac,cgra-spm"))
-  val node = TLManagerNode(Seq(TLSlavePortParameters.v1(
-    managers = Seq(TLSlaveParameters.v1(
-      address = Seq(AddressSet(window.baseAddress, windowBytes - 1)),
-      resources = device.reg,
-      regionType = RegionType.IDEMPOTENT,
-      executable = false,
-      supportsGet = TransferSizes(1, beatBytes),
-      fifoId = Some(0))),
-    beatBytes = beatBytes,
-    minLatency = 1)))
-
-  override lazy val module = new CGRASpmReadManagerImp(this, params, window, beatBytes)
-}
-
-class CGRASpmReadManagerImp(
-    outer: CGRASpmReadManager,
-    params: CGRASpmReadParams,
-    window: CGRASpmWindowParams,
-    beatBytes: Int)(implicit p: Parameters)
-    extends LazyModuleImp(outer) {
-  val io = IO(new CGRASpmReadIO(params))
-  val (tl, edge) = outer.node.in(0)
-  val wordBytes = params.dataWidth / 8
-  val wordsPerBeat = beatBytes / wordBytes
-  val wordShift = log2Ceil(wordBytes)
-  val indexWidth = math.max(1, log2Ceil(wordsPerBeat))
-  val beatShift = log2Ceil(beatBytes)
-
-  val idle :: request :: response :: reply :: Nil = Enum(4)
-  val state = RegInit(idle)
-  val source = Reg(UInt(edge.bundle.sourceBits.W))
-  val size = Reg(UInt(edge.bundle.sizeBits.W))
-  val address = Reg(UInt(edge.bundle.addressBits.W))
-  val lastWord = Reg(UInt(indexWidth.W))
-  val wordIndex = RegInit(0.U(indexWidth.W))
-  val words = Reg(Vec(wordsPerBeat, UInt(params.dataWidth.W)))
-  val firstLane = if (wordsPerBeat == 1) {
-    0.U
-  } else {
-    address(beatShift - 1, wordShift)
-  }
-
-  tl.a.ready := state === idle
-  tl.d.valid := state === reply
-  tl.d.bits := edge.AccessAck(source, size, words.asUInt)
-  tl.b.valid := false.B
-  tl.b.bits := DontCare
-  tl.c.ready := true.B
-  tl.e.ready := true.B
-
-  io.req.valid := state === request
-  val spmWord = ((address - window.baseAddress.U) >> wordShift).pad(params.addrWidth)
-  io.req.bits := spmWord + wordIndex
-  io.resp.ready := state === response
-  io.busy := state =/= idle
-
-  when(tl.a.fire) {
-    assert(tl.a.bits.opcode === TLMessages.Get)
-    assert(tl.a.bits.size <= beatShift.U)
-    val requestBytes = 1.U((beatShift + 1).W) << tl.a.bits.size
-    val requestWords = Mux(
-      requestBytes < wordBytes.U,
-      1.U,
-      requestBytes >> wordShift)
-    source := tl.a.bits.source
-    size := tl.a.bits.size
-    address := tl.a.bits.address
-    lastWord := requestWords - 1.U
-    wordIndex := 0.U
-    words.foreach(_ := 0.U)
-    state := request
-  }
-  when(io.req.fire) {
-    state := response
-  }
-  when(io.resp.fire) {
-    words(firstLane + wordIndex) := io.resp.bits
-    when(wordIndex === lastWord) {
-      state := reply
-    } .otherwise {
-      wordIndex := wordIndex + 1.U
-      state := request
-    }
-  }
-  when(tl.d.fire) {
-    state := idle
-  }
 }
 
 // ============================================================================
@@ -543,25 +439,16 @@ class CGRAAccelerator(opcodes: OpcodeSet, params: CGRAParams = CGRAGenerated.par
       require(bridge.outboundSpmWord + bridge.outboundWords <= params.spmRead.words)
       require(bridge.inboundSpmWord + bridge.inboundWords <= params.spmRead.words)
     }
-    LazyModule(new CGRASpmReadManager(
+    LazyModule(new CgraSpmManager(
       params.spmRead,
       window,
-      p(SystemBusKey).beatBytes))
-  }
-  val packedSpmManager = spmWindow.flatMap(_.bridge).map { bridge =>
-    LazyModule(new CgraPackedSpmManager(
-      params.spmRead,
-      bridge,
       p(SystemBusKey).beatBytes,
       p(SystemBusKey).blockBytes))
   }
   private val spmNode = spmManager.map { manager =>
     val bus = p(SystemBusKey)
-    val node: TLNode = if (packedSpmManager.isDefined) TLXbar() else TLIdentityNode()
+    val node = TLIdentityNode()
     manager.node := TLFragmenter(bus.beatBytes, bus.blockBytes) := node
-    packedSpmManager.foreach { packed =>
-      packed.node := TLFragmenter(bus.beatBytes, bus.blockBytes) := node
-    }
     node
   }.getOrElse(TLIdentityNode())
   val linkParams = p(CgraLinkKey).map(_.adapter)
@@ -657,28 +544,14 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val spmReadBusy = WireDefault(false.B)
   outer.spmManager match {
     case Some(manager) =>
-      outer.packedSpmManager match {
-        case Some(packedManager) =>
-          val mux = Module(new CgraSpmReadMux(params.spmRead))
-          mux.io.raw <> manager.module.io
-          mux.io.packed <> packedManager.module.io
-          cgra.io.recv_from_ext_spm_rd_req_val.get := mux.io.spm.req.valid
-          cgra.io.recv_from_ext_spm_rd_req_addr.get := mux.io.spm.req.bits
-          mux.io.spm.req.ready := cgra.io.recv_from_ext_spm_rd_req_rdy.get
-          mux.io.spm.resp.valid := cgra.io.send_to_ext_spm_rd_resp_val.get
-          mux.io.spm.resp.bits := cgra.io.send_to_ext_spm_rd_resp_data.get
-          cgra.io.send_to_ext_spm_rd_resp_rdy.get := mux.io.spm.resp.ready
-          spmReadBusy := mux.io.spm.busy
-        case None =>
-          val spm = manager.module.io
-          cgra.io.recv_from_ext_spm_rd_req_val.get := spm.req.valid
-          cgra.io.recv_from_ext_spm_rd_req_addr.get := spm.req.bits
-          spm.req.ready := cgra.io.recv_from_ext_spm_rd_req_rdy.get
-          spm.resp.valid := cgra.io.send_to_ext_spm_rd_resp_val.get
-          spm.resp.bits := cgra.io.send_to_ext_spm_rd_resp_data.get
-          cgra.io.send_to_ext_spm_rd_resp_rdy.get := spm.resp.ready
-          spmReadBusy := spm.busy
-      }
+      val spm = manager.module.io
+      cgra.io.recv_from_ext_spm_rd_req_val.get := spm.req.valid
+      cgra.io.recv_from_ext_spm_rd_req_addr.get := spm.req.bits
+      spm.req.ready := cgra.io.recv_from_ext_spm_rd_req_rdy.get
+      spm.resp.valid := cgra.io.send_to_ext_spm_rd_resp_val.get
+      spm.resp.bits := cgra.io.send_to_ext_spm_rd_resp_data.get
+      cgra.io.send_to_ext_spm_rd_resp_rdy.get := spm.resp.ready
+      spmReadBusy := spm.busy
     case None =>
       cgra.io.recv_from_ext_spm_rd_req_val.foreach(_ := false.B)
       cgra.io.recv_from_ext_spm_rd_req_addr.foreach(_ := 0.U)
