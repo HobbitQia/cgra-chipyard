@@ -141,6 +141,8 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
       params.dependencies(task).copy.get.destinationOffset.U))(copyIndex)
     io.requestCopy.bits.bytes := VecInit(incomingCopies.map(task =>
       params.dependencies(task).copy.get.bytes.U))(copyIndex)
+    io.requestCopy.bits.destinationBytes := VecInit(incomingCopies.map(task =>
+      params.dependencies(task).copy.get.destinationBytes.U))(copyIndex)
   }
   io.reportCopy.ready := state === State.waitCopy && io.reportCopy.bits.task === currentCopy
 

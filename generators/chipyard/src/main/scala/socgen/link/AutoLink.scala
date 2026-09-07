@@ -17,7 +17,10 @@ case class AutoEndpointSpec(name: String, buffer: Option[AutoBuffer], localBytes
 
 case class AutoStageSpec(name: String, endpoint: String, job: Int)
 
-case class AutoCopySpec(sourceOffset: Int, destinationOffset: Int, bytes: Int)
+case class AutoCopySpec(sourceOffset: Int, destinationOffset: Int, bytes: Int, expansion: Int = 1) {
+  require(isPow2(expansion))
+  val destinationBytes: BigInt = BigInt(bytes) * expansion
+}
 
 case class AutoDependencySpec(source: Option[Int], destination: Int, copy: Option[AutoCopySpec])
 
@@ -62,10 +65,14 @@ case class AutoLinkParams(
       require(copy.destinationOffset >= 0)
       require(copy.bytes > 0)
       require(copy.sourceOffset + copy.bytes <= source.buffer.get.sizeBytes)
-      require(copy.destinationOffset + copy.bytes <= destination.localBytes)
-      require(copy.sourceOffset % beatBytes == 0)
-      require(copy.destinationOffset % beatBytes == 0)
-      require(copy.bytes % beatBytes == 0)
+      require(copy.destinationOffset + copy.destinationBytes <= destination.localBytes)
+      require(copy.destinationBytes < (BigInt(1) << lengthWidth))
+      val alignment = if (copy.expansion == 1) beatBytes else copy.expansion
+      require(copy.destinationOffset % alignment == 0)
+      if (copy.expansion == 1) {
+        require(copy.sourceOffset % beatBytes == 0)
+        require(copy.bytes % beatBytes == 0)
+      }
     }
   }
 
@@ -115,6 +122,7 @@ class AutoCopyRequest(params: AutoLinkParams) extends Bundle {
   val sourceAddress = UInt(params.addressWidth.W)
   val destinationOffset = UInt(params.addressWidth.W)
   val bytes = UInt(params.lengthWidth.W)
+  val destinationBytes = UInt(params.lengthWidth.W)
 }
 
 class AutoCopyResult(params: AutoLinkParams) extends Bundle {

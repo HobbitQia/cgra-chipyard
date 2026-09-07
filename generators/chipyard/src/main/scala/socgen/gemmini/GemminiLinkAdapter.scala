@@ -119,6 +119,8 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   val acknowledgedBytes = RegInit(0.U(params.auto.lengthWidth.W))
   val outstanding = RegInit(false.B)
   val source = Reg(UInt(16.W))
+  val pendingBytes = Reg(UInt(log2Ceil(params.beatBytes + 1).W))
+  val pendingSize = Reg(UInt(8.W))
   val beatValid = RegInit(false.B)
   val beatError = RegInit(0.U(params.auto.detailWidth.W))
   val producedValid = RegInit(false.B)
@@ -143,8 +145,6 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   val requestJobValid = requestJobInRange && selected(
     jobValid,
     io.autoLink.requestCompute.bits.job)
-  val expectedSize = log2Ceil(params.beatBytes).U
-  val fullMask = ((BigInt(1) << params.beatBytes) - 1).U
 
   io.configIn.ready := configState === ConfigState.idle && execState === ExecState.idle
   io.configAck.valid := configState === ConfigState.reportConfig
@@ -300,10 +300,23 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   when(armed && !producedValid && io.event.fire && !io.event.bits.isAck) {
     val write = io.event.bits.write
     val expectedAddress = watch.address + issuedBytes
-    val addressValid = write.address === expectedAddress
-    val shapeValid = write.opcode === TLMessages.PutFullData &&
-      write.size === expectedSize && write.mask === fullMask
-    val withinPublication = issuedBytes < watch.bytes
+    val firstLane = PriorityEncoder(write.mask)
+    val byteCount = PopCount(write.mask)
+    val beatAddress = write.address & (~(params.beatBytes - 1).U(64.W))
+    val addressValid = beatAddress + firstLane === expectedAddress
+    val requestBytes = MuxLookup(write.size, 0.U(log2Ceil(params.beatBytes + 1).W))(
+      (0 to log2Ceil(params.beatBytes)).map(size => size.U -> (1 << size).U))
+    val laneOffset = write.address & (params.beatBytes - 1).U
+    val requestMask = VecInit((0 until params.beatBytes).map(lane =>
+      lane.U >= laneOffset && lane.U < laneOffset + requestBytes)).asUInt
+    val shiftedMask = write.mask >> firstLane
+    val contiguous = write.mask.orR && (shiftedMask & (shiftedMask +& 1.U)) === 0.U
+    val requestValid = requestBytes =/= 0.U && (write.address & (requestBytes - 1.U)) === 0.U
+    val opcodeValid = (write.opcode === TLMessages.PutFullData && write.mask === requestMask) ||
+      write.opcode === TLMessages.PutPartialData
+    val shapeValid = requestValid && opcodeValid && contiguous && (write.mask & ~requestMask) === 0.U
+    val nextIssued = issuedBytes +& byteCount
+    val withinPublication = nextIssued <= watch.bytes
 
     active := true.B
     when(outstanding) {
@@ -312,13 +325,15 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
     }.otherwise {
       outstanding := true.B
       source := write.source
+      pendingBytes := byteCount
+      pendingSize := write.size
       beatValid := addressValid && shapeValid && withinPublication
       beatError := Mux(
         !addressValid,
         GemminiLinkStatus.BadAddress.U,
         Mux(!shapeValid, GemminiLinkStatus.BadBeat.U, GemminiLinkStatus.BadOrder.U))
       when(addressValid && shapeValid && withinPublication) {
-        issuedBytes := issuedBytes + params.beatBytes.U
+        issuedBytes := nextIssued
       }
     }
   }
@@ -329,7 +344,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
       finish(GemminiLinkStatus.BadOrder.U)
     }.otherwise {
       val responseShapeValid = ack.source === source &&
-        ack.size === expectedSize
+        ack.size === pendingSize
       val responseValid = beatValid && responseShapeValid &&
         !ack.denied && !ack.corrupt
       val detail = Mux(
@@ -341,7 +356,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
           Mux(!responseShapeValid, GemminiLinkStatus.BadBeat.U, beatError)))
       val nextBytes = Mux(
         responseValid,
-        acknowledgedBytes + params.beatBytes.U,
+        acknowledgedBytes + pendingBytes,
         acknowledgedBytes)
 
       acknowledgedBytes := nextBytes

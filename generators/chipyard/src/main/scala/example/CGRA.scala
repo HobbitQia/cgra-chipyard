@@ -1008,7 +1008,12 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         (request.bits.bytes << params.dma.descriptorNbytesLsb) |
         (request.bits.dmaTag << params.dma.descriptorTagLsb)
       when(request.fire) {
-        dmaPacked := false.B
+        dmaPacked := request.bits.packed
+        packedReader.foreach { reader =>
+          reader.io.start.valid := request.bits.packed
+          reader.io.start.bits.address := request.bits.sourceAddress
+          reader.io.start.bits.bytes := request.bits.bytes >> cgraWordByteShift
+        }
         dmaSeqDramAddr := request.bits.sourceAddress
         dmaSeqDescriptor := descriptor
         dmaSeqIsMvin := true.B
@@ -1019,7 +1024,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         linkDmaTag := request.bits.dmaTag
         outer.spmWindow.flatMap(_.bridge).foreach { bridge =>
           dmaRequant.get :=
-            request.bits.spmWordAddress === bridge.inboundSpmWord.U &&
+            !request.bits.packed && request.bits.spmWordAddress === bridge.inboundSpmWord.U &&
             (request.bits.bytes >> cgraWordByteShift) === bridge.inboundWords.U
         }
       }

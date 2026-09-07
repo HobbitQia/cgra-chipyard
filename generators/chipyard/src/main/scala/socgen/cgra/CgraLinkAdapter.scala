@@ -58,6 +58,7 @@ class CgraLinkDmaRequest(params: CgraLinkParams) extends Bundle {
   val sourceAddress = UInt(params.cgra.dma.dramAddrWidth.W)
   val spmWordAddress = UInt(params.cgra.dma.spmAddrWidth.W)
   val bytes = UInt(params.auto.lengthWidth.W)
+  val packed = Bool()
   val dmaTag = UInt(params.cgra.dma.tagWidth.W)
 }
 
@@ -207,7 +208,8 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   io.dmaRequest.bits.sourceAddress := copy.sourceAddress
   io.dmaRequest.bits.spmWordAddress :=
     copy.destinationOffset >> log2Ceil(params.wordBytes)
-  io.dmaRequest.bits.bytes := copy.bytes
+  io.dmaRequest.bits.bytes := copy.destinationBytes
+  io.dmaRequest.bits.packed := copy.destinationBytes =/= copy.bytes
   io.dmaRequest.bits.dmaTag := autoDmaTag
   io.dmaCompletion.ready := execState === ExecState.waitDma
 
