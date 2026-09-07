@@ -46,4 +46,10 @@ object CgraLinkControlGenerated {
   val AES_CONFIG_DETAIL: Int = 0x068
   val AES_SELECT: Int = 0x070
   val AUTO_LINK_INPUT_READY: Int = 0x000
+  val AUTO_LINK_ROWS: Int = 0x008
+  val AUTO_LINK_COLUMNS: Int = 0x010
+  val AUTO_LINK_TILE_ROWS: Int = 0x018
+  val AUTO_LINK_TILE_COLUMNS: Int = 0x020
+  val AUTO_LINK_EMITTING: Int = 0x028
+  val AUTO_LINK_CONFIG_ERROR: Int = 0x030
 }

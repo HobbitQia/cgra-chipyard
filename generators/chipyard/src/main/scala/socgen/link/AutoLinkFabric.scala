@@ -18,11 +18,11 @@ class AutoBroadcast(params: AutoLinkParams, outputCount: Int) extends Module {
   require(outputCount > 0)
 
   val io = IO(new Bundle {
-    val in = Flipped(Decoupled(new AutoEvent(params)))
-    val out = Vec(outputCount, Decoupled(new AutoEvent(params)))
+    val in = Flipped(Decoupled(new AutoTileEvent(params)))
+    val out = Vec(outputCount, Decoupled(new AutoTileEvent(params)))
   })
 
-  val event = Reg(new AutoEvent(params))
+  val event = Reg(new AutoTileEvent(params))
   val pending = RegInit(VecInit(Seq.fill(outputCount)(false.B)))
   val idle = !pending.reduce(_ || _)
 
@@ -51,8 +51,8 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
   private val external = incoming.isEmpty
 
   val io = IO(new Bundle {
-    val dependency = Flipped(Vec(incoming.size, Decoupled(new AutoEvent(params))))
-    val output = Vec(outgoing.size, Decoupled(new AutoEvent(params)))
+    val dependency = Flipped(Vec(incoming.size, Decoupled(new AutoTileEvent(params))))
+    val output = Vec(outgoing.size, Decoupled(new AutoTileEvent(params)))
     val claim = Decoupled(UInt(params.jobWidth.W))
     val release = Output(Bool())
     val finished = Output(Bool())
@@ -72,6 +72,11 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
 
   val state = RegInit(if (external) State.claim else State.waitDependencies)
   val dependency = Reg(Vec(math.max(1, incoming.size), new AutoEvent(params)))
+  val singleTile = WireDefault(0.U.asTypeOf(new AutoTile(params.lengthWidth)))
+  singleTile.rows := 1.U
+  singleTile.columns := 1.U
+  singleTile.last := true.B
+  val tile = RegInit(singleTile)
   val dependencyValid = RegInit(VecInit(Seq.fill(math.max(1, incoming.size))(false.B)))
   val output = Reg(Vec(math.max(1, outgoing.size), new AutoEvent(params)))
   val outputValid = RegInit(VecInit(Seq.fill(math.max(1, outgoing.size))(false.B)))
@@ -103,13 +108,15 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
   io.dependency.zipWithIndex.foreach { case (input, inputIndex) =>
     input.ready := !dependencyValid(inputIndex) && state === State.waitDependencies
     when(input.fire) {
-      dependency(inputIndex) := input.bits
+      dependency(inputIndex) := input.bits.event
+      tile := input.bits.tile
       dependencyValid(inputIndex) := true.B
     }
   }
   io.output.zipWithIndex.foreach { case (event, outputIndex) =>
     event.valid := outputValid(outputIndex)
-    event.bits := output(outputIndex)
+    event.bits.event := output(outputIndex)
+    event.bits.tile := tile
     when(event.fire) {
       outputValid(outputIndex) := false.B
     }
@@ -122,6 +129,7 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
 
   io.watchOutput.valid := state === State.armWatch
   io.watchOutput.bits.job := spec.job.U
+  io.watchOutput.bits.tile := tile
   io.watchOutput.bits.address := publication
     .map(copy => params.endpoint(spec.endpoint).buffer.get.baseAddress + copy.sourceOffset)
     .getOrElse(BigInt(0)).U
@@ -136,6 +144,7 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
   if (incomingCopies.nonEmpty) {
     io.requestCopy.bits.task := currentCopy
     io.requestCopy.bits.job := spec.job.U
+    io.requestCopy.bits.tile := tile
     io.requestCopy.bits.sourceAddress := VecInit(incomingCopies.map(task => params.sourceAddress(task).U))(copyIndex)
     io.requestCopy.bits.destinationOffset := VecInit(incomingCopies.map(task =>
       params.dependencies(task).copy.get.destinationOffset.U))(copyIndex)
@@ -148,6 +157,7 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
 
   io.requestCompute.valid := state === State.requestCompute
   io.requestCompute.bits.job := spec.job.U
+  io.requestCompute.bits.tile := tile
   io.requestCompute.bits.start := !failed
   io.reportCompute.ready := state === State.waitCompute && !computeSeen &&
     io.reportCompute.bits.job === spec.job.U
@@ -279,7 +289,7 @@ class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters) extends Clo
   private val resultNodes = params.resultNames.map { name =>
     name -> BundleBridgeSource(() => new AsyncBundle(new AutoEvent(params), AsyncQueueParams.singleton()))
   }.toMap
-  val rootNode = BundleBridgeSink[AsyncBundle[AutoEvent]]()
+  val rootNode = BundleBridgeSink[AsyncBundle[AutoTileEvent]]()
 
   def endpoint(name: String): BundleBridgeSource[AutoEndpointAsyncLink] = endpointNodes(name)
   def result(name: String): BundleBridgeSource[AsyncBundle[AutoEvent]] = resultNodes(name)

@@ -104,6 +104,7 @@ case class AutoLinkParams(
 
 class AutoWatch(params: AutoLinkParams) extends Bundle {
   val job = UInt(params.jobWidth.W)
+  val tile = new AutoTile(params.lengthWidth)
   val address = UInt(params.addressWidth.W)
   val bytes = UInt(params.lengthWidth.W)
 }
@@ -116,9 +117,15 @@ class AutoEvent(params: AutoLinkParams) extends Bundle {
   val data = UInt(params.resultWidth.W)
 }
 
+class AutoTileEvent(params: AutoLinkParams) extends Bundle {
+  val event = new AutoEvent(params)
+  val tile = new AutoTile(params.lengthWidth)
+}
+
 class AutoCopyRequest(params: AutoLinkParams) extends Bundle {
   val task = UInt(params.dependencyWidth.W)
   val job = UInt(params.jobWidth.W)
+  val tile = new AutoTile(params.lengthWidth)
   val sourceAddress = UInt(params.addressWidth.W)
   val destinationOffset = UInt(params.addressWidth.W)
   val bytes = UInt(params.lengthWidth.W)
@@ -133,6 +140,7 @@ class AutoCopyResult(params: AutoLinkParams) extends Bundle {
 
 class AutoComputeRequest(params: AutoLinkParams) extends Bundle {
   val job = UInt(params.jobWidth.W)
+  val tile = new AutoTile(params.lengthWidth)
   val start = Bool()
 }
 
