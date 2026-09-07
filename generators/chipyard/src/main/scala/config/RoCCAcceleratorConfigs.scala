@@ -108,6 +108,16 @@ class CGRAMinimalGemminiAutoLinkRocketConfig extends Config(
   new chipyard.config.WithSystemBusWidth(256) ++
   new chipyard.config.AbstractConfig)
 
+class CgraConvManualRocketConfig extends Config(
+  new WithGemminiExternalSpmWriter ++
+  new WithGemminiExternalSpm(CGRAMinimalGemminiRocketConfig.externalSpm) ++
+  new chipyard.config.WithCGRA() ++
+  new WithGemminiRoCC(
+    CGRAMinimalGemminiRocketConfig.minimalGemminiConfig.copy(has_loop_conv = true)) ++
+  new freechips.rocketchip.rocket.WithNBigCores(1) ++
+  new chipyard.config.WithSystemBusWidth(256) ++
+  new chipyard.config.AbstractConfig)
+
 class CgraConvRocketConfig extends Config(
   new WithCgraLink(CGRAMinimalGemminiAutoLinkRocketConfig.cgraLink) ++
   new WithGemminiLink(CGRAMinimalGemminiAutoLinkRocketConfig.gemminiLink) ++
