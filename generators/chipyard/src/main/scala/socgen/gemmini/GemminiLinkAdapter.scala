@@ -56,6 +56,7 @@ class GemminiLinkConfig(params: GemminiLinkParams) extends Bundle {
 }
 
 class GemminiLinkConfigAck(params: GemminiLinkParams) extends Bundle {
+  val done = Bool()
   val status = UInt(AutoLinkStatus.Width.W)
   val detail = UInt(params.auto.detailWidth.W)
 }
@@ -103,6 +104,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
     UInt(params.commandCountWidth.W)))
   val configIndex = RegInit(0.U(params.commandCountWidth.W))
   val commandIndex = RegInit(0.U(params.commandCountWidth.W))
+  val configDone = RegInit(false.B)
   val configStatus = RegInit(AutoLinkStatus.Success)
   val configDetail = RegInit(0.U(params.auto.detailWidth.W))
   val copyTask = Reg(UInt(params.auto.dependencyWidth.W))
@@ -146,6 +148,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
 
   io.configIn.ready := configState === ConfigState.idle && execState === ExecState.idle
   io.configAck.valid := configState === ConfigState.reportConfig
+  io.configAck.bits.done := configDone
   io.configAck.bits.status := configStatus
   io.configAck.bits.detail := configDetail
 
@@ -199,8 +202,11 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   when(io.configIn.fire) {
     config := io.configIn.bits
     configIndex := 0.U
-    when(configValid) {
+    configDone := !configValid
+    when(configJobValid) {
       selected(jobValid, io.configIn.bits.job) := false.B
+    }
+    when(configValid) {
       configStatus := AutoLinkStatus.Success
       configDetail := 0.U
     }.otherwise {
@@ -211,16 +217,17 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   }
   when(io.configAck.fire) {
     configState := Mux(
-      configStatus === AutoLinkStatus.Success,
-      ConfigState.collect,
-      ConfigState.idle)
+      configDone,
+      ConfigState.idle,
+      ConfigState.collect)
   }
   when(capture && io.cpuCommand.fire) {
     commands(captureAddress) := io.cpuCommand.bits
     when(configIndex + 1.U === config.commandCount) {
       selected(jobValid, config.job) := true.B
       selected(jobCommandCount, config.job) := config.commandCount(params.commandCountWidth - 1, 0)
-      configState := ConfigState.idle
+      configDone := true.B
+      configState := ConfigState.reportConfig
     }.otherwise {
       configIndex := configIndex + 1.U
     }

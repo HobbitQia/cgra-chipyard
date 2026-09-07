@@ -87,32 +87,41 @@ class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams)(i
       val job = RegInit(0.U(32.W))
       val commandCount = RegInit(0.U(32.W))
       val configSubmit = Wire(Decoupled(UInt(1.W)))
-      val ackValid = RegInit(false.B)
-      val ackStatus = RegInit(AutoLinkStatus.Success)
-      val ackDetail = RegInit(0.U(params.auto.detailWidth.W))
-      configOut.valid := configSubmit.valid && configSubmit.bits.asBool
+      val configPending = RegInit(false.B)
+      val configReady = RegInit(false.B)
+      val configDone = RegInit(false.B)
+      val configStatus = RegInit(AutoLinkStatus.Success)
+      val configDetail = RegInit(0.U(params.auto.detailWidth.W))
+      configOut.valid := configSubmit.valid && configSubmit.bits.asBool && !configPending
       configOut.bits.job := job
       configOut.bits.commandCount := commandCount
-      configSubmit.ready := Mux(configSubmit.bits.asBool, configOut.ready, true.B)
+      configSubmit.ready := Mux(configSubmit.bits.asBool, configOut.ready && !configPending, true.B)
       configAck.ready := true.B
 
-      when(configSubmit.fire && configSubmit.bits.asBool) {
-        ackValid := false.B
+      when(configOut.fire) {
+        configPending := true.B
+        configReady := false.B
+        configDone := false.B
+        configStatus := AutoLinkStatus.Success
+        configDetail := 0.U
       }
       when(configAck.fire) {
-        ackValid := true.B
-        ackStatus := configAck.bits.status
-        ackDetail := configAck.bits.detail
+        configPending := !configAck.bits.done
+        configReady := true.B
+        configDone := configAck.bits.done
+        configStatus := configAck.bits.status
+        configDetail := configAck.bits.detail
       }
 
       import CgraLinkControlGenerated._
       controlNode.regmap(
         GEMMINI_COMMAND_COUNT -> Seq(RegField(32, commandCount)),
         GEMMINI_SUBMIT -> Seq(RegField.w(1, configSubmit)),
-        GEMMINI_CAPTURE_READY -> Seq(RegField.r(1, ackValid)),
-        GEMMINI_CONFIG_STATUS -> Seq(RegField.r(32, ackStatus)),
-        GEMMINI_CONFIG_DETAIL -> Seq(RegField.r(32, ackDetail)),
-        GEMMINI_SELECT -> Seq(RegField(32, job)))
+        GEMMINI_CONFIG_READY -> Seq(RegField.r(1, configReady)),
+        GEMMINI_CONFIG_STATUS -> Seq(RegField.r(32, configStatus)),
+        GEMMINI_CONFIG_DETAIL -> Seq(RegField.r(32, configDetail)),
+        GEMMINI_SELECT -> Seq(RegField(32, job)),
+        GEMMINI_CONFIG_DONE -> Seq(RegField.r(1, configDone)))
     }
   }
 }
