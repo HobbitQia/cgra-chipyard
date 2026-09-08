@@ -34,7 +34,8 @@ case class AutoLinkParams(
   addressWidth: Int = 64,
   lengthWidth: Int = 32,
   detailWidth: Int = 8,
-  resultWidth: Int = 32) {
+  resultWidth: Int = 32,
+  bufferSlots: Int = 1) {
   require(stages.nonEmpty)
   require(dependencies.nonEmpty)
   require(endpoints.map(_.name).distinct.size == endpoints.size)
@@ -42,6 +43,7 @@ case class AutoLinkParams(
   require(isPow2(beatBytes))
   require(controlAddress >= 0)
   require(isPow2(controlBytes))
+  require(bufferSlots > 0)
 
   private val endpointMap = endpoints.map(endpoint => endpoint.name -> endpoint).toMap
   require(stages.forall(stage => endpointMap.contains(stage.endpoint)))

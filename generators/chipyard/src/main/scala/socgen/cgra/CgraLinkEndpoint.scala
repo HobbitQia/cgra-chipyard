@@ -43,13 +43,23 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
     withClockAndReset(clock, reset) {
       val configLink = configNode.out.head._1
       val configOut = Wire(Decoupled(new CgraLinkConfig(params)))
+      val symbolOut = Wire(Decoupled(new CgraSymbolConfig))
+      val patchOut = Wire(Decoupled(new CgraPatchConfig))
       val configAck = FromAsyncBundle(configLink.ack)
       val resultIn = resultNames.map(name => FromAsyncBundle(resultNodes(name).in.head._1))
       configLink.config <> ToAsyncBundle(configOut, AsyncQueueParams.singleton())
+      configLink.symbol <> ToAsyncBundle(symbolOut, AsyncQueueParams.singleton())
+      configLink.patch <> ToAsyncBundle(patchOut, AsyncQueueParams.singleton())
 
       val job = RegInit(0.U(32.W))
       val packetCount = RegInit(0.U(32.W))
       val expectedCompletions = RegInit(0.U(32.W))
+      val symbolCount = RegInit(0.U(32.W))
+      val patchCount = RegInit(0.U(32.W))
+      val symbol = RegInit(0.U.asTypeOf(new CgraSymbolConfig))
+      val patch = RegInit(0.U.asTypeOf(new CgraPatchConfig))
+      val symbolPush = Wire(Decoupled(UInt(1.W)))
+      val patchPush = Wire(Decoupled(UInt(1.W)))
       val configSubmit = Wire(Decoupled(UInt(1.W)))
       val configPending = RegInit(false.B)
       val configReady = RegInit(false.B)
@@ -60,8 +70,16 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       configOut.bits.job := job
       configOut.bits.packetCount := packetCount
       configOut.bits.expectedCompletions := expectedCompletions
+      configOut.bits.symbolCount := symbolCount
+      configOut.bits.patchCount := patchCount
       configSubmit.ready := Mux(configSubmit.bits.asBool, configOut.ready && !configPending, true.B)
       configAck.ready := true.B
+      symbolOut.valid := symbolPush.valid && symbolPush.bits.asBool
+      symbolOut.bits := symbol
+      symbolPush.ready := Mux(symbolPush.bits.asBool, symbolOut.ready, true.B)
+      patchOut.valid := patchPush.valid && patchPush.bits.asBool
+      patchOut.bits := patch
+      patchPush.ready := Mux(patchPush.bits.asBool, patchOut.ready, true.B)
 
       when(configOut.fire) {
         configPending := true.B
@@ -112,7 +130,18 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
         CONFIG_READY -> Seq(RegField.r(1, configReady)),
         CONFIG_DONE -> Seq(RegField.r(1, configDone)),
         CONFIG_STATUS -> Seq(RegField.r(32, configStatus)),
-        CONFIG_DETAIL -> Seq(RegField.r(32, configDetail)))
+        CONFIG_DETAIL -> Seq(RegField.r(32, configDetail)),
+        SYMBOL_COUNT -> Seq(RegField(32, symbolCount)),
+        PATCH_COUNT -> Seq(RegField(32, patchCount)),
+        SYMBOL_BASE -> Seq(RegField(32, symbol.base)),
+        SYMBOL_STRIDE -> Seq(RegField(32, symbol.stride)),
+        SYMBOL_SOURCE -> Seq(RegField(1, symbol.source)),
+        SYMBOL_PUSH -> Seq(RegField.w(1, symbolPush)),
+        PATCH_PACKET -> Seq(RegField(32, patch.packetIndex)),
+        PATCH_SYMBOL -> Seq(RegField(32, patch.symbolIndex)),
+        PATCH_SCALE -> Seq(RegField(32, patch.scale)),
+        PATCH_OFFSET -> Seq(RegField(32, patch.offset)),
+        PATCH_PUSH -> Seq(RegField.w(1, patchPush)))
     }
   }
 }

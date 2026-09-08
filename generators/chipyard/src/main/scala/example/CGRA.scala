@@ -579,6 +579,8 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     val config = outer.linkConfigNode.get.in.head._1
     val adapter = Module(new CgraLinkAdapter(linkParams))
     adapter.io.configIn <> FromAsyncBundle(config.config)
+    adapter.io.symbolIn <> FromAsyncBundle(config.symbol)
+    adapter.io.patchIn <> FromAsyncBundle(config.patch)
     config.ack <> ToAsyncBundle(adapter.io.configAck, AsyncQueueParams.singleton())
     adapter.io.autoLink.watchOutput <> FromAsyncBundle(endpoint.watchOutput)
     endpoint.reportOutput <> ToAsyncBundle(
@@ -753,6 +755,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   val packetFifoEmpty = !packetFifo.io.deq.valid
   val completesPacket = if (needsRawPktTop) isRawPktTop else isRawPktHi
   val completesSpmPacket = if (needsRawPktTop) isSpmPktTop else isSpmPktHi
+  val linkCaptureActive = linkAdapter.map(_.io.captureActive).getOrElse(false.B)
   def acceptAssembledPkt(assembledPkt: UInt): Unit = {
     val assembledCmd = assembledPkt(pktCmdMsb, pktCmdLsb)
     cpuPacketCandidate.valid := true.B
@@ -1158,7 +1161,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       !respValid && !cmd.valid
   }
   cmd.ready := !resetController.io.holdCpu && (state === s_idle) && !respValid && !dmaSeqActive &&
-               (!completesPacket || cpuPacketCandidate.ready) &&
+               (!completesPacket || (!linkCaptureActive && cpuPacketCandidate.ready)) &&
                (!completesSpmPacket || linkPacketCandidate.ready) &&
                (!isDmaIssue || dmaIssueReady)
 

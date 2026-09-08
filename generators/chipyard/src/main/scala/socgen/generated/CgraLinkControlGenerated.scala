@@ -23,6 +23,17 @@ object CgraLinkControlGenerated {
   val CONFIG_DONE: Int = 0x060
   val CONFIG_STATUS: Int = 0x068
   val CONFIG_DETAIL: Int = 0x070
+  val SYMBOL_COUNT: Int = 0x078
+  val PATCH_COUNT: Int = 0x080
+  val SYMBOL_BASE: Int = 0x088
+  val SYMBOL_STRIDE: Int = 0x090
+  val SYMBOL_SOURCE: Int = 0x098
+  val SYMBOL_PUSH: Int = 0x0a0
+  val PATCH_PACKET: Int = 0x0a8
+  val PATCH_SYMBOL: Int = 0x0b0
+  val PATCH_SCALE: Int = 0x0b8
+  val PATCH_OFFSET: Int = 0x0c0
+  val PATCH_PUSH: Int = 0x0c8
   val GEMMINI_COMMAND_COUNT: Int = 0x000
   val GEMMINI_SUBMIT: Int = 0x008
   val GEMMINI_CONFIG_READY: Int = 0x010
