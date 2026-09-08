@@ -1,9 +1,9 @@
 package chipyard.socgen.gemmini
 
 import chisel3._
-import chisel3.util.{Decoupled, Queue, RRArbiter, log2Ceil}
+import chisel3.util._
 import chipyard.socgen.generated.CgraLinkControlGenerated
-import chipyard.socgen.link.{AutoLinkStatus, CanHaveAutoLink}
+import chipyard.socgen.link.{AutoLinkStatus, AutoWatch, CanHaveAutoLink}
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.prci.{ClockSinkDomain, ClockSinkParameters}
 import freechips.rocketchip.regmapper.RegField
@@ -21,6 +21,150 @@ case class GemminiLinkAttachParams(adapter: GemminiLinkParams, portName: String)
 case object GemminiLinkKey extends Field[Option[GemminiLinkAttachParams]](None)
 
 class WithGemminiLink(params: GemminiLinkAttachParams) extends Config((_, _, _) => { case GemminiLinkKey => Some(params) })
+
+class GemminiPublicationEntry(params: GemminiLinkParams, paths: Int) extends Bundle {
+  val valid = Bool()
+  val path = UInt(math.max(1, log2Ceil(paths)).W)
+  val source = UInt(16.W)
+  val bytes = UInt(log2Ceil(params.beatBytes + 1).W)
+  val size = UInt(8.W)
+  val error = UInt(params.auto.detailWidth.W)
+}
+
+/** Elaborates publication accounting in the endpoint's bus clock domain. */
+object GemminiPublication {
+  def apply(params: GemminiLinkParams, control: DecoupledIO[GemminiPublicationControl],
+      reply: DecoupledIO[GemminiPublicationReply], writes: Seq[ValidIO[GemminiLinkWrite]],
+      acks: Seq[ValidIO[GemminiLinkAck]]): Unit = {
+    require(writes.size == acks.size)
+    val watch = Reg(new AutoWatch(params.auto))
+    val active = RegInit(false.B)
+    val cancel = RegInit(false.B)
+    val ackPending = RegInit(false.B)
+    val resultValid = RegInit(false.B)
+    val resultDetail = Reg(UInt(params.auto.detailWidth.W))
+    val pending = RegInit(VecInit(Seq.fill(params.maxInflight)(
+      0.U.asTypeOf(new GemminiPublicationEntry(params, writes.size)))))
+    val coverage = RegInit(0.U(params.publicationBytes.W))
+    val acknowledged = RegInit(0.U((params.auto.lengthWidth + 1).W))
+
+    control.ready := !ackPending && !resultValid && !cancel &&
+      (!control.bits.enable || (!active && !VecInit(pending.map(_.valid)).asUInt.orR))
+    reply.valid := ackPending || resultValid
+    reply.bits.result := !ackPending
+    reply.bits.detail := Mux(ackPending, 0.U, resultDetail)
+
+    // Retire acknowledgements before allocating writes so both paths can reuse sources each cycle.
+    var table = pending
+    var covered = coverage
+    var count = acknowledged
+    var error = 0.U(params.auto.detailWidth.W)
+    def retire(index: Int, valid: Bool): Unit = {
+      val ack = acks(index).bits
+      val matches = VecInit(table.map(entry => entry.valid &&
+        entry.path === index.U && entry.source === ack.source))
+      val slot = PriorityEncoder(matches.asUInt)
+      val entry = table(slot)
+      val next = WireDefault(table)
+      val detail = Mux(!matches.asUInt.orR, GemminiLinkStatus.BadOrder.U,
+        Mux(ack.denied, GemminiLinkStatus.Denied.U,
+          Mux(ack.corrupt, GemminiLinkStatus.Corrupt.U,
+            Mux(ack.size =/= entry.size, GemminiLinkStatus.BadBeat.U, entry.error))))
+      when(valid && matches.asUInt.orR) {
+        next(slot).valid := false.B
+      }
+      error = Mux(valid && active && !resultValid && error === 0.U, detail, error)
+      count = count + Mux(valid && matches.asUInt.orR && detail === 0.U, entry.bytes, 0.U)
+      table = next
+    }
+    acks.indices.foreach(index => retire(index, acks(index).valid))
+
+    writes.zipWithIndex.foreach { case (request, index) =>
+      val write = request.bits
+      val firstLane = PriorityEncoder(write.mask)
+      val byteCount = PopCount(write.mask)
+      val beatAddress = write.address & (~(params.beatBytes - 1).U(64.W))
+      val firstAddress = beatAddress + firstLane
+      val offset = firstAddress - watch.address
+      val addressValid = firstAddress >= watch.address && offset < watch.bytes
+      val requestBytes = MuxLookup(write.size, 0.U(log2Ceil(params.beatBytes + 1).W))(
+        (0 to log2Ceil(params.beatBytes)).map(size => size.U -> (1 << size).U))
+      val laneOffset = write.address & (params.beatBytes - 1).U
+      val requestMask = VecInit((0 until params.beatBytes).map(lane =>
+        lane.U >= laneOffset && lane.U < laneOffset + requestBytes)).asUInt
+      val shiftedMask = write.mask >> firstLane
+      val contiguous = write.mask.orR && (shiftedMask & (shiftedMask +& 1.U)) === 0.U
+      val requestValid = requestBytes =/= 0.U && (write.address & (requestBytes - 1.U)) === 0.U
+      val opcodeValid = (write.opcode === TLMessages.PutFullData && write.mask === requestMask) ||
+        write.opcode === TLMessages.PutPartialData
+      val shapeValid = requestValid && opcodeValid && contiguous && (write.mask & ~requestMask) === 0.U
+      val endOffset = offset +& byteCount
+      val written = VecInit((0 until params.publicationBytes).map(byte =>
+        byte.U >= offset && byte.U < endOffset)).asUInt
+      val overlap = (written & covered).orR
+      val matches = VecInit(table.map(entry => entry.valid &&
+        entry.path === index.U && entry.source === write.source))
+      val free = VecInit(table.map(entry => !entry.valid))
+      val slot = PriorityEncoder(free.asUInt)
+      val detail = Mux(!addressValid, GemminiLinkStatus.BadAddress.U,
+        Mux(!shapeValid, GemminiLinkStatus.BadBeat.U,
+          Mux(endOffset > watch.bytes || overlap, GemminiLinkStatus.BadOrder.U, 0.U)))
+      val accept = request.valid && active && !resultValid
+      val next = WireDefault(table)
+      when(accept) {
+        when(matches.asUInt.orR) {
+          next(PriorityEncoder(matches.asUInt)).error := GemminiLinkStatus.BadOrder.U
+        }.elsewhen(free.asUInt.orR) {
+          next(slot).valid := true.B
+          next(slot).path := index.U
+          next(slot).source := write.source
+          next(slot).bytes := byteCount
+          next(slot).size := write.size
+          next(slot).error := detail
+        }
+      }
+      covered = Mux(accept && !matches.asUInt.orR && free.asUInt.orR && detail === 0.U,
+        covered | written, covered)
+      error = Mux(accept && !matches.asUInt.orR && !free.asUInt.orR && error === 0.U,
+        GemminiLinkStatus.BadOrder.U, error)
+      table = next
+    }
+    pending := table
+    coverage := covered
+    acknowledged := count
+
+    val cancelFire = control.fire && !control.bits.enable
+    when(active && !resultValid && !cancelFire &&
+        (error =/= 0.U || (count === watch.bytes && !VecInit(table.map(_.valid)).asUInt.orR))) {
+      resultValid := true.B
+      resultDetail := error
+    }
+    when(reply.fire) {
+      when(ackPending) {
+        ackPending := false.B
+      }.otherwise {
+        resultValid := false.B
+        active := false.B
+      }
+    }
+    when(control.fire) {
+      when(control.bits.enable) {
+        watch := control.bits.watch
+        active := true.B
+        coverage := 0.U
+        acknowledged := 0.U
+        ackPending := true.B
+      }.otherwise {
+        active := false.B
+        cancel := true.B
+      }
+    }
+    when(cancel && !VecInit(table.map(_.valid)).asUInt.orR) {
+      cancel := false.B
+      ackPending := true.B
+    }
+  }
+}
 
 /** SoC attachment and CPU-visible registers for the Gemmini AutoLink adapter. */
 class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams)(implicit p: Parameters)
@@ -50,51 +194,41 @@ class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams)(i
       val observe = observeNode.out.head._1
       val configOut = Wire(Decoupled(new GemminiLinkConfig(params)))
       val configAck = FromAsyncBundle(configLink.ack)
-      val ports = Seq(writerNode -> false, localNode -> true)
-      val events = Module(new RRArbiter(new GemminiLinkEvent(params), ports.size))
-      ports.zipWithIndex.foreach { case ((node, local), index) =>
+      val ports = Seq(writerNode, localNode)
+      val writes = ports.map(_ => Wire(Valid(new GemminiLinkWrite(params))))
+      val acks = ports.map(_ => Wire(Valid(new GemminiLinkAck)))
+      ports.zipWithIndex.foreach { case (node, index) =>
         val (in, edge) = node.in.head
         val (out, _) = node.out.head
-        val queue = Module(new Queue(new GemminiLinkEvent(params), 2))
-        val event = queue.io.enq
-        events.io.in(index) <> queue.io.deq
         require(params.beatBytes % edge.manager.beatBytes == 0)
-        require(edge.bundle.sourceBits <= event.bits.write.source.getWidth)
+        require(edge.manager.minLatency > 0)
+        require(edge.bundle.sourceBits <= writes(index).bits.source.getWidth)
+        out <> in
 
-        val isWrite = in.a.bits.opcode === TLMessages.PutFullData ||
-          in.a.bits.opcode === TLMessages.PutPartialData
-        val isWriteAck = out.d.bits.opcode === TLMessages.AccessAck
-        val selectAck = out.d.valid && isWriteAck
-        val writeReady = event.ready && !selectAck
-        in.b <> out.b
-        out.c <> in.c
-        out.e <> in.e
-        out.a.bits := in.a.bits
-        out.a.valid := in.a.valid && (!isWrite || writeReady)
-        in.a.ready := out.a.ready && (!isWrite || writeReady)
-        in.d.bits := out.d.bits
-        in.d.valid := out.d.valid && (!isWriteAck || event.ready)
-        out.d.ready := in.d.ready && (!isWriteAck || event.ready)
-
-        event.valid := Mux(selectAck, in.d.ready, in.a.valid && isWrite && out.a.ready)
-        event.bits := 0.U.asTypeOf(new GemminiLinkEvent(params))
-        event.bits.local := local.B
-        event.bits.isAck := selectAck
-        event.bits.write.address := in.a.bits.address
-        event.bits.write.source := in.a.bits.source
-        event.bits.write.size := in.a.bits.size
-        event.bits.write.opcode := in.a.bits.opcode
+        val write = writes(index)
+        write.valid := in.a.fire && (in.a.bits.opcode === TLMessages.PutFullData ||
+          in.a.bits.opcode === TLMessages.PutPartialData)
+        write.bits.address := in.a.bits.address
+        write.bits.source := in.a.bits.source
+        write.bits.size := in.a.bits.size
+        write.bits.opcode := in.a.bits.opcode
         val lane = in.a.bits.address(log2Ceil(params.beatBytes) - 1, 0) &
           (params.beatBytes - edge.manager.beatBytes).U
-        event.bits.write.mask := in.a.bits.mask << lane
-        event.bits.ack.source := out.d.bits.source
-        event.bits.ack.size := out.d.bits.size
-        event.bits.ack.denied := out.d.bits.denied
-        event.bits.ack.corrupt := out.d.bits.corrupt
+        write.bits.mask := in.a.bits.mask << lane
+
+        val ack = acks(index)
+        ack.valid := out.d.fire && out.d.bits.opcode === TLMessages.AccessAck
+        ack.bits.source := out.d.bits.source
+        ack.bits.size := out.d.bits.size
+        ack.bits.denied := out.d.bits.denied
+        ack.bits.corrupt := out.d.bits.corrupt
       }
 
       configLink.config <> ToAsyncBundle(configOut, AsyncQueueParams.singleton())
-      observe.event <> ToAsyncBundle(events.io.out, AsyncQueueParams.singleton())
+      val publicationControl = FromAsyncBundle(observe.control)
+      val publicationReply = Wire(Decoupled(new GemminiPublicationReply(params)))
+      GemminiPublication(params, publicationControl, publicationReply, writes, acks)
+      observe.reply <> ToAsyncBundle(publicationReply, AsyncQueueParams.singleton())
 
       val job = RegInit(0.U(32.W))
       val commandCount = RegInit(0.U(32.W))

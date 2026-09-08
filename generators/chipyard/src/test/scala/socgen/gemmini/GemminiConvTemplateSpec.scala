@@ -217,7 +217,10 @@ class GemminiConvTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.cpuCommand.valid.poke(false.B)
       dut.io.command.ready.poke(false.B)
       dut.io.nativeBusy.poke(false.B)
-      dut.io.event.valid.poke(false.B)
+      dut.io.publication.ready.poke(true.B)
+      dut.io.publicationReply.valid.poke(false.B)
+      dut.io.publicationReply.bits.result.poke(false.B)
+      dut.io.publicationReply.bits.detail.poke(0.U)
       dut.io.autoLink.watchOutput.valid.poke(false.B)
       dut.io.autoLink.reportOutput.ready.poke(false.B)
       dut.io.autoLink.requestCopy.valid.poke(false.B)
@@ -264,6 +267,11 @@ class GemminiConvTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
         dut.io.autoLink.requestCompute.ready.expect(false.B)
         dut.clock.step()
         dut.io.autoLink.watchOutput.valid.poke(false.B)
+        dut.io.autoLink.requestCompute.ready.expect(false.B)
+        dut.clock.step()
+        dut.io.publicationReply.valid.poke(true.B)
+        dut.clock.step()
+        dut.io.publicationReply.valid.poke(false.B)
         dut.io.autoLink.requestCompute.ready.expect(true.B)
         dut.clock.step()
         dut.io.autoLink.requestCompute.valid.poke(false.B)
@@ -277,6 +285,9 @@ class GemminiConvTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
           dut.clock.step()
           dut.io.autoLink.reportCompute.ready.poke(false.B)
           dut.io.autoLink.reportOutput.ready.poke(false.B)
+          dut.io.publicationReply.valid.poke(true.B)
+          dut.clock.step()
+          dut.io.publicationReply.valid.poke(false.B)
         }
       }
       for (command <- template.take(3)) {

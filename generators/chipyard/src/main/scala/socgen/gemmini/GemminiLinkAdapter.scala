@@ -4,7 +4,6 @@ import chisel3._
 import chisel3.util._
 import chipyard.socgen.link._
 import freechips.rocketchip.tile.RoCCCommand
-import freechips.rocketchip.tilelink.TLMessages
 import freechips.rocketchip.util.{AsyncBundle, AsyncQueueParams}
 import org.chipsalliance.cde.config.Parameters
 
@@ -49,20 +48,14 @@ class GemminiLinkAck extends Bundle {
   val corrupt = Bool()
 }
 
-class GemminiLinkEvent(params: GemminiLinkParams) extends Bundle {
-  val isAck = Bool()
-  val local = Bool()
-  val write = new GemminiLinkWrite(params)
-  val ack = new GemminiLinkAck
+class GemminiPublicationControl(params: GemminiLinkParams) extends Bundle {
+  val enable = Bool()
+  val watch = new AutoWatch(params.auto)
 }
 
-class GemminiPublicationEntry(params: GemminiLinkParams) extends Bundle {
-  val valid = Bool()
-  val local = Bool()
-  val source = UInt(16.W)
-  val bytes = UInt(log2Ceil(params.beatBytes + 1).W)
-  val size = UInt(8.W)
-  val error = UInt(params.auto.detailWidth.W)
+class GemminiPublicationReply(params: GemminiLinkParams) extends Bundle {
+  val result = Bool()
+  val detail = UInt(params.auto.detailWidth.W)
 }
 
 class GemminiLinkConfig(params: GemminiLinkParams) extends Bundle {
@@ -85,7 +78,8 @@ class GemminiLinkConfigAsync(params: GemminiLinkParams) extends Bundle {
 
 class GemminiLinkObserveAsync(params: GemminiLinkParams) extends Bundle {
   private val crossing = AsyncQueueParams.singleton()
-  val event = new AsyncBundle(new GemminiLinkEvent(params), crossing)
+  val control = Flipped(new AsyncBundle(new GemminiPublicationControl(params), crossing))
+  val reply = new AsyncBundle(new GemminiPublicationReply(params), crossing)
 }
 
 /** Captures native CPU commands and replays them after AutoLink dependencies complete. */
@@ -96,7 +90,8 @@ class GemminiLinkAdapter(params: GemminiLinkParams, convParams: Option[GemminiCo
     val cpuCommand = Flipped(Decoupled(new RoCCCommand))
     val command = Decoupled(new RoCCCommand)
     val nativeBusy = Input(Bool())
-    val event = Flipped(Decoupled(new GemminiLinkEvent(params)))
+    val publication = Decoupled(new GemminiPublicationControl(params))
+    val publicationReply = Flipped(Decoupled(new GemminiPublicationReply(params)))
     val autoLink = new AutoEndpointIO(params.auto)
     val autoBusy = Output(Bool())
   })
@@ -130,11 +125,9 @@ class GemminiLinkAdapter(params: GemminiLinkParams, convParams: Option[GemminiCo
   val computeJob = RegInit(0.U(params.auto.jobWidth.W))
   val watch = Reg(new AutoWatch(params.auto))
   val armed = RegInit(false.B)
-  val acknowledgedBytes = RegInit(0.U(params.auto.lengthWidth.W))
-  val pending = RegInit(VecInit(Seq.fill(params.maxInflight)(
-    0.U.asTypeOf(new GemminiPublicationEntry(params)))))
-  val coverage = RegInit(0.U(params.publicationBytes.W))
-  val outstanding = VecInit(pending.map(_.valid))
+  val publicationSend = RegInit(false.B)
+  val publicationPending = RegInit(false.B)
+  val publicationEnable = RegInit(false.B)
   val producedValid = RegInit(false.B)
   val producedDetail = RegInit(0.U(params.auto.detailWidth.W))
   val outputPending = RegInit(false.B)
@@ -183,17 +176,21 @@ class GemminiLinkAdapter(params: GemminiLinkParams, convParams: Option[GemminiCo
   io.configAck.bits.detail := configDetail
 
   // CPU commands outside capture may execute before the automatic job completes.
-  io.cpuCommand.ready := Mux(capture, true.B, !replay && io.command.ready)
-  io.command.valid := Mux(replay, true.B, io.cpuCommand.valid && !capture)
+  val armWait = publicationPending || io.autoLink.watchOutput.valid
+  io.cpuCommand.ready := Mux(capture, true.B, !replay && !armWait && io.command.ready)
+  io.command.valid := Mux(replay, true.B, io.cpuCommand.valid && !capture && !armWait)
   io.command.bits := Mux(
     replay,
     template.map(_.io.patched).getOrElse(commands(replayAddress)),
     io.cpuCommand.bits)
-  io.event.ready := true.B
-  io.autoBusy := replay || execState === ExecState.waitComplete ||
+  io.publication.valid := publicationSend
+  io.publication.bits.enable := publicationEnable
+  io.publication.bits.watch := watch
+  io.publicationReply.ready := !producedValid || !publicationEnable || !io.publicationReply.bits.result
+  io.autoBusy := publicationPending || replay || execState === ExecState.waitComplete ||
     execState === ExecState.reportCompute
 
-  io.autoLink.watchOutput.ready := !armed && !producedValid && !outstanding.asUInt.orR
+  io.autoLink.watchOutput.ready := !armed && !producedValid && !publicationPending
   io.autoLink.reportOutput.valid := producedValid
   io.autoLink.reportOutput.bits.stage := 0.U
   io.autoLink.reportOutput.bits.job := watch.job
@@ -213,7 +210,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams, convParams: Option[GemminiCo
   io.autoLink.requestCompute.ready :=
     (execState === ExecState.idle || execState === ExecState.waitCompute) &&
       configState === ConfigState.idle && !io.configIn.valid && !io.autoLink.watchOutput.fire &&
-      !io.autoLink.requestCopy.fire
+      !io.autoLink.requestCopy.fire && !publicationPending
   io.autoLink.reportCompute.valid := execState === ExecState.reportCompute
   io.autoLink.reportCompute.bits := computeResult
 
@@ -299,6 +296,10 @@ class GemminiLinkAdapter(params: GemminiLinkParams, convParams: Option[GemminiCo
         when(armed) {
           producedValid := true.B
           producedDetail := GemminiLinkStatus.BadConfig.U
+          publicationSend := true.B
+          publicationPending := true.B
+          publicationEnable := false.B
+          armed := false.B
         }
         execState := ExecState.reportCompute
       }
@@ -307,6 +308,9 @@ class GemminiLinkAdapter(params: GemminiLinkParams, convParams: Option[GemminiCo
       armed := false.B
       producedValid := false.B
       outputPending := false.B
+      publicationSend := true.B
+      publicationPending := true.B
+      publicationEnable := false.B
     }
   }
   when(replay && io.command.fire) {
@@ -327,87 +331,22 @@ class GemminiLinkAdapter(params: GemminiLinkParams, convParams: Option[GemminiCo
     watch := io.autoLink.watchOutput.bits
     outputPending := true.B
     armed := true.B
-    acknowledgedBytes := 0.U
-    coverage := 0.U
+    publicationSend := true.B
+    publicationPending := true.B
+    publicationEnable := true.B
   }
-
-  when(armed && !producedValid && io.event.fire && !io.event.bits.isAck) {
-    val write = io.event.bits.write
-    val firstLane = PriorityEncoder(write.mask)
-    val byteCount = PopCount(write.mask)
-    val beatAddress = write.address & (~(params.beatBytes - 1).U(64.W))
-    val firstAddress = beatAddress + firstLane
-    val offset = firstAddress - watch.address
-    val addressValid = firstAddress >= watch.address && offset < watch.bytes
-    val requestBytes = MuxLookup(write.size, 0.U(log2Ceil(params.beatBytes + 1).W))(
-      (0 to log2Ceil(params.beatBytes)).map(size => size.U -> (1 << size).U))
-    val laneOffset = write.address & (params.beatBytes - 1).U
-    val requestMask = VecInit((0 until params.beatBytes).map(lane =>
-      lane.U >= laneOffset && lane.U < laneOffset + requestBytes)).asUInt
-    val shiftedMask = write.mask >> firstLane
-    val contiguous = write.mask.orR && (shiftedMask & (shiftedMask +& 1.U)) === 0.U
-    val requestValid = requestBytes =/= 0.U && (write.address & (requestBytes - 1.U)) === 0.U
-    val opcodeValid = (write.opcode === TLMessages.PutFullData && write.mask === requestMask) ||
-      write.opcode === TLMessages.PutPartialData
-    val shapeValid = requestValid && opcodeValid && contiguous && (write.mask & ~requestMask) === 0.U
-    val endOffset = offset +& byteCount
-    val withinPublication = endOffset <= watch.bytes
-    val written = VecInit((0 until params.publicationBytes).map(byte =>
-      byte.U >= offset && byte.U < endOffset)).asUInt
-    val overlap = (written & coverage).orR
-    val matches = VecInit(pending.map(entry => entry.valid &&
-      entry.local === io.event.bits.local && entry.source === write.source))
-    val free = VecInit(pending.map(entry => !entry.valid))
-    val slot = PriorityEncoder(free.asUInt)
-    val error = Mux(!addressValid, GemminiLinkStatus.BadAddress.U,
-      Mux(!shapeValid, GemminiLinkStatus.BadBeat.U,
-        Mux(!withinPublication || overlap, GemminiLinkStatus.BadOrder.U, 0.U)))
-
-    when(matches.asUInt.orR) {
-      pending(PriorityEncoder(matches.asUInt)).error := GemminiLinkStatus.BadOrder.U
-    }.elsewhen(!free.asUInt.orR) {
-      finish(GemminiLinkStatus.BadOrder.U)
+  when(io.publication.fire) {
+    publicationSend := false.B
+  }
+  when(io.publicationReply.fire) {
+    when(io.publicationReply.bits.result) {
+      val abort = io.autoLink.requestCompute.fire &&
+        (!io.autoLink.requestCompute.bits.start || !requestJobValid || !geometryValid)
+      when(publicationEnable && !abort) {
+        finish(io.publicationReply.bits.detail)
+      }
     }.otherwise {
-      pending(slot).valid := true.B
-      pending(slot).local := io.event.bits.local
-      pending(slot).source := write.source
-      pending(slot).bytes := byteCount
-      pending(slot).size := write.size
-      pending(slot).error := error
-      when(error === 0.U) {
-        coverage := coverage | written
-      }
-    }
-  }
-
-  when(io.event.fire && io.event.bits.isAck) {
-    val ack = io.event.bits.ack
-    val matches = VecInit(pending.map(entry => entry.valid &&
-      entry.local === io.event.bits.local && entry.source === ack.source))
-    val slot = PriorityEncoder(matches.asUInt)
-    val entry = pending(slot)
-    when(matches.asUInt.orR) {
-      pending(slot).valid := false.B
-    }
-    when(armed && !producedValid) {
-      val detail = Mux(
-        ack.denied,
-        GemminiLinkStatus.Denied.U,
-        Mux(
-          ack.corrupt,
-          GemminiLinkStatus.Corrupt.U,
-          Mux(ack.size =/= entry.size, GemminiLinkStatus.BadBeat.U, entry.error)))
-      val nextBytes = acknowledgedBytes + entry.bytes
-      when(!matches.asUInt.orR) {
-        finish(GemminiLinkStatus.BadOrder.U)
-      }.elsewhen(detail =/= 0.U) {
-        finish(detail)
-      }.otherwise {
-        acknowledgedBytes := nextBytes
-        when(nextBytes === watch.bytes && PopCount(outstanding) === 1.U) {
-          finish(0.U)
-        }
-      }
+      publicationPending := false.B
     }
   }
 

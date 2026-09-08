@@ -58,7 +58,8 @@ class GemminiRoCCModule(outer: GemminiRoCC)(implicit p: Parameters)
 
     adapter.io.configIn <> FromAsyncBundle(config.config)
     config.ack <> ToAsyncBundle(adapter.io.configAck, AsyncQueueParams.singleton())
-    adapter.io.event <> FromAsyncBundle(observe.event)
+    observe.control <> ToAsyncBundle(adapter.io.publication, AsyncQueueParams.singleton())
+    adapter.io.publicationReply <> FromAsyncBundle(observe.reply)
     adapter.io.autoLink.watchOutput <> FromAsyncBundle(endpoint.watchOutput)
     endpoint.reportOutput <> ToAsyncBundle(
       adapter.io.autoLink.reportOutput,
