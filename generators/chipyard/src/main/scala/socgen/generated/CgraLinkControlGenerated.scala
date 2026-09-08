@@ -41,6 +41,7 @@ object CgraLinkControlGenerated {
   val GEMMINI_CONFIG_DETAIL: Int = 0x020
   val GEMMINI_SELECT: Int = 0x028
   val GEMMINI_CONFIG_DONE: Int = 0x030
+  val GEMMINI_CONV_TEMPLATE: Int = 0x038
   val AES_SOURCE: Int = 0x000
   val AES_BYTES: Int = 0x008
   val AES_DESTINATION: Int = 0x010

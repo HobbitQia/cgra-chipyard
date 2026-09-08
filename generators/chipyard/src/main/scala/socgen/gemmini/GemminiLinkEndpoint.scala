@@ -98,6 +98,7 @@ class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams)(i
 
       val job = RegInit(0.U(32.W))
       val commandCount = RegInit(0.U(32.W))
+      val convTemplate = RegInit(false.B)
       val configSubmit = Wire(Decoupled(UInt(1.W)))
       val configPending = RegInit(false.B)
       val configReady = RegInit(false.B)
@@ -107,6 +108,7 @@ class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams)(i
       configOut.valid := configSubmit.valid && configSubmit.bits.asBool && !configPending
       configOut.bits.job := job
       configOut.bits.commandCount := commandCount
+      configOut.bits.convTemplate := convTemplate
       configSubmit.ready := Mux(configSubmit.bits.asBool, configOut.ready && !configPending, true.B)
       configAck.ready := true.B
 
@@ -133,6 +135,7 @@ class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams)(i
         GEMMINI_CONFIG_STATUS -> Seq(RegField.r(32, configStatus)),
         GEMMINI_CONFIG_DETAIL -> Seq(RegField.r(32, configDetail)),
         GEMMINI_SELECT -> Seq(RegField(32, job)),
+        GEMMINI_CONV_TEMPLATE -> Seq(RegField(1, convTemplate)),
         GEMMINI_CONFIG_DONE -> Seq(RegField.r(1, configDone)))
     }
   }

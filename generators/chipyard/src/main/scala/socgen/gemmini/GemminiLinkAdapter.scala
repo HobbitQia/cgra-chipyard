@@ -68,6 +68,7 @@ class GemminiPublicationEntry(params: GemminiLinkParams) extends Bundle {
 class GemminiLinkConfig(params: GemminiLinkParams) extends Bundle {
   val job = UInt(32.W)
   val commandCount = UInt(32.W)
+  val convTemplate = Bool()
 }
 
 class GemminiLinkConfigAck(params: GemminiLinkParams) extends Bundle {
@@ -88,7 +89,7 @@ class GemminiLinkObserveAsync(params: GemminiLinkParams) extends Bundle {
 }
 
 /** Captures native CPU commands and replays them after AutoLink dependencies complete. */
-class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) extends Module {
+class GemminiLinkAdapter(params: GemminiLinkParams, convParams: Option[GemminiConvParams] = None)(implicit p: Parameters) extends Module {
   val io = IO(new Bundle {
     val configIn = Flipped(Decoupled(new GemminiLinkConfig(params)))
     val configAck = Decoupled(new GemminiLinkConfigAck(params))
@@ -101,7 +102,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   })
 
   object ConfigState {
-    val idle :: reportConfig :: collect :: Nil = Enum(3)
+    val idle :: reportConfig :: collect :: validate :: Nil = Enum(4)
   }
   object ExecState {
     val idle :: reportCopy :: waitCompute :: issue :: waitComplete :: reportCompute :: Nil = Enum(6)
@@ -140,7 +141,8 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
 
   val configJobValid = io.configIn.bits.job < params.jobCount.U
   val configValid = configJobValid && io.configIn.bits.commandCount =/= 0.U &&
-    io.configIn.bits.commandCount <= params.commandCapacity.U
+    io.configIn.bits.commandCount <= params.commandCapacity.U &&
+    (!io.configIn.bits.convTemplate || convParams.nonEmpty.B)
   val capture = configState === ConfigState.collect
   val replay = execState === ExecState.issue
   val captureAddress = (config.job * params.commandCapacity.U + configIndex)(
@@ -156,6 +158,21 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   val requestJobValid = requestJobInRange && selected(
     jobValid,
     io.autoLink.requestCompute.bits.job)
+  val template = convParams.map { native =>
+    val binding = Module(new GemminiConvTemplate(params, native))
+    binding.io.begin.valid := io.configIn.fire && configValid
+    binding.io.begin.bits := io.configIn.bits
+    binding.io.capture.valid := capture && io.cpuCommand.fire
+    binding.io.capture.bits := io.cpuCommand.bits
+    binding.io.request := io.autoLink.requestCompute.bits
+    binding.io.start := io.autoLink.requestCompute.fire
+    binding.io.watch := watch
+    binding.io.watchValid := armed
+    binding.io.command := commands(replayAddress)
+    binding
+  }
+  val captureValid = template.map(_.io.captureValid).getOrElse(true.B)
+  val geometryValid = template.map(_.io.requestValid).getOrElse(true.B)
 
   io.configIn.ready := configState === ConfigState.idle && execState === ExecState.idle
   io.configAck.valid := configState === ConfigState.reportConfig
@@ -168,7 +185,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   io.command.valid := Mux(replay, true.B, io.cpuCommand.valid && !capture)
   io.command.bits := Mux(
     replay,
-    commands(replayAddress),
+    template.map(_.io.patched).getOrElse(commands(replayAddress)),
     io.cpuCommand.bits)
   io.event.ready := true.B
   io.autoBusy := replay || execState === ExecState.waitComplete ||
@@ -193,7 +210,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   io.autoLink.reportCopy.bits.detail := copyDetail
   io.autoLink.requestCompute.ready :=
     (execState === ExecState.idle || execState === ExecState.waitCompute) &&
-      configState === ConfigState.idle && !io.configIn.valid
+      configState === ConfigState.idle && !io.configIn.valid && !io.autoLink.watchOutput.fire
   io.autoLink.reportCompute.valid := execState === ExecState.reportCompute
   io.autoLink.reportCompute.bits := computeResult
 
@@ -235,13 +252,18 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   when(capture && io.cpuCommand.fire) {
     commands(captureAddress) := io.cpuCommand.bits
     when(configIndex + 1.U === config.commandCount) {
-      selected(jobValid, config.job) := true.B
       selected(jobCommandCount, config.job) := config.commandCount(params.commandCountWidth - 1, 0)
-      configDone := true.B
-      configState := ConfigState.reportConfig
+      configState := ConfigState.validate
     }.otherwise {
       configIndex := configIndex + 1.U
     }
+  }
+  when(configState === ConfigState.validate) {
+    selected(jobValid, config.job) := captureValid
+    configDone := true.B
+    configStatus := Mux(captureValid, AutoLinkStatus.Success, AutoLinkStatus.SinkFailure)
+    configDetail := Mux(captureValid, 0.U, GemminiLinkStatus.BadConfig.U)
+    configState := ConfigState.reportConfig
   }
 
   when(io.autoLink.requestCopy.fire) {
@@ -264,7 +286,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
     computeResult.job := io.autoLink.requestCompute.bits.job
     computeResult.status := AutoLinkStatus.Success
     when(io.autoLink.requestCompute.bits.start) {
-      when(requestJobValid) {
+      when(requestJobValid && geometryValid) {
         commandIndex := 0.U
         execState := ExecState.issue
       }.otherwise {
