@@ -215,6 +215,22 @@ object CGRAMinimalGemminiPoolAutoLinkRocketConfig {
     portName = "pool")
 }
 
+class CgraPoolTileRocketConfig extends Config(
+  new WithCgraLink(CGRAMinimalGemminiPoolAutoLinkRocketConfig.cgraLink) ++
+  new WithPoolLink(CGRAMinimalGemminiPoolAutoLinkRocketConfig.poolLink) ++
+  new WithGemminiLink(CGRAMinimalGemminiPoolAutoLinkRocketConfig.gemminiLink) ++
+  new WithAutoLink(CGRAMinimalGemminiPoolAutoLinkRocketConfig.autoLink) ++
+  new chipyard.example.WithCGRASpmWindow(CGRASpmWindowGenerated.params) ++
+  new WithPoolAccelerator(PoolParams(elementBits = 8)) ++
+  new WithGemminiExternalSpm(CGRAMinimalGemminiRocketConfig.externalSpm) ++
+  new chipyard.config.WithCGRA() ++
+  new WithGemminiRoCC(
+    CGRAMinimalGemminiPoolAutoLinkRocketConfig.gemminiConfig.copy(has_loop_conv = true),
+    linkParams = Some(CGRAMinimalGemminiPoolAutoLinkRocketConfig.gemminiLink.adapter)) ++
+  new freechips.rocketchip.rocket.WithNBigCores(1) ++
+  new chipyard.config.WithSystemBusWidth(256) ++
+  new chipyard.config.AbstractConfig)
+
 class CGRAMinimalGemminiPoolAutoLinkRocketConfig extends Config(
   new WithCgraLink(CGRAMinimalGemminiPoolAutoLinkRocketConfig.cgraLink) ++
   new WithPoolLink(CGRAMinimalGemminiPoolAutoLinkRocketConfig.poolLink) ++
@@ -265,6 +281,25 @@ object CGRAMinimalGemminiResidualAutoLinkRocketConfig {
     controlAddress = CgraLinkControlGenerated.baseAddress,
     controlBytes = CgraLinkControlGenerated.pageSizeBytes)
 }
+
+object CgraResidualTileRocketConfig {
+  private val base = CGRAMinimalGemminiResidualAutoLinkRocketConfig.gemminiLink
+  val gemminiLink = base.copy(adapter = base.adapter.copy(commandCapacity = 16))
+}
+
+class CgraResidualTileRocketConfig extends Config(
+  new WithCgraLink(CGRAMinimalGemminiResidualAutoLinkRocketConfig.cgraLink) ++
+  new WithGemminiLink(CgraResidualTileRocketConfig.gemminiLink) ++
+  new WithAutoLink(CGRAMinimalGemminiResidualAutoLinkRocketConfig.autoLink) ++
+  new chipyard.example.WithCGRASpmWindow(CGRASpmWindowGenerated.params) ++
+  new WithGemminiExternalSpm(CGRAMinimalGemminiRocketConfig.externalSpm) ++
+  new chipyard.config.WithCGRA() ++
+  new WithGemminiRoCC(
+    CGRAMinimalGemminiResidualAutoLinkRocketConfig.gemminiConfig.copy(has_loop_conv = true),
+    linkParams = Some(CgraResidualTileRocketConfig.gemminiLink.adapter)) ++
+  new freechips.rocketchip.rocket.WithNBigCores(1) ++
+  new chipyard.config.WithSystemBusWidth(256) ++
+  new chipyard.config.AbstractConfig)
 
 class CGRAMinimalGemminiResidualAutoLinkRocketConfig extends Config(
   new WithCgraLink(CGRAMinimalGemminiResidualAutoLinkRocketConfig.cgraLink) ++

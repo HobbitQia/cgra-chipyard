@@ -9,11 +9,15 @@ object AutoLinkStatus {
   val Success = 0.U(Width.W)
   val SourceFailure = 1.U(Width.W)
   val SinkFailure = 2.U(Width.W)
+  val ConfigFailure = 3.U(Width.W)
 }
 
 case class AutoBuffer(baseAddress: BigInt, sizeBytes: Int)
 
-case class AutoEndpointSpec(name: String, buffer: Option[AutoBuffer], localBytes: Int)
+case class AutoEndpointSpec(name: String, buffer: Option[AutoBuffer], localBytes: Int,
+    bufferedInput: Boolean = false, inputAlignment: Int = 1) {
+  require(isPow2(inputAlignment))
+}
 
 case class AutoStageSpec(name: String, endpoint: String, job: Int)
 
@@ -128,6 +132,7 @@ class AutoCopyRequest(params: AutoLinkParams) extends Bundle {
   val task = UInt(params.dependencyWidth.W)
   val job = UInt(params.jobWidth.W)
   val tile = new AutoTile(params.lengthWidth)
+  val sourceTile = new AutoTile(params.lengthWidth)
   val sourceAddress = UInt(params.addressWidth.W)
   val destinationOffset = UInt(params.addressWidth.W)
   val bytes = UInt(params.lengthWidth.W)

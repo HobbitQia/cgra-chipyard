@@ -6,6 +6,72 @@ import chipyard.socgen.link._
 
 case class PoolLinkParams(auto: AutoLinkParams)
 
+class PoolTileBinding(params: PoolParams, auto: AutoLinkParams) extends Module {
+  val io = IO(new Bundle {
+    val configured = Input(new PoolJob(params))
+    val request = Input(new AutoCopyRequest(auto))
+    val job = Output(new PoolJob(params))
+    val valid = Output(Bool())
+  })
+
+  val configured = io.configured
+  val tile = io.request.tile
+  val source = io.request.sourceTile
+  val paddedHeight = configured.inputHeight +& configured.padHeight +& configured.padBottom
+  val paddedWidth = configured.inputWidth +& configured.padWidth +& configured.padRight
+  val outputHeight = (paddedHeight - configured.kernelHeight) / configured.strideHeight + 1.U
+  val outputWidth = (paddedWidth - configured.kernelWidth) / configured.strideWidth + 1.U
+
+  def region(origin: UInt, count: UInt, stride: UInt, kernel: UInt, padding: UInt, limit: UInt): (UInt, UInt, UInt, UInt) = {
+    val first = (origin * stride).zext - padding.zext
+    val end = first + ((count - 1.U) * stride +& kernel).zext
+    val start = Mux(first < 0.S, 0.S, first).asUInt
+    val stop = Mux(end > limit.zext, limit.zext, Mux(end < 0.S, 0.S, end)).asUInt
+    val before = Mux(first < 0.S, -first, 0.S).asUInt
+    val after = Mux(end > limit.zext, end - limit.zext, 0.S).asUInt
+    (start, stop, before, after)
+  }
+
+  val (firstRow, endRow, top, bottom) = region(tile.row, tile.rows,
+    configured.strideHeight, configured.kernelHeight, configured.padHeight, configured.inputHeight)
+  val (firstColumn, endColumn, left, right) = region(tile.column, tile.columns,
+    configured.strideWidth, configured.kernelWidth, configured.padWidth, configured.inputWidth)
+  val pixelBytes = configured.channels * params.elementBytes.U
+  val rowBytes = outputWidth * pixelBytes
+  val rowStride = Mux(configured.outputStride === 0.U, rowBytes, configured.outputStride)
+  val destination = configured.destination +& tile.row * rowStride +& tile.column * pixelBytes
+  val expectedBytes = source.rows * source.columns * pixelBytes
+  val dimensionMax = ((BigInt(1) << params.dimensionBits) - 1).U
+  val shapeValid = configured.inputHeight =/= 0.U && configured.inputWidth =/= 0.U &&
+    configured.channels =/= 0.U && configured.kernelHeight =/= 0.U && configured.kernelWidth =/= 0.U &&
+    configured.strideHeight =/= 0.U && configured.strideWidth =/= 0.U &&
+    paddedHeight >= configured.kernelHeight && paddedWidth >= configured.kernelWidth
+  val outputValid = tile.rows =/= 0.U && tile.columns =/= 0.U &&
+    tile.rows <= dimensionMax && tile.columns <= dimensionMax &&
+    tile.row +& tile.rows <= outputHeight && tile.column +& tile.columns <= outputWidth
+  val sourceValid = source.id === tile.id && source.last === tile.last &&
+    source.row === firstRow && source.column === firstColumn &&
+    endRow > firstRow && endColumn > firstColumn &&
+    source.rows === endRow - firstRow && source.columns === endColumn - firstColumn &&
+    source.rows <= dimensionMax && source.columns <= dimensionMax &&
+    top <= dimensionMax && bottom <= dimensionMax && left <= dimensionMax && right <= dimensionMax
+  val addressValid = rowStride >= rowBytes &&
+    destination < (BigInt(1) << params.addressBits).U
+
+  io.job := configured
+  io.job.source := io.request.sourceAddress
+  io.job.destination := destination
+  io.job.outputStride := rowStride
+  io.job.inputHeight := source.rows
+  io.job.inputWidth := source.columns
+  io.job.padHeight := top
+  io.job.padWidth := left
+  io.job.padBottom := bottom
+  io.job.padRight := right
+  io.valid := shapeValid && outputValid && sourceValid && addressValid &&
+    io.request.bytes === expectedBytes
+}
+
 class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends Module {
   val io = IO(new Bundle {
     val configuredJob = Input(new PoolJob(params))
@@ -37,9 +103,13 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
     val port = io.autoLink.get
     val expectedBytes = io.configuredJob.inputHeight * io.configuredJob.inputWidth *
       io.configuredJob.channels * params.elementBytes.U
-    val lengthValid = port.requestCopy.bits.bytes === expectedBytes
+    val binding = Module(new PoolTileBinding(params, auto))
+    binding.io.configured := io.configuredJob
+    binding.io.request := port.requestCopy.bits
+    val lengthValid = Mux(io.configuredJob.tiled,
+      binding.io.valid, port.requestCopy.bits.bytes === expectedBytes)
     val autoJob = Wire(new PoolJob(params))
-    autoJob := io.configuredJob
+    autoJob := Mux(io.configuredJob.tiled, binding.io.job, io.configuredJob)
     autoJob.source := port.requestCopy.bits.sourceAddress
 
     port.watchOutput.ready := !publicationArmed && !publicationValid
@@ -131,8 +201,8 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
   when(io.jobDone.fire) {
     link.foreach { _ =>
       when(publicationArmed) {
-        val paddedHeight = activeJob.inputHeight + (activeJob.padHeight << 1)
-        val paddedWidth = activeJob.inputWidth + (activeJob.padWidth << 1)
+        val paddedHeight = activeJob.inputHeight +& activeJob.padHeight +& activeJob.padBottom
+        val paddedWidth = activeJob.inputWidth +& activeJob.padWidth +& activeJob.padRight
         val outputHeight = (paddedHeight - activeJob.kernelHeight) / activeJob.strideHeight + 1.U
         val outputWidth = (paddedWidth - activeJob.kernelWidth) / activeJob.strideWidth + 1.U
         val outputBytes = outputHeight * outputWidth * activeJob.channels * params.elementBytes.U

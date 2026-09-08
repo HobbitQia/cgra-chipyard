@@ -104,9 +104,14 @@ class PoolAcceleratorImp(outer: PoolAccelerator, params: PoolParams)(implicit p:
       is(PoolCommand.Padding.U) {
         configuredJob.padHeight := cmd.bits.rs1
         configuredJob.padWidth := cmd.bits.rs2
+        configuredJob.padBottom := cmd.bits.rs1
+        configuredJob.padRight := cmd.bits.rs2
       }
       is(PoolCommand.Mode.U) {
         configuredJob.mode := cmd.bits.rs1
+      }
+      is(PoolCommand.Template.U) {
+        configuredJob.tiled := cmd.bits.rs1(0)
       }
       is(PoolCommand.Wait.U) {
         responseValid := true.B

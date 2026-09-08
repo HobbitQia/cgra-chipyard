@@ -111,6 +111,7 @@ class PoolStrideSpec extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   private def configure(job: PoolJob, rows: Int = 3): Unit = {
+    job.tiled.poke(false.B)
     job.mode.poke(PoolMode.Max)
     job.source.poke(0x1000.U)
     job.destination.poke(0x2000.U)
@@ -124,6 +125,8 @@ class PoolStrideSpec extends AnyFlatSpec with ChiselScalatestTester {
     job.strideWidth.poke(1.U)
     job.padHeight.poke(0.U)
     job.padWidth.poke(0.U)
+    job.padBottom.poke(0.U)
+    job.padRight.poke(0.U)
   }
 
   it should "reject invalid strides, wrapped spans and strided overlap before DMA" in {

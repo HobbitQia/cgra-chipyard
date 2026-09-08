@@ -19,6 +19,91 @@ class AutoTile(width: Int = 32) extends Bundle {
   val last = Bool()
 }
 
+class AutoTransfer(params: AutoLinkParams) extends Bundle {
+  val sourceOffset = UInt(params.addressWidth.W)
+  val destinationOffset = UInt(params.addressWidth.W)
+  val sourceStride = UInt(params.addressWidth.W)
+  val destinationStride = UInt(params.addressWidth.W)
+  val bytesPerPixel = UInt(params.lengthWidth.W)
+}
+
+class AutoRegion(width: Int) extends Bundle {
+  val rows = UInt(width.W)
+  val columns = UInt(width.W)
+  val rowStep = UInt(width.W)
+  val columnStep = UInt(width.W)
+  val top = UInt(width.W)
+  val bottom = UInt(width.W)
+  val left = UInt(width.W)
+  val right = UInt(width.W)
+}
+
+class AutoRun(params: AutoLinkParams) extends Bundle {
+  val plan = new AutoTilePlan(params.lengthWidth)
+  val transfers = Vec(params.dependencies.size, new AutoTransfer(params))
+  val regions = Vec(params.stages.size, new AutoRegion(params.lengthWidth))
+}
+
+class AutoProgress extends Bundle {
+  val running = Bool()
+  val emitting = Bool()
+  val cycles = UInt(64.W)
+  val overlap = UInt(64.W)
+}
+
+object AutoTileBinding {
+  def transferValid(params: AutoLinkParams, index: Int, transfer: AutoTransfer, multipleSlots: Bool): Bool = {
+    val dependency = params.dependencies(index)
+    val copy = dependency.copy.get
+    val source = params.endpoint(params.stage(dependency.source.get).endpoint).buffer.get
+    val destination = params.endpoint(params.stage(dependency.destination).endpoint)
+    val sourceEnd = transfer.sourceOffset +& transfer.sourceStride * (params.bufferSlots - 1).U +& copy.bytes.U
+    val destinationEnd = transfer.destinationOffset +& transfer.destinationStride * (params.bufferSlots - 1).U +& copy.destinationBytes.U
+    val separate = transfer.sourceStride >= copy.bytes.U &&
+      (!destination.bufferedInput.B || transfer.destinationStride >= copy.destinationBytes.U)
+    val aligned = if (destination.bufferedInput) {
+      val alignment = if (copy.expansion == 1) params.beatBytes else destination.inputAlignment
+      val destinationAligned = ((transfer.destinationOffset | transfer.destinationStride) & (alignment - 1).U) === 0.U
+      val sourceAligned = if (copy.expansion == 1) {
+        (((source.baseAddress.U + transfer.sourceOffset) | transfer.sourceStride) & (params.beatBytes - 1).U) === 0.U
+      } else true.B
+      destinationAligned && sourceAligned
+    } else true.B
+    sourceEnd <= source.sizeBytes.U && destinationEnd <= destination.localBytes.U &&
+      transfer.bytesPerPixel <= copy.bytes.U && (!multipleSlots || separate) && aligned
+  }
+
+  def region(tile: AutoTile, shape: AutoRegion): AutoTile = {
+    val mapped = WireDefault(tile)
+    val row = tile.row * shape.rowStep
+    val column = tile.column * shape.columnStep
+    val endRow = ((tile.row +& tile.rows) * shape.rowStep).zext + shape.bottom.asSInt
+    val endColumn = ((tile.column +& tile.columns) * shape.columnStep).zext + shape.right.asSInt
+    val firstRow = Mux(row < shape.top, 0.U, row - shape.top)
+    val firstColumn = Mux(column < shape.left, 0.U, column - shape.left)
+    val lastRow = Mux(endRow > shape.rows.zext, shape.rows.zext, endRow)
+    val lastColumn = Mux(endColumn > shape.columns.zext, shape.columns.zext, endColumn)
+    when(shape.rows =/= 0.U) {
+      mapped.row := firstRow
+      mapped.column := firstColumn
+      mapped.rows := Mux(lastRow > firstRow.zext, (lastRow - firstRow.zext).asUInt, 0.U)
+      mapped.columns := Mux(lastColumn > firstColumn.zext, (lastColumn - firstColumn.zext).asUInt, 0.U)
+    }
+    mapped
+  }
+
+  def defaults(params: AutoLinkParams): Vec[AutoTransfer] = {
+    val values = WireDefault(0.U.asTypeOf(Vec(params.dependencies.size, new AutoTransfer(params))))
+    params.dependencies.zipWithIndex.foreach { case (dependency, index) =>
+      dependency.copy.foreach { copy =>
+        values(index).sourceOffset := copy.sourceOffset.U
+        values(index).destinationOffset := copy.destinationOffset.U
+      }
+    }
+    values
+  }
+}
+
 class AutoTileCursor(width: Int = 32) extends Module {
   require(width > 0)
 

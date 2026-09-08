@@ -78,11 +78,26 @@ class GemminiConvTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
   private def init(dut: GemminiConvTemplate): Unit = {
     dut.io.begin.valid.poke(false.B)
     dut.io.capture.valid.poke(false.B)
+    dut.io.copy.valid.poke(false.B)
     dut.io.start.poke(false.B)
     dut.io.request.job.poke(0.U)
     dut.io.request.start.poke(true.B)
     dut.io.watch.job.poke(0.U)
     dut.io.watchValid.poke(true.B)
+  }
+
+  private def copy(dut: GemminiConvTemplate, row: Int, column: Int,
+      rows: Int, columns: Int, bytes: Int = -1, address: BigInt = 0x60000, job: Int = 0): Unit = {
+    val tile = dut.io.request.tile
+    dut.io.copy.bits.job.poke(job.U)
+    dut.io.copy.bits.sourceAddress.poke(address.U)
+    dut.io.copy.bits.bytes.poke((if (bytes < 0) rows * columns * 3 else bytes).U)
+    dut.io.copy.bits.tile.poke(tile.peek())
+    pokeTile(dut.io.copy.bits.sourceTile, row, column, rows, columns)
+    dut.io.copy.bits.sourceTile.id.poke(tile.id.peek())
+    dut.io.copy.valid.poke(true.B)
+    dut.clock.step()
+    dut.io.copy.valid.poke(false.B)
   }
 
   private def request(dut: GemminiConvTemplate, row: Int, column: Int, rows: Int,
@@ -274,6 +289,69 @@ class GemminiConvTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
         dut.clock.step()
         dut.io.command.ready.poke(false.B)
       }
+    }
+  }
+
+  it should "bind compact upstream halos and consume each view exactly once" in {
+    val graph = auto.copy(
+      stages = Seq(AutoStageSpec("input", "cgra", 0), AutoStageSpec("conv", "gemmini", 0),
+        AutoStageSpec("output", "cgra", 1)),
+      dependencies = Seq(AutoDependencySpec(Some(0), 1, Some(AutoCopySpec(0, 0, 64))),
+        AutoDependencySpec(Some(1), 2, Some(AutoCopySpec(0, 0, 64)))),
+      endpoints = auto.endpoints.map(endpoint =>
+        if (endpoint.name == "cgra") endpoint.copy(buffer = Some(AutoBuffer(0x60000, 256))) else endpoint))
+    val linked = params.copy(auto = graph)
+    test(new GemminiConvTemplate(linked, native)) { dut =>
+      init(dut)
+      val original = commands(height = 7, width = 9)
+      val template = original.updated(5,
+        original(5).copy(rs2 = pack(5 -> 48, 8 -> 32, 8 -> 16, 1 -> 0)))
+      begin(dut, template)
+      for ((row, column, rows, columns, viewRow, viewColumn, viewRows, viewColumns, offset) <- Seq(
+        (2, 3, 2, 2, 0, 1, 6, 6, 21),
+        (0, 0, 2, 2, 0, 0, 3, 3, 0),
+        (6, 8, 1, 1, 5, 7, 2, 2, 0))) {
+        request(dut, row, column, rows, columns)
+        dut.io.requestValid.expect(false.B)
+        copy(dut, viewRow, viewColumn, viewRows, viewColumns)
+        dut.io.requestValid.expect(true.B)
+        dut.io.start.poke(true.B)
+        dut.clock.step()
+        dut.io.start.poke(false.B)
+        dut.io.requestValid.expect(false.B)
+        checkCommand(dut, template(2), pack(8 -> 48, 3 -> 32, viewRows -> 16, 1 -> 0),
+          pack(1 -> 56, 1 -> 48, columns -> 32, rows -> 16, rows -> 0))
+        pokeCommand(dut.io.command, template(4))
+        assert((dut.io.patched.rs2.peek().litValue & 65535) == viewColumns)
+        checkCommand(dut, template(5), pack(rows -> 48, 1 -> 0),
+          pack(3 -> 48, 8 -> 32, 8 -> 16, columns -> 0))
+        checkCommand(dut, template(7), 1, 0x60000 + offset)
+      }
+      request(dut, 2, 3, 2, 2)
+      copy(dut, 1, 2, 3, 4)
+      dut.io.requestValid.expect(false.B)
+      copy(dut, 1, 2, 4, 4, bytes = 47)
+      dut.io.requestValid.expect(false.B)
+      copy(dut, 1, 2, 4, 4, address = (BigInt(1) << 64) - 32)
+      dut.io.requestValid.expect(false.B)
+      copy(dut, 1, 2, 4, 4, address = 0x10000)
+      dut.io.requestValid.expect(false.B)
+      copy(dut, 1, 2, 4, 4, job = 1)
+      dut.io.requestValid.expect(false.B)
+      copy(dut, 1, 2, 4, 4)
+      request(dut, 2, 4, 2, 2)
+      dut.io.requestValid.expect(false.B)
+      begin(dut, template)
+      request(dut, 2, 3, 2, 2)
+      dut.io.requestValid.expect(false.B)
+
+      begin(dut, commands(height = 9, width = 9, stride = 2))
+      request(dut, 1, 1, 1, 1)
+      // Native DMA includes one extra column and row for stride two.
+      copy(dut, 1, 1, 3, 3)
+      dut.io.requestValid.expect(false.B)
+      copy(dut, 1, 1, 4, 4)
+      dut.io.requestValid.expect(true.B)
     }
   }
 }

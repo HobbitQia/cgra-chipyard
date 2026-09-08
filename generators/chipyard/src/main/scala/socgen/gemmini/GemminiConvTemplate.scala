@@ -50,15 +50,19 @@ class GemminiConvBinding extends Bundle {
   val bottom = UInt(8.W)
   val input = UInt(64.W)
   val output = UInt(64.W)
+  val inputRows = UInt(16.W)
+  val inputColumns = UInt(16.W)
+  val inputStride = UInt(16.W)
 }
 
-/** Binds a captured origin-zero native Conv to a full-image input view. */
+/** Binds a captured native Conv to a full image or compact upstream view. */
 class GemminiConvTemplate(params: GemminiLinkParams, native: GemminiConvParams)(implicit p: Parameters)
     extends Module {
   val io = IO(new Bundle {
     val begin = Flipped(Valid(new GemminiLinkConfig(params)))
     val capture = Flipped(Valid(new RoCCCommand))
     val captureValid = Output(Bool())
+    val copy = Flipped(Valid(new AutoCopyRequest(params.auto)))
     val request = Input(new AutoComputeRequest(params.auto))
     val start = Input(Bool())
     val watch = Input(new AutoWatch(params.auto))
@@ -72,6 +76,8 @@ class GemminiConvTemplate(params: GemminiLinkParams, native: GemminiConvParams)(
   val enabled = RegInit(VecInit(Seq.fill(params.jobCount)(false.B)))
   val seen = RegInit(VecInit(Seq.fill(params.jobCount)(0.U(7.W))))
   val failed = RegInit(VecInit(Seq.fill(params.jobCount)(false.B)))
+  val view = Reg(new AutoCopyRequest(params.auto))
+  val viewValid = RegInit(false.B)
   val captureJob = RegInit(0.U(params.jobIndexWidth.W))
   def selected[T <: Data](values: Vec[T], job: UInt): T = {
     if (params.jobCount == 1) values.head else values(job(params.jobIndexWidth - 1, 0))
@@ -85,12 +91,18 @@ class GemminiConvTemplate(params: GemminiLinkParams, native: GemminiConvParams)(
   val rs2 = io.capture.bits.rs2
 
   when(io.begin.valid) {
+    viewValid := false.B
     captureJob := io.begin.bits.job
     selected(enabled, io.begin.bits.job) := io.begin.bits.convTemplate
     selected(seen, io.begin.bits.job) := 0.U
     selected(failed, io.begin.bits.job) := false.B
     selected(shapes, io.begin.bits.job) := 0.U.asTypeOf(new GemminiConvShape)
   }
+  when(io.copy.valid) {
+    view := io.copy.bits
+    viewValid := true.B
+  }
+  when(io.start) { viewValid := false.B }
   when(io.capture.valid && captureEnabled) {
     val isConfig = funct >= LOOP_CONV_WS_CONFIG_1 && funct <= LOOP_CONV_WS_CONFIG_6
     val isLaunch = funct === LOOP_CONV_WS
@@ -198,10 +210,33 @@ class GemminiConvTemplate(params: GemminiLinkParams, native: GemminiConvParams)(
     x + spanColumns.zext - current.columns.zext, 0.S).asUInt
   val sourceRow = Mux(y < 0.S, 0.S, y).asUInt
   val sourceColumn = Mux(x < 0.S, 0.S, x).asUInt
-  val inputOffset = (sourceRow * current.columns +& sourceColumn) * current.inputStride
-  val inputAddress = current.input +& inputOffset
-  val inputBytes = current.rows * current.columns * current.inputStride
-  val inputEnd = current.input +& inputBytes
+  val needsView = VecInit((0 until params.jobCount).map { job =>
+    params.auto.dependencies.exists { dependency =>
+      val stage = params.auto.stage(dependency.destination)
+      stage.endpoint == "gemmini" && stage.job == job && dependency.copy.nonEmpty
+    }.B
+  })
+  val source = view.sourceTile
+  val inputBase = Mux(viewValid, view.sourceAddress, current.input)
+  val inputRows = Mux(viewValid, source.rows, current.rows)
+  val inputColumns = Mux(viewValid, source.columns, current.columns)
+  val inputStride = Mux(viewValid, current.inputs, current.inputStride)
+  val localRow = sourceRow - Mux(viewValid, source.row, 0.U)
+  val localColumn = sourceColumn - Mux(viewValid, source.column, 0.U)
+  val inputOffset = (localRow * inputColumns +& localColumn) * inputStride
+  val inputAddress = inputBase +& inputOffset
+  val inputBytes = inputRows * inputColumns * inputStride
+  val inputEnd = inputBase +& inputBytes
+  val viewMatches = view.job === io.request.job && view.tile.asUInt === tile.asUInt &&
+    source.id === tile.id && source.rows =/= 0.U && source.rows <= 65535.U &&
+    source.columns =/= 0.U && source.columns <= 65535.U &&
+    (source.row +& source.rows) <= current.rows &&
+    (source.column +& source.columns) <= current.columns &&
+    source.row <= sourceRow && source.column <= sourceColumn &&
+    (source.row +& source.rows) >= sourceRow +& (spanRows - top - bottom) &&
+    (source.column +& source.columns) >= sourceColumn +& (spanColumns - left - right) &&
+    view.bytes === inputBytes && inputBase =/= 0.U
+  val viewReady = Mux(viewValid, viewMatches, !selected(needsView, io.request.job))
   val bytes = rows * columns * current.outputs
   val outputEnd = io.watch.address +& bytes
   val aRows = ((current.inputs +& (native.dim - 1).U) >> log2Ceil(native.dim)) * spanRows * spanColumns
@@ -216,13 +251,13 @@ class GemminiConvTemplate(params: GemminiLinkParams, native: GemminiConvParams)(
   val bStart = bEnd - bRows * rowBytes.U
   def disjoint(start: UInt, end: UInt, otherStart: UInt, otherEnd: UInt): Bool =
     end <= otherStart || start >= otherEnd
-  val inputSafe = disjoint(current.input, inputEnd, aStart, aEnd) &&
-    disjoint(current.input, inputEnd, bStart, bEnd)
+  val inputSafe = disjoint(inputBase, inputEnd, aStart, aEnd) &&
+    disjoint(inputBase, inputEnd, bStart, bEnd)
   val outputSafe = io.watch.address >= native.spmBase.U &&
     outputEnd <= (native.spmBase + native.spmBytes).U &&
     disjoint(io.watch.address, outputEnd, aStart, aEnd) &&
     disjoint(io.watch.address, outputEnd, bStart, bEnd) &&
-    disjoint(io.watch.address, outputEnd, current.input, inputEnd)
+    disjoint(io.watch.address, outputEnd, inputBase, inputEnd)
   val boundsValid = tile.rows =/= 0.U && tile.rows <= 65535.U &&
     tile.columns =/= 0.U && tile.columns <= 65535.U &&
     y + ((rows - 1.U) * current.stride).zext + extent.zext < (current.rows +& current.padding).zext &&
@@ -237,7 +272,8 @@ class GemminiConvTemplate(params: GemminiLinkParams, native: GemminiConvParams)(
     inputSafe && outputSafe
   val watchMatches = io.watchValid && io.watch.job === io.request.job &&
     io.watch.tile.asUInt === tile.asUInt && io.watch.bytes === bytes && bytes <= params.publicationBytes.U
-  io.requestValid := !selected(enabled, io.request.job) || (boundsValid && storageValid && watchMatches)
+  io.requestValid := !selected(enabled, io.request.job) ||
+    (boundsValid && storageValid && watchMatches && viewReady)
   bind.rows := rows
   bind.columns := columns
   bind.left := left
@@ -246,6 +282,9 @@ class GemminiConvTemplate(params: GemminiLinkParams, native: GemminiConvParams)(
   bind.bottom := bottom
   bind.input := inputAddress
   bind.output := io.watch.address
+  bind.inputRows := inputRows
+  bind.inputColumns := inputColumns
+  bind.inputStride := inputStride
 
   val active = RegInit(false.B)
   val binding = Reg(new GemminiConvBinding)
@@ -258,6 +297,7 @@ class GemminiConvTemplate(params: GemminiLinkParams, native: GemminiConvParams)(
     val command = io.command
     switch(command.inst.funct) {
       is(LOOP_CONV_WS_CONFIG_1) {
+        io.patched.rs1 := Cat(command.rs1(63, 32), binding.inputRows, command.rs1(15, 0))
         io.patched.rs2 := Cat(command.rs2(63, 48), binding.columns, binding.rows, binding.rows)
       }
       is(LOOP_CONV_WS_CONFIG_2) {
@@ -266,11 +306,11 @@ class GemminiConvTemplate(params: GemminiLinkParams, native: GemminiConvParams)(
       }
       is(LOOP_CONV_WS_CONFIG_3) {
         io.patched.rs1 := Cat(command.rs1(63, 16), binding.left)
-        io.patched.rs2 := Cat(binding.right, binding.top, binding.bottom, command.rs2(23, 0))
+        io.patched.rs2 := Cat(binding.right, binding.top, binding.bottom, command.rs2(23, 16), binding.inputColumns)
       }
       is(LOOP_CONV_WS_CONFIG_4) {
         io.patched.rs1 := Cat(binding.rows, command.rs1(47, 0))
-        io.patched.rs2 := Cat(command.rs2(63, 16), binding.columns)
+        io.patched.rs2 := Cat(binding.inputStride, command.rs2(47, 16), binding.columns)
       }
       is(LOOP_CONV_WS_CONFIG_5) { io.patched.rs2 := binding.output }
       is(LOOP_CONV_WS_CONFIG_6) { io.patched.rs2 := binding.input }

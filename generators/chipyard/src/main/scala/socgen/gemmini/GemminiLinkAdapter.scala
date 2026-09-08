@@ -164,6 +164,8 @@ class GemminiLinkAdapter(params: GemminiLinkParams, convParams: Option[GemminiCo
     binding.io.begin.bits := io.configIn.bits
     binding.io.capture.valid := capture && io.cpuCommand.fire
     binding.io.capture.bits := io.cpuCommand.bits
+    binding.io.copy.valid := io.autoLink.requestCopy.fire
+    binding.io.copy.bits := io.autoLink.requestCopy.bits
     binding.io.request := io.autoLink.requestCompute.bits
     binding.io.start := io.autoLink.requestCompute.fire
     binding.io.watch := watch
@@ -210,7 +212,8 @@ class GemminiLinkAdapter(params: GemminiLinkParams, convParams: Option[GemminiCo
   io.autoLink.reportCopy.bits.detail := copyDetail
   io.autoLink.requestCompute.ready :=
     (execState === ExecState.idle || execState === ExecState.waitCompute) &&
-      configState === ConfigState.idle && !io.configIn.valid && !io.autoLink.watchOutput.fire
+      configState === ConfigState.idle && !io.configIn.valid && !io.autoLink.watchOutput.fire &&
+      !io.autoLink.requestCopy.fire
   io.autoLink.reportCompute.valid := execState === ExecState.reportCompute
   io.autoLink.reportCompute.bits := computeResult
 

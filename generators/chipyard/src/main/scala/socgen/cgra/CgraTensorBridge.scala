@@ -16,7 +16,7 @@ case class CgraTensorBridgeParams(
     outboundScale: CgraRequantParams,
     inboundScale: CgraRequantParams) {
   require(outboundSpmWord >= 0 && outboundWords > 0)
-  require(inboundSpmWord >= 0 && inboundWords > 0)
+  require(inboundSpmWord >= 0 && inboundWords >= 0)
 }
 
 object CgraRequant {

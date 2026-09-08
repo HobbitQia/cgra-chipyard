@@ -30,6 +30,7 @@ object PoolCommand {
   val Start = 7
   val Wait = 8
   val Mode = 9
+  val Template = 10
 }
 
 object PoolMode {
@@ -50,6 +51,7 @@ object PoolStatus {
 }
 
 class PoolJob(params: PoolParams) extends Bundle {
+  val tiled = Bool()
   val mode = UInt(PoolMode.Width.W)
   val source = UInt(params.addressBits.W)
   val destination = UInt(params.addressBits.W)
@@ -61,8 +63,11 @@ class PoolJob(params: PoolParams) extends Bundle {
   val kernelWidth = UInt(params.dimensionBits.W)
   val strideHeight = UInt(params.dimensionBits.W)
   val strideWidth = UInt(params.dimensionBits.W)
+  // The CPU padding command sets matching top/bottom and left/right values.
   val padHeight = UInt(params.dimensionBits.W)
   val padWidth = UInt(params.dimensionBits.W)
+  val padBottom = UInt(params.dimensionBits.W)
+  val padRight = UInt(params.dimensionBits.W)
 }
 
 class PoolEvent extends Bundle {
@@ -137,8 +142,8 @@ class PoolEngine(params: PoolParams, beatBits: Int) extends Module {
   io.dma.writeRequest <> writeDma.io.request
   writeDma.io.response <> io.dma.writeResponse
 
-  val paddedHeight = io.job.bits.inputHeight + (io.job.bits.padHeight << 1)
-  val paddedWidth = io.job.bits.inputWidth + (io.job.bits.padWidth << 1)
+  val paddedHeight = io.job.bits.inputHeight +& io.job.bits.padHeight +& io.job.bits.padBottom
+  val paddedWidth = io.job.bits.inputWidth +& io.job.bits.padWidth +& io.job.bits.padRight
   val nextOutputHeight =
     (paddedHeight - io.job.bits.kernelHeight) / io.job.bits.strideHeight + 1.U
   val nextOutputWidth =
