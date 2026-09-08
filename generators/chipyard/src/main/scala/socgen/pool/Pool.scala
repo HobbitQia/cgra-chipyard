@@ -53,6 +53,7 @@ class PoolJob(params: PoolParams) extends Bundle {
   val mode = UInt(PoolMode.Width.W)
   val source = UInt(params.addressBits.W)
   val destination = UInt(params.addressBits.W)
+  val outputStride = UInt(params.addressBits.W)
   val inputHeight = UInt(params.dimensionBits.W)
   val inputWidth = UInt(params.dimensionBits.W)
   val channels = UInt(params.dimensionBits.W)
@@ -145,11 +146,13 @@ class PoolEngine(params: PoolParams, beatBits: Int) extends Module {
   val nextGroups = (io.job.bits.channels + (laneCount - 1).U) / laneCount.U
   val inputElements = io.job.bits.inputHeight * io.job.bits.inputWidth * io.job.bits.channels
   val outputElements = nextOutputHeight * nextOutputWidth * io.job.bits.channels
+  val rowElements = nextOutputWidth * io.job.bits.channels
+  val rowBytes = rowElements << log2Ceil(params.elementBytes)
+  val rowStride = Mux(io.job.bits.outputStride === 0.U, rowBytes, io.job.bits.outputStride)
   val inputBytes = inputElements << log2Ceil(params.elementBytes)
-  val outputBytes = outputElements << log2Ceil(params.elementBytes)
+  val outputSpan = (nextOutputHeight - 1.U) * rowStride +& rowBytes
   val sourceEnd = io.job.bits.source.pad(params.addressBits + 1) + inputBytes.pad(params.addressBits + 1)
-  val destinationEnd =
-    io.job.bits.destination.pad(params.addressBits + 1) + outputBytes.pad(params.addressBits + 1)
+  val destinationEnd = io.job.bits.destination +& outputSpan
   val rangesOverlap = io.job.bits.source.pad(params.addressBits + 1) < destinationEnd &&
     io.job.bits.destination.pad(params.addressBits + 1) < sourceEnd
   val lineEntries = ((io.job.bits.kernelHeight - 1.U) * io.job.bits.inputWidth +
@@ -161,9 +164,12 @@ class PoolEngine(params: PoolParams, beatBits: Int) extends Module {
     paddedHeight >= io.job.bits.kernelHeight && paddedWidth >= io.job.bits.kernelWidth
   val addressValid =
     (io.job.bits.source & (params.elementBytes - 1).U) === 0.U &&
-      (io.job.bits.destination & (params.elementBytes - 1).U) === 0.U
+      (io.job.bits.destination & (params.elementBytes - 1).U) === 0.U &&
+      (rowStride & (params.elementBytes - 1).U) === 0.U &&
+      sourceEnd <= (BigInt(1) << params.addressBits).U &&
+      destinationEnd <= (BigInt(1) << params.addressBits).U
   val validJob = shapeValid && addressValid &&
-    lineEntries <= params.lineBufferEntries.U && !rangesOverlap
+    rowStride >= rowBytes && lineEntries <= params.lineBufferEntries.U && !rangesOverlap
   val supportedJob = io.job.bits.mode === PoolMode.Max
   val startJob = io.job.fire && validJob && supportedJob
 
@@ -205,6 +211,8 @@ class PoolEngine(params: PoolParams, beatBits: Int) extends Module {
   splitter.io.start := startJob
   splitter.io.destination := io.job.bits.destination
   splitter.io.elementCount := outputElements
+  splitter.io.rowElements := rowElements
+  splitter.io.rowStride := rowStride
   splitter.io.input.valid := outputQueue.io.deq.valid && state === State.waitOutput
   splitter.io.input.bits := outputQueue.io.deq.bits
   outputQueue.io.deq.ready := splitter.io.input.ready && state === State.waitOutput

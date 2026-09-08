@@ -84,6 +84,7 @@ class PoolAcceleratorImp(outer: PoolAccelerator, params: PoolParams)(implicit p:
       }
       is(PoolCommand.Destination.U) {
         configuredJob.destination := cmd.bits.rs1
+        configuredJob.outputStride := cmd.bits.rs2
       }
       is(PoolCommand.Shape.U) {
         configuredJob.inputHeight := cmd.bits.rs1

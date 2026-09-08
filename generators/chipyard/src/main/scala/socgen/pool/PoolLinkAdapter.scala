@@ -136,8 +136,11 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
         val outputHeight = (paddedHeight - activeJob.kernelHeight) / activeJob.strideHeight + 1.U
         val outputWidth = (paddedWidth - activeJob.kernelWidth) / activeJob.strideWidth + 1.U
         val outputBytes = outputHeight * outputWidth * activeJob.channels * params.elementBytes.U
+        val rowBytes = outputWidth * activeJob.channels * params.elementBytes.U
+        val contiguous = outputHeight === 1.U || activeJob.outputStride === 0.U ||
+          activeJob.outputStride === rowBytes
         val addressValid = activeJob.destination === watch.get.address
-        val lengthValid = outputBytes === watch.get.bytes
+        val lengthValid = outputBytes === watch.get.bytes && contiguous
         publicationStatus := Mux(
           io.jobDone.bits.status =/= PoolStatus.Success,
           io.jobDone.bits.status,

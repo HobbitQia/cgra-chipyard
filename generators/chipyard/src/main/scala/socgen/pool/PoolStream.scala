@@ -174,6 +174,8 @@ class PoolWriteSplitter(params: PoolParams, beatBits: Int) extends Module {
     val start = Input(Bool())
     val destination = Input(UInt(params.addressBits.W))
     val elementCount = Input(UInt(params.addressBits.W))
+    val rowElements = Input(UInt(params.addressBits.W))
+    val rowStride = Input(UInt(params.addressBits.W))
     val cancel = Input(Bool())
     val input = Flipped(Decoupled(new PoolOutput(params, beatBits)))
     val output = Decoupled(new PoolWriteBeat(params, beatBits))
@@ -182,6 +184,10 @@ class PoolWriteSplitter(params: PoolParams, beatBits: Int) extends Module {
   val active = RegInit(false.B)
   val address = Reg(UInt(params.addressBits.W))
   val remaining = Reg(UInt(params.addressBits.W))
+  val rowElements = Reg(UInt(params.addressBits.W))
+  val rowRemaining = Reg(UInt(params.addressBits.W))
+  val rowStart = Reg(UInt(params.addressBits.W))
+  val rowStride = Reg(UInt(params.addressBits.W))
   val beatValid = RegInit(false.B)
   val second = RegInit(false.B)
   val crosses = RegInit(false.B)
@@ -216,7 +222,15 @@ class PoolWriteSplitter(params: PoolParams, beatBits: Int) extends Module {
     logicalLast := remaining === laneCount
     beatValid := true.B
     second := false.B
-    address := address + byteCount
+    // Reducer chunks end within a pixel, so a chunk cannot cross an output row.
+    when(rowRemaining === laneCount) {
+      address := rowStart + rowStride
+      rowStart := rowStart + rowStride
+      rowRemaining := rowElements
+    }.otherwise {
+      address := address + byteCount
+      rowRemaining := rowRemaining - laneCount
+    }
     remaining := remaining - laneCount
   }
   when(io.output.fire) {
@@ -238,6 +252,10 @@ class PoolWriteSplitter(params: PoolParams, beatBits: Int) extends Module {
     active := true.B
     address := io.destination
     remaining := io.elementCount
+    rowElements := io.rowElements
+    rowRemaining := io.rowElements
+    rowStart := io.destination
+    rowStride := io.rowStride
     beatValid := false.B
     second := false.B
   }
