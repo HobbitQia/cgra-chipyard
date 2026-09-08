@@ -58,6 +58,7 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       val patchCount = RegInit(0.U(32.W))
       val symbol = RegInit(0.U.asTypeOf(new CgraSymbolConfig))
       val patch = RegInit(0.U.asTypeOf(new CgraPatchConfig))
+      val writeback = RegInit(0.U.asTypeOf(new CgraWritebackConfig))
       val symbolPush = Wire(Decoupled(UInt(1.W)))
       val patchPush = Wire(Decoupled(UInt(1.W)))
       val configSubmit = Wire(Decoupled(UInt(1.W)))
@@ -72,6 +73,7 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       configOut.bits.expectedCompletions := expectedCompletions
       configOut.bits.symbolCount := symbolCount
       configOut.bits.patchCount := patchCount
+      configOut.bits.writeback := writeback
       configSubmit.ready := Mux(configSubmit.bits.asBool, configOut.ready && !configPending, true.B)
       configAck.ready := true.B
       symbolOut.valid := symbolPush.valid && symbolPush.bits.asBool
@@ -82,6 +84,7 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       patchPush.ready := Mux(patchPush.bits.asBool, patchOut.ready, true.B)
 
       when(configOut.fire) {
+        writeback.enabled := false.B
         configPending := true.B
         configReady := false.B
         configDone := false.B
@@ -135,13 +138,19 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
         PATCH_COUNT -> Seq(RegField(32, patchCount)),
         SYMBOL_BASE -> Seq(RegField(32, symbol.base)),
         SYMBOL_STRIDE -> Seq(RegField(32, symbol.stride)),
-        SYMBOL_SOURCE -> Seq(RegField(1, symbol.source)),
+        SYMBOL_SOURCE -> Seq(RegField(CgraSymbolSource.Width, symbol.source)),
         SYMBOL_PUSH -> Seq(RegField.w(1, symbolPush)),
         PATCH_PACKET -> Seq(RegField(32, patch.packetIndex)),
         PATCH_SYMBOL -> Seq(RegField(32, patch.symbolIndex)),
         PATCH_SCALE -> Seq(RegField(32, patch.scale)),
         PATCH_OFFSET -> Seq(RegField(32, patch.offset)),
-        PATCH_PUSH -> Seq(RegField.w(1, patchPush)))
+        PATCH_PUSH -> Seq(RegField.w(1, patchPush)),
+        OUT_ENABLE -> Seq(RegField(1, writeback.enabled)),
+        OUT_ADDRESS -> Seq(RegField(64, writeback.address)),
+        OUT_WORD -> Seq(RegField(32, writeback.word)),
+        OUT_SLOT_STRIDE -> Seq(RegField(32, writeback.slotStride)),
+        OUT_CHANNELS -> Seq(RegField(32, writeback.channels)),
+        OUT_ROW_STRIDE -> Seq(RegField(32, writeback.rowStride)))
     }
   }
 }

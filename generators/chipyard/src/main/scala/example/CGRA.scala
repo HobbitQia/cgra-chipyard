@@ -2,8 +2,8 @@ package chipyard.example
 
 import chisel3._
 import chisel3.util._
-import chipyard.socgen.cgra.{CgraDmaTensorBridge, CgraLinkAdapter, CgraLinkConfigAsync, CgraLinkKey, CgraPackedReader, CgraReadRequest, CgraPacketArbiter, CgraResetController, CgraSpmManager, CgraTensorBridgeParams}
-import chipyard.socgen.link.AutoEndpointAsyncLink
+import chipyard.socgen.cgra.{CgraDmaTensorBridge, CgraLinkAdapter, CgraLinkConfigAsync, CgraLinkKey, CgraPackedReader, CgraReadRequest, CgraPacketArbiter, CgraResetController, CgraSpmManager, CgraSpmReadArbiter, CgraTensorBridgeParams, CgraWriteback}
+import chipyard.socgen.link.{AutoEndpointAsyncLink, AutoLinkStatus}
 
 import org.chipsalliance.cde.config.{Parameters, Field, Config}
 import freechips.rocketchip.tile._
@@ -515,6 +515,12 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   val dmaRequant = outer.spmWindow.flatMap(_.bridge).map(_ => RegInit(false.B))
   val dmaPacked = RegInit(false.B)
+  val writeback = for {
+    link <- outer.linkParams
+    window <- outer.spmWindow
+  } yield Module(new CgraWriteback(link, window))
+  val writebackBusy = writeback.map(_.io.busy).getOrElse(false.B)
+  val writebackReady = WireDefault(false.B)
   val packedReader = outer.dmaAdapter.map { _ =>
     val reader = Module(new CgraPackedReader(params.dma.dramDataWidth,
       params.dma.dramAddrWidth, params.dma.nbytesWidth))
@@ -526,9 +532,9 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   outer.dmaAdapter.foreach { adapter =>
     val dmaAdapter = adapter.module.io
     val reader = packedReader.get.io
-    reader.nativeReq.valid := cgra.io.send_to_dram_rd_req_val.get
+    reader.nativeReq.valid := cgra.io.send_to_dram_rd_req_val.get && !writebackBusy
     reader.nativeReq.bits := cgra.io.send_to_dram_rd_req_addr.get
-    cgra.io.send_to_dram_rd_req_rdy.get := reader.nativeReq.ready
+    cgra.io.send_to_dram_rd_req_rdy.get := reader.nativeReq.ready && !writebackBusy
     dmaAdapter.readReq <> reader.memoryReq
     reader.memoryResp <> dmaAdapter.readResp
     outer.spmWindow.flatMap(_.bridge) match {
@@ -555,11 +561,28 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     cgra.io.recv_from_dram_wr_resp_val.get := dmaAdapter.writeResp.valid
     cgra.io.recv_from_dram_wr_resp_msg.get := dmaAdapter.writeResp.bits
     dmaAdapter.writeResp.ready := cgra.io.recv_from_dram_wr_resp_rdy.get
+    writeback.foreach { writer =>
+      // Ownership lasts through the final acknowledgement and held completion.
+      writer.io.writeReq.ready := dmaAdapter.writeReq.ready && writebackBusy
+      writer.io.writeResp.valid := dmaAdapter.writeResp.valid && writebackBusy
+      writer.io.writeResp.bits := dmaAdapter.writeResp.bits
+      when(writebackBusy) {
+        dmaAdapter.writeReq <> writer.io.writeReq
+        dmaAdapter.writeResp.ready := writer.io.writeResp.ready
+        cgra.io.send_to_dram_wr_req_rdy.get := false.B
+        cgra.io.recv_from_dram_wr_resp_val.get := false.B
+      }
+    }
   }
   val spmReadBusy = WireDefault(false.B)
   outer.spmManager match {
     case Some(manager) =>
-      val spm = manager.module.io
+      val spm = writeback.map { writer =>
+        val arbiter = Module(new CgraSpmReadArbiter(params.spmRead))
+        arbiter.io.clients(0) <> manager.module.io
+        arbiter.io.clients(1) <> writer.io.spm
+        arbiter.io.spm
+      }.getOrElse(manager.module.io)
       cgra.io.recv_from_ext_spm_rd_req_val.get := spm.req.valid
       cgra.io.recv_from_ext_spm_rd_req_addr.get := spm.req.bits
       spm.req.ready := cgra.io.recv_from_ext_spm_rd_req_rdy.get
@@ -595,6 +618,23 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       adapter.io.autoLink.reportCompute,
       AsyncQueueParams.singleton())
     adapter
+  }
+  val writebackPending = linkAdapter.map(_.io.writeback.valid).getOrElse(false.B)
+  linkAdapter.foreach { adapter =>
+    writeback match {
+      case Some(writer) =>
+        writer.io.request.valid := adapter.io.writeback.valid && writebackReady
+        writer.io.request.bits := adapter.io.writeback.bits
+        adapter.io.writeback.ready := writer.io.request.ready && writebackReady
+        adapter.io.writebackDone <> writer.io.done
+      case None =>
+        val rejected = RegInit(false.B)
+        adapter.io.writeback.ready := !rejected
+        adapter.io.writebackDone.valid := rejected
+        adapter.io.writebackDone.bits := AutoLinkStatus.ConfigFailure
+        when(adapter.io.writeback.fire) { rejected := true.B }
+        when(adapter.io.writebackDone.fire) { rejected := false.B }
+    }
   }
   linkAdapter match {
     case Some(adapter) => resetController.io.autoRequest <> adapter.io.resetRequest
@@ -748,9 +788,9 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   }
   packetFifo.io.enq <> packetInputArbiter.io.out
 
-  cgra.io.recv_from_cpu_pkt_val := packetFifo.io.deq.valid
+  cgra.io.recv_from_cpu_pkt_val := packetFifo.io.deq.valid && !writebackBusy
   cgra.io.recv_from_cpu_pkt_msg := packetFifo.io.deq.bits
-  packetFifo.io.deq.ready := cgra.io.recv_from_cpu_pkt_rdy
+  packetFifo.io.deq.ready := cgra.io.recv_from_cpu_pkt_rdy && !writebackBusy
 
   val packetFifoEmpty = !packetFifo.io.deq.valid
   val completesPacket = if (needsRawPktTop) isRawPktTop else isRawPktHi
@@ -1150,17 +1190,22 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   // ---- RoCC Command Ready ----
   val dmaIssueReady = !dmaInFlight && !dmaDoneValid && !dmaSeqActive &&
-                      !dmaAdapterBusy && !linkDmaDonePending
+                      !dmaAdapterBusy && !linkDmaDonePending && !writebackBusy && !writebackPending
+  // Acquire the existing DMA only after previously issued native traffic drains.
+  writebackReady := !dmaInFlight && !dmaSeqActive && !dmaAdapterBusy &&
+                    !linkDmaDonePending && packetFifoEmpty && !packetInputArbiter.io.out.valid &&
+                    !expectLoadResponse && !cgra.io.send_to_cpu_pkt_val && state === s_idle && !respValid
   // Completed results live in the wrapper and survive the local CGRA reset.
   localResetSafe := packetFifoEmpty && !packetInputArbiter.io.out.valid &&
                     !dmaSeqActive && !dmaInFlight && !dmaAdapterBusy &&
-                    !expectLoadResponse && !spmReadBusy &&
+                    !expectLoadResponse && !spmReadBusy && !writebackBusy && !writebackPending &&
                     !cgra.io.send_to_cpu_pkt_val
   linkAdapter.foreach { adapter =>
     adapter.io.dmaRequest.ready := dmaIssueReady && state === s_idle &&
       !respValid && !cmd.valid
   }
-  cmd.ready := !resetController.io.holdCpu && (state === s_idle) && !respValid && !dmaSeqActive &&
+  cmd.ready := !resetController.io.holdCpu && !writebackBusy && !writebackPending &&
+               (state === s_idle) && !respValid && !dmaSeqActive &&
                (!completesPacket || (!linkCaptureActive && cpuPacketCandidate.ready)) &&
                (!completesSpmPacket || linkPacketCandidate.ready) &&
                (!isDmaIssue || dmaIssueReady)
@@ -1177,7 +1222,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   // ---- RoCC Busy / Interrupt ----
   io.busy := cmd.valid || cgraBusy || packetFifo.io.deq.valid ||
-             dmaSeqActive || dmaInFlight || dmaAdapterBusy ||
+             dmaSeqActive || dmaInFlight || dmaAdapterBusy || writebackBusy || writebackPending ||
              (state =/= s_idle)
   io.interrupt := false.B
 

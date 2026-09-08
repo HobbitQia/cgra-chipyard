@@ -48,6 +48,8 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.jobPacket.ready.poke(false.B)
     dut.io.resetRequest.ready.poke(true.B)
     dut.io.computeResult.valid.poke(false.B)
+    dut.io.writeback.ready.poke(false.B)
+    dut.io.writebackDone.valid.poke(false.B)
   }
 
   private def ack(dut: CgraLinkAdapter, done: Boolean, detail: Int): Unit = {
@@ -61,12 +63,18 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.configAck.ready.poke(false.B)
   }
 
-  private def begin(dut: CgraLinkAdapter, symbolCount: Int, patchCount: Int): Unit = {
+  private def begin(dut: CgraLinkAdapter, symbolCount: Int, patchCount: Int, writeback: Boolean = false): Unit = {
     dut.io.configIn.bits.job.poke(0.U)
     dut.io.configIn.bits.packetCount.poke(template.size.U)
     dut.io.configIn.bits.expectedCompletions.poke(1.U)
     dut.io.configIn.bits.symbolCount.poke(symbolCount.U)
     dut.io.configIn.bits.patchCount.poke(patchCount.U)
+    dut.io.configIn.bits.writeback.enabled.poke(writeback.B)
+    dut.io.configIn.bits.writeback.address.poke(0x80001000L.U)
+    dut.io.configIn.bits.writeback.word.poke(16.U)
+    dut.io.configIn.bits.writeback.slotStride.poke(32.U)
+    dut.io.configIn.bits.writeback.channels.poke(4.U)
+    dut.io.configIn.bits.writeback.rowStride.poke(24.U)
     dut.io.configIn.valid.poke(true.B)
     dut.io.configIn.ready.expect(true.B)
     dut.clock.step()
@@ -79,8 +87,9 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut: CgraLinkAdapter,
     symbols: Seq[(Int, Int, Int)],
     patches: Seq[(Int, Int, Int, Int)],
-    detail: Int = 0): Unit = {
-    begin(dut, symbols.size, patches.size)
+    detail: Int = 0,
+    writeback: Boolean = false): Unit = {
+    begin(dut, symbols.size, patches.size, writeback)
     ack(dut, done = false, detail = 0)
     for ((base, stride, source) <- symbols) {
       dut.io.packetIn.ready.expect(false.B)
@@ -139,10 +148,15 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.clock.step()
   }
 
-  private def compute(dut: CgraLinkAdapter, id: Int, expected: Seq[BigInt]): Unit = {
+  private def replay(dut: CgraLinkAdapter, id: Int, expected: Seq[BigInt]): Unit = {
     dut.io.autoLink.requestCompute.bits.job.poke(0.U)
     dut.io.autoLink.requestCompute.bits.start.poke(true.B)
     dut.io.autoLink.requestCompute.bits.tile.id.poke(id.U)
+    dut.io.autoLink.requestCompute.bits.tile.row.poke(1.U)
+    dut.io.autoLink.requestCompute.bits.tile.column.poke(2.U)
+    dut.io.autoLink.requestCompute.bits.tile.rows.poke(2.U)
+    dut.io.autoLink.requestCompute.bits.tile.columns.poke(1.U)
+    dut.io.autoLink.requestCompute.bits.tile.last.poke(true.B)
     dut.io.autoLink.requestCompute.valid.poke(true.B)
     dut.io.autoLink.requestCompute.ready.expect(true.B)
     dut.clock.step()
@@ -167,12 +181,22 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.computeResult.ready.expect(true.B)
     dut.clock.step()
     dut.io.computeResult.valid.poke(false.B)
+  }
+
+  private def report(dut: CgraLinkAdapter, status: UInt = AutoLinkStatus.Success): Unit = {
     dut.io.autoLink.reportCompute.valid.expect(true.B)
-    dut.io.autoLink.reportCompute.bits.status.expect(AutoLinkStatus.Success)
+    dut.io.autoLink.reportCompute.bits.status.expect(status)
+    dut.io.autoLink.reportCompute.bits.data.expect(7.U)
     dut.clock.step(2)
     dut.io.autoLink.reportCompute.ready.poke(true.B)
     dut.clock.step()
     dut.io.autoLink.reportCompute.ready.poke(false.B)
+  }
+
+  private def compute(dut: CgraLinkAdapter, id: Int, expected: Seq[BigInt]): Unit = {
+    replay(dut, id, expected)
+    dut.io.writeback.valid.expect(false.B)
+    report(dut)
   }
 
   behavior of "Cgra cached templates"
@@ -229,6 +253,77 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     test(new CgraLinkAdapter(params.copy(auto = noCopy))) { dut =>
       init(dut)
       capture(dut, Seq((0, 0, 1)), Seq((0, 0, 1, 0)), CgraLinkStatus.BadPacket)
+      capture(dut, Seq((4, 16, CgraSymbolSource.TileId)), Seq((0, 0, 1, 0)))
+      for (id <- Seq(4, 7)) {
+        val expected = template.updated(0,
+          (template.head & ~payloadMask) | (BigInt(4 + id * 16) << payloadLsb))
+        compute(dut, id, expected)
+      }
+      capture(dut, Seq((0, 0, 3)), Seq((0, 0, 1, 0)), CgraLinkStatus.BadPacket)
+      capture(dut, Nil, Nil)
+      compute(dut, 8, template)
+    }
+  }
+
+  it should "retain the compute result until captured writeback drains and propagate failure" in {
+    test(new CgraLinkAdapter(params)) { dut =>
+      init(dut)
+      capture(dut, Nil, Nil, writeback = true)
+      dut.io.configIn.bits.writeback.enabled.poke(false.B)
+      dut.io.configIn.bits.writeback.address.poke(0.U)
+      for ((id, status) <- Seq((4, AutoLinkStatus.Success), (5, AutoLinkStatus.SinkFailure))) {
+        dut.io.autoLink.requestCompute.bits.job.poke(0.U)
+        dut.io.autoLink.requestCompute.bits.start.poke(false.B)
+        dut.io.autoLink.requestCompute.valid.poke(true.B)
+        dut.clock.step()
+        dut.io.autoLink.requestCompute.valid.poke(false.B)
+        dut.io.writeback.valid.expect(false.B)
+        dut.io.autoLink.reportCompute.valid.expect(false.B)
+
+        dut.io.autoLink.watchOutput.bits.job.poke(0.U)
+        dut.io.autoLink.watchOutput.valid.poke(true.B)
+        dut.io.autoLink.reportOutput.ready.poke(false.B)
+        dut.clock.step()
+        dut.io.autoLink.watchOutput.valid.poke(false.B)
+        replay(dut, id, template)
+        dut.io.autoLink.reportOutput.valid.expect(true.B)
+        dut.io.autoLink.reportOutput.bits.data.expect(7.U)
+        for (_ <- 0 until 3) {
+          dut.io.writeback.valid.expect(true.B)
+          dut.io.writeback.bits.config.enabled.expect(true.B)
+          dut.io.writeback.bits.config.address.expect(0x80001000L.U)
+          dut.io.writeback.bits.config.word.expect(16.U)
+          dut.io.writeback.bits.config.slotStride.expect(32.U)
+          dut.io.writeback.bits.config.channels.expect(4.U)
+          dut.io.writeback.bits.config.rowStride.expect(24.U)
+          dut.io.writeback.bits.tile.id.expect(id.U)
+          dut.io.writeback.bits.tile.row.expect(1.U)
+          dut.io.writeback.bits.tile.column.expect(2.U)
+          dut.io.writeback.bits.tile.rows.expect(2.U)
+          dut.io.writeback.bits.tile.columns.expect(1.U)
+          dut.io.computeActive.expect(false.B)
+          dut.io.autoLink.reportCompute.valid.expect(false.B)
+          dut.io.autoLink.requestCompute.ready.expect(false.B)
+          dut.io.autoLink.requestCopy.ready.expect(false.B)
+          dut.io.configIn.ready.expect(false.B)
+          dut.clock.step()
+        }
+        dut.io.autoLink.reportOutput.ready.poke(true.B)
+        dut.io.writeback.ready.poke(true.B)
+        dut.clock.step()
+        dut.io.writeback.ready.poke(false.B)
+        dut.io.writeback.valid.expect(false.B)
+        dut.io.writebackDone.ready.expect(true.B)
+        dut.clock.step(3)
+        dut.io.autoLink.reportCompute.valid.expect(false.B)
+        dut.io.writebackDone.bits.poke(status)
+        dut.io.writebackDone.valid.poke(true.B)
+        dut.clock.step()
+        dut.io.writebackDone.valid.poke(false.B)
+        report(dut, status)
+      }
+      capture(dut, Nil, Nil)
+      compute(dut, 6, template)
     }
   }
 }

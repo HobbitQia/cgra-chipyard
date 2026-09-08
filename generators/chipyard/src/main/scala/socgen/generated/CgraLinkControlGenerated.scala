@@ -34,6 +34,12 @@ object CgraLinkControlGenerated {
   val PATCH_SCALE: Int = 0x0b8
   val PATCH_OFFSET: Int = 0x0c0
   val PATCH_PUSH: Int = 0x0c8
+  val OUT_ENABLE: Int = 0x0d0
+  val OUT_ADDRESS: Int = 0x0d8
+  val OUT_WORD: Int = 0x0e0
+  val OUT_SLOT_STRIDE: Int = 0x0e8
+  val OUT_CHANNELS: Int = 0x0f0
+  val OUT_ROW_STRIDE: Int = 0x0f8
   val GEMMINI_COMMAND_COUNT: Int = 0x000
   val GEMMINI_SUBMIT: Int = 0x008
   val GEMMINI_CONFIG_READY: Int = 0x010
