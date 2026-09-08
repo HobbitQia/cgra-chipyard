@@ -101,25 +101,21 @@ class GemminiExternalSpm(
         val systemIndexBits = log2Ceil(systemBeatCount)
         val mem = SyncReadMem(lineCount, Vec(writeBeatBytes, UInt(8.W)))
 
+        // Count the SRAM return against queue capacity before accepting another read.
+        // Two outstanding reads stay below Gemmini's four-entry fromDMA queue.
+        val responseDepth = 2
+        val readResponses = Module(new Queue(chiselTypeOf(read.d.bits), responseDepth, flow = true))
+        val writeResponses = Module(new Queue(chiselTypeOf(write.d.bits), responseDepth, pipe = true))
+        val systemResponses = Module(new Queue(chiselTypeOf(system.d.bits), responseDepth, flow = true))
         val readPending = RegInit(false.B)
         val readSource = Reg(UInt(readEdge.bundle.sourceBits.W))
         val readSize = Reg(UInt(readEdge.bundle.sizeBits.W))
         val readBeat = Reg(UInt(math.max(1, readIndexBits).W))
-        val readLine = Reg(UInt(lineIndexBits.W))
-        val responseValid = RegInit(false.B)
-        val responseData = Reg(UInt((readBeatBytes * 8).W))
-
-        val writePending = RegInit(false.B)
-        val writeSource = Reg(UInt(writeEdge.bundle.sourceBits.W))
-        val writeSize = Reg(UInt(writeEdge.bundle.sizeBits.W))
-
-        val systemReadPending = RegInit(false.B)
-        val systemResponseValid = RegInit(false.B)
+        val systemPending = RegInit(false.B)
         val systemResponseRead = Reg(Bool())
         val systemSource = Reg(UInt(systemEdge.bundle.sourceBits.W))
         val systemSize = Reg(UInt(systemEdge.bundle.sizeBits.W))
         val systemBeat = Reg(UInt(math.max(1, systemIndexBits).W))
-        val systemData = Reg(UInt((systemMaxBytes * 8).W))
 
         val incomingReadLine = read.a.bits.address(
           lineOffsetBits + lineIndexBits - 1,
@@ -131,21 +127,19 @@ class GemminiExternalSpm(
           lineOffsetBits + lineIndexBits - 1,
           lineOffsetBits)
         val systemWrite = systemEdge.hasData(system.a.bits)
-        val readBusy = readPending || systemReadPending
-        val systemBusy = systemReadPending || systemResponseValid
+        val readSpace = (readResponses.io.count +& readPending.asUInt) < responseDepth.U || read.d.fire
+        val systemSpace = (systemResponses.io.count +& systemPending.asUInt) < responseDepth.U || system.d.fire
 
-        val writeEligible = write.a.valid && !writePending &&
-          !(readBusy && incomingWriteLine === readLine)
-        val systemWriteEligible = system.a.valid && systemWrite && !systemBusy &&
-          !(readBusy && incomingSystemLine === readLine)
+        val writeEligible = write.a.valid && writeResponses.io.enq.ready
+        val systemWriteEligible = system.a.valid && systemWrite && systemSpace
         val selectWrite = writeEligible
         val selectSystemWrite = !selectWrite && systemWriteEligible
         val selectedWriteValid = selectWrite || selectSystemWrite
         val selectedWriteLine = Mux(selectWrite, incomingWriteLine, incomingSystemLine)
 
-        val readEligible = read.a.valid && !readBusy && !responseValid &&
+        val readEligible = read.a.valid && readSpace &&
           !(selectedWriteValid && incomingReadLine === selectedWriteLine)
-        val systemReadEligible = system.a.valid && !systemWrite && !systemBusy && !readBusy &&
+        val systemReadEligible = system.a.valid && !systemWrite && systemSpace &&
           !(selectedWriteValid && incomingSystemLine === selectedWriteLine)
         val selectRead = readEligible
         val selectSystemRead = !selectRead && systemReadEligible
@@ -171,17 +165,17 @@ class GemminiExternalSpm(
         }
 
         read.a.ready := selectRead
-        read.d.valid := responseValid
-        read.d.bits := readEdge.AccessAck(readSource, readSize, responseData)
+        read.d <> readResponses.io.deq
+        readResponses.io.enq.valid := readPending
+        readResponses.io.enq.bits := readEdge.AccessAck(readSource, readSize, readBeats(readBeat))
         read.b.valid := false.B
         read.c.ready := true.B
         read.e.ready := true.B
 
+        readPending := selectRead
         when(selectRead) {
-          readPending := true.B
           readSource := read.a.bits.source
           readSize := read.a.bits.size
-          readLine := incomingReadLine
           if (readIndexBits == 0) {
             readBeat := 0.U
           } else {
@@ -190,63 +184,32 @@ class GemminiExternalSpm(
               log2Ceil(readBeatBytes))
           }
         }
-        when(readPending) {
-          readPending := false.B
-          responseValid := true.B
-          responseData := readBeats(readBeat)
-        }
-        when(read.d.fire) {
-          responseValid := false.B
-        }
-
         write.a.ready := selectWrite
-        write.d.valid := writePending
-        write.d.bits := writeEdge.AccessAck(writeSource, writeSize)
+        write.d <> writeResponses.io.deq
+        writeResponses.io.enq.valid := selectWrite
+        writeResponses.io.enq.bits := writeEdge.AccessAck(write.a.bits.source, write.a.bits.size)
         write.b.valid := false.B
         write.c.ready := true.B
         write.e.ready := true.B
 
-        when(selectWrite) {
-          writePending := true.B
-          writeSource := write.a.bits.source
-          writeSize := write.a.bits.size
-        }
-        when(write.d.fire) {
-          writePending := false.B
-        }
-
         system.a.ready := Mux(systemWrite, selectSystemWrite, selectSystemRead)
-        system.d.valid := systemResponseValid
-        system.d.bits := systemEdge.AccessAck(systemSource, systemSize)
+        system.d <> systemResponses.io.deq
+        systemResponses.io.enq.valid := systemPending
+        systemResponses.io.enq.bits := systemEdge.AccessAck(systemSource, systemSize)
         when(systemResponseRead) {
-          system.d.bits.opcode := TLMessages.AccessAckData
-          system.d.bits.data := systemData
+          systemResponses.io.enq.bits.opcode := TLMessages.AccessAckData
+          systemResponses.io.enq.bits.data := systemBeats(systemBeat)
         }
         system.b.valid := false.B
         system.c.ready := true.B
         system.e.ready := true.B
 
-        when(selectSystemRead) {
-          systemReadPending := true.B
-          systemResponseRead := true.B
+        systemPending := system.a.fire
+        when(system.a.fire) {
+          systemResponseRead := selectSystemRead
           systemSource := system.a.bits.source
           systemSize := system.a.bits.size
-          readLine := incomingSystemLine
           systemBeat := incomingSystemBeat
-        }
-        when(systemReadPending) {
-          systemReadPending := false.B
-          systemResponseValid := true.B
-          systemData := systemBeats(systemBeat)
-        }
-        when(selectSystemWrite) {
-          systemResponseValid := true.B
-          systemResponseRead := false.B
-          systemSource := system.a.bits.source
-          systemSize := system.a.bits.size
-        }
-        when(system.d.fire) {
-          systemResponseValid := false.B
         }
 
         when(selectedWriteValid) {
