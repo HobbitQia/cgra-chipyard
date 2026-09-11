@@ -73,6 +73,7 @@ object CGRACmdGenerated {
   val CMD_DMA_MVIN = 49
   val CMD_DMA_MVOUT = 50
   val CMD_DMA_DONE = 51
+  val CMD_REARM = 52
 }
 
 object CGRAGenerated {

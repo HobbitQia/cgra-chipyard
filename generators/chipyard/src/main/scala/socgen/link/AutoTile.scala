@@ -49,18 +49,21 @@ class AutoProgress extends Bundle {
   val emitting = Bool()
   val cycles = UInt(64.W)
   val overlap = UInt(64.W)
+  val peakActive = UInt(64.W)
 }
 
 object AutoTileBinding {
   def transferValid(params: AutoLinkParams, index: Int, transfer: AutoTransfer, multipleSlots: Bool): Bool = {
     val dependency = params.dependencies(index)
     val copy = dependency.copy.get
-    val source = params.endpoint(params.stage(dependency.source.get).endpoint).buffer.get
+    val sourceEndpoint = params.endpoint(params.stage(dependency.source.get).endpoint)
+    val source = sourceEndpoint.buffer.get
     val destination = params.endpoint(params.stage(dependency.destination).endpoint)
-    val sourceEnd = transfer.sourceOffset +& transfer.sourceStride * (params.bufferSlots - 1).U +& copy.bytes.U
-    val destinationEnd = transfer.destinationOffset +& transfer.destinationStride * (params.bufferSlots - 1).U +& copy.destinationBytes.U
-    val separate = transfer.sourceStride >= copy.bytes.U &&
-      (!destination.bufferedInput.B || transfer.destinationStride >= copy.destinationBytes.U)
+    val destinationSlots = if (destination.bufferedInput) destination.bufferSlots else 1
+    val sourceEnd = transfer.sourceOffset +& transfer.sourceStride * (sourceEndpoint.bufferSlots - 1).U +& copy.bytes.U
+    val destinationEnd = transfer.destinationOffset +& transfer.destinationStride * (destinationSlots - 1).U +& copy.destinationBytes.U
+    val separate = ((sourceEndpoint.bufferSlots == 1).B || transfer.sourceStride >= copy.bytes.U) &&
+      ((destinationSlots == 1).B || transfer.destinationStride >= copy.destinationBytes.U)
     val aligned = if (destination.bufferedInput) {
       val alignment = if (copy.expansion == 1) params.beatBytes else destination.inputAlignment
       val destinationAligned = ((transfer.destinationOffset | transfer.destinationStride) & (alignment - 1).U) === 0.U

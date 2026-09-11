@@ -232,7 +232,15 @@ class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams)(i
 
       val job = RegInit(0.U(32.W))
       val commandCount = RegInit(0.U(32.W))
-      val convTemplate = RegInit(false.B)
+      val patchCount = RegInit(0.U(32.W))
+      val window = RegInit(0.U.asTypeOf(new GemminiWindow))
+      val patch = RegInit(0.U.asTypeOf(new GemminiPatchEntry))
+      val patchPush = Wire(Decoupled(UInt(1.W)))
+      val patchOut = Wire(Decoupled(new GemminiPatchEntry))
+      patchOut.valid := patchPush.valid && patchPush.bits.asBool
+      patchOut.bits := patch
+      patchPush.ready := !patchPush.bits.asBool || patchOut.ready
+      configLink.patch <> ToAsyncBundle(patchOut, AsyncQueueParams.singleton())
       val configSubmit = Wire(Decoupled(UInt(1.W)))
       val configPending = RegInit(false.B)
       val configReady = RegInit(false.B)
@@ -242,7 +250,8 @@ class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams)(i
       configOut.valid := configSubmit.valid && configSubmit.bits.asBool && !configPending
       configOut.bits.job := job
       configOut.bits.commandCount := commandCount
-      configOut.bits.convTemplate := convTemplate
+      configOut.bits.patchCount := patchCount
+      configOut.bits.window := window
       configSubmit.ready := Mux(configSubmit.bits.asBool, configOut.ready && !configPending, true.B)
       configAck.ready := true.B
 
@@ -269,7 +278,31 @@ class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams)(i
         GEMMINI_CONFIG_STATUS -> Seq(RegField.r(32, configStatus)),
         GEMMINI_CONFIG_DETAIL -> Seq(RegField.r(32, configDetail)),
         GEMMINI_SELECT -> Seq(RegField(32, job)),
-        GEMMINI_CONV_TEMPLATE -> Seq(RegField(1, convTemplate)),
+        GEMMINI_PATCH_COUNT -> Seq(RegField(32, patchCount)),
+        GEMMINI_WINDOW_ROWS -> Seq(RegField(32, window.region.rows)),
+        GEMMINI_WINDOW_COLUMNS -> Seq(RegField(32, window.region.columns)),
+        GEMMINI_WINDOW_ROW_STEP -> Seq(RegField(32, window.region.rowStep)),
+        GEMMINI_WINDOW_COLUMN_STEP -> Seq(RegField(32, window.region.columnStep)),
+        GEMMINI_WINDOW_TOP -> Seq(RegField(32, window.region.top)),
+        GEMMINI_WINDOW_BOTTOM -> Seq(RegField(32, window.region.bottom)),
+        GEMMINI_WINDOW_LEFT -> Seq(RegField(32, window.region.left)),
+        GEMMINI_WINDOW_RIGHT -> Seq(RegField(32, window.region.right)),
+        GEMMINI_WINDOW_ADDRESS -> Seq(RegField(64, window.address)),
+        GEMMINI_WINDOW_PIXEL_BYTES -> Seq(RegField(32, window.pixelBytes)),
+        GEMMINI_WINDOW_ROW_BYTES -> Seq(RegField(32, window.rowBytes)),
+        GEMMINI_WINDOW_OUTPUT_BYTES -> Seq(RegField(32, window.outputBytes)),
+        GEMMINI_WINDOW_MAX_ROWS -> Seq(RegField(32, window.maxRows)),
+        GEMMINI_WINDOW_MAX_COLUMNS -> Seq(RegField(32, window.maxColumns)),
+        GEMMINI_WINDOW_OUTPUT_BASE -> Seq(RegField(64, window.outputBase)),
+        GEMMINI_WINDOW_OUTPUT_SIZE -> Seq(RegField(32, window.outputSize)),
+        GEMMINI_PATCH_COMMAND -> Seq(RegField(32, patch.command)),
+        GEMMINI_PATCH_OPERAND -> Seq(RegField(1, patch.operand)),
+        GEMMINI_PATCH_LSB -> Seq(RegField(6, patch.lsb)),
+        GEMMINI_PATCH_WIDTH -> Seq(RegField(7, patch.bitCount)),
+        GEMMINI_PATCH_SOURCE -> Seq(RegField(4, patch.source)),
+        GEMMINI_PATCH_SCALE -> Seq(RegField(32, patch.scale)),
+        GEMMINI_PATCH_OFFSET -> Seq(RegField(32, patch.offset)),
+        GEMMINI_PATCH_PUSH -> Seq(RegField.w(1, patchPush)),
         GEMMINI_CONFIG_DONE -> Seq(RegField.r(1, configDone)))
     }
   }

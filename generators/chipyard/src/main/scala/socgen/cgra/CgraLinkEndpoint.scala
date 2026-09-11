@@ -45,22 +45,27 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       val configOut = Wire(Decoupled(new CgraLinkConfig(params)))
       val symbolOut = Wire(Decoupled(new CgraSymbolConfig))
       val patchOut = Wire(Decoupled(new CgraPatchConfig))
+      val repeatOut = Wire(Decoupled(UInt(32.W)))
       val configAck = FromAsyncBundle(configLink.ack)
       val resultIn = resultNames.map(name => FromAsyncBundle(resultNodes(name).in.head._1))
       configLink.config <> ToAsyncBundle(configOut, AsyncQueueParams.singleton())
       configLink.symbol <> ToAsyncBundle(symbolOut, AsyncQueueParams.singleton())
       configLink.patch <> ToAsyncBundle(patchOut, AsyncQueueParams.singleton())
+      configLink.repeat <> ToAsyncBundle(repeatOut, AsyncQueueParams.singleton())
 
       val job = RegInit(0.U(32.W))
       val packetCount = RegInit(0.U(32.W))
       val expectedCompletions = RegInit(0.U(32.W))
       val symbolCount = RegInit(0.U(32.W))
       val patchCount = RegInit(0.U(32.W))
+      val repeatCount = RegInit(0.U(32.W))
+      val repeatPacket = RegInit(0.U(32.W))
       val symbol = RegInit(0.U.asTypeOf(new CgraSymbolConfig))
       val patch = RegInit(0.U.asTypeOf(new CgraPatchConfig))
       val writeback = RegInit(0.U.asTypeOf(new CgraWritebackConfig))
       val symbolPush = Wire(Decoupled(UInt(1.W)))
       val patchPush = Wire(Decoupled(UInt(1.W)))
+      val repeatPush = Wire(Decoupled(UInt(1.W)))
       val configSubmit = Wire(Decoupled(UInt(1.W)))
       val configPending = RegInit(false.B)
       val configReady = RegInit(false.B)
@@ -73,6 +78,7 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       configOut.bits.expectedCompletions := expectedCompletions
       configOut.bits.symbolCount := symbolCount
       configOut.bits.patchCount := patchCount
+      configOut.bits.repeatCount := repeatCount
       configOut.bits.writeback := writeback
       configSubmit.ready := Mux(configSubmit.bits.asBool, configOut.ready && !configPending, true.B)
       configAck.ready := true.B
@@ -82,9 +88,13 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       patchOut.valid := patchPush.valid && patchPush.bits.asBool
       patchOut.bits := patch
       patchPush.ready := Mux(patchPush.bits.asBool, patchOut.ready, true.B)
+      repeatOut.valid := repeatPush.valid && repeatPush.bits.asBool
+      repeatOut.bits := repeatPacket
+      repeatPush.ready := Mux(repeatPush.bits.asBool, repeatOut.ready, true.B)
 
       when(configOut.fire) {
         writeback.enabled := false.B
+        repeatCount := 0.U
         configPending := true.B
         configReady := false.B
         configDone := false.B
@@ -145,6 +155,9 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
         PATCH_SCALE -> Seq(RegField(32, patch.scale)),
         PATCH_OFFSET -> Seq(RegField(32, patch.offset)),
         PATCH_PUSH -> Seq(RegField.w(1, patchPush)),
+        REPEAT_COUNT -> Seq(RegField(32, repeatCount)),
+        REPEAT_PACKET -> Seq(RegField(32, repeatPacket)),
+        REPEAT_PUSH -> Seq(RegField.w(1, repeatPush)),
         OUT_ENABLE -> Seq(RegField(1, writeback.enabled)),
         OUT_ADDRESS -> Seq(RegField(64, writeback.address)),
         OUT_WORD -> Seq(RegField(32, writeback.word)),

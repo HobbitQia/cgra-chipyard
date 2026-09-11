@@ -37,6 +37,7 @@ class AutoTileFlowSpec extends AnyFlatSpec with ChiselScalatestTester {
         region.right.poke(0.U)
       }
       dut.io.claim.ready.poke(true.B)
+      dut.io.slot.poke(0.U)
       dut.io.watchOutput.ready.poke(true.B)
       dut.io.requestCopy.ready.poke(false.B)
       dut.io.requestCompute.ready.poke(false.B)
@@ -47,6 +48,7 @@ class AutoTileFlowSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.rearm.poke(false.B)
       val input = dut.io.dependency.head
       input.valid.poke(false.B)
+      input.bits.slot.poke(0.U)
       input.bits.event.stage.poke(0.U)
       input.bits.event.job.poke(0.U)
       input.bits.event.status.poke(AutoLinkStatus.Success)

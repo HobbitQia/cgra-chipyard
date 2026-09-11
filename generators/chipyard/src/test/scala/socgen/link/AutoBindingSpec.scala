@@ -21,12 +21,11 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
       AutoDependencySpec(None, 1, None),
       AutoDependencySpec(Some(0), 1, Some(AutoCopySpec(0, 0, 128, expansion = 4)))),
     endpoints = Seq(
-      AutoEndpointSpec("gemmini", Some(AutoBuffer(0x60000000L, 2048)), 2048),
-      AutoEndpointSpec("cgra", None, 2048)),
+      AutoEndpointSpec("gemmini", Some(AutoBuffer(0x60000000L, 2048)), 2048, bufferSlots = 2),
+      AutoEndpointSpec("cgra", None, 2048, bufferSlots = 2)),
     beatBytes = 16,
     controlAddress = 0x60020000L,
-    controlBytes = 4096,
-    bufferSlots = 2)
+    controlBytes = 4096)
 
   private case class Tile(row: Int, column: Int, rows: Int, columns: Int)
   private val tiles = Seq(Tile(0, 0, 2, 2), Tile(0, 2, 2, 2), Tile(2, 0, 1, 2), Tile(2, 2, 1, 2))
@@ -65,7 +64,7 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
         dependencies = params.dependencies.updated(2,
           AutoDependencySpec(Some(0), 1, Some(AutoCopySpec(0, 0, 128, expansion)))),
         endpoints = params.endpoints.updated(1,
-          AutoEndpointSpec("cgra", None, 2048, bufferedInput = true, inputAlignment = 4)))
+          AutoEndpointSpec("cgra", None, 2048, bufferedInput = true, inputAlignment = 4, bufferSlots = 2)))
       test(new AutoTransferCheck(buffered, 2)) { dut =>
         val destinationBytes = 128 * expansion
         def check(sourceOffset: Int = 0, sourceStride: Int = 128,
@@ -165,6 +164,7 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
           val root = tiles(id)
           dut.io.root.valid.poke((sent < tiles.size).B)
           event(dut.io.root.bits.event)
+          dut.io.root.bits.slot.poke(0.U)
           dut.io.root.bits.tile.id.poke(id.U)
           dut.io.root.bits.tile.row.poke(root.row.U)
           dut.io.root.bits.tile.column.poke(root.column.U)
@@ -196,7 +196,8 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
               assert(validTiles.contains(tileId))
               val source = region(tiles(tileId), halo = true)
               check(port.watchOutput.bits.tile, tileId, source)
-              port.watchOutput.bits.address.expect((0x60000000L + 32 + (tileId % 2) * 128).U)
+              val slot = port.watchOutput.bits.slot.peek().litValue.toInt
+              port.watchOutput.bits.address.expect((0x60000000L + 32 + slot * 128).U)
               port.watchOutput.bits.bytes.expect((source.rows * source.columns * pixelBytes).U)
               if (port.watchOutput.ready.peek().litToBoolean) watches += tileId
             }
@@ -208,8 +209,9 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
               val bytes = source.rows * source.columns * pixelBytes
               check(port.requestCopy.bits.sourceTile, tileId, source)
               check(port.requestCopy.bits.tile, tileId, region(tiles(tileId), halo = false))
-              port.requestCopy.bits.sourceAddress.expect((0x60000000L + 32 + (tileId % 2) * 128).U)
-              port.requestCopy.bits.destinationOffset.expect((64 + (tileId % 2) * 512).U)
+              val sourceSlot = port.requestCopy.bits.sourceSlot.peek().litValue.toInt
+              port.requestCopy.bits.sourceAddress.expect((0x60000000L + 32 + sourceSlot * 128).U)
+              port.requestCopy.bits.destinationOffset.expect(64.U)
               port.requestCopy.bits.bytes.expect(bytes.U)
               port.requestCopy.bits.destinationBytes.expect((bytes * 4).U)
               if (port.requestCopy.ready.peek().litToBoolean) {

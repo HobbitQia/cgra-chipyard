@@ -41,7 +41,7 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
       val regions = RegInit(0.U.asTypeOf(Vec(params.stages.size, new AutoRegion(params.lengthWidth))))
       val error = RegInit(false.B)
       val shapeValid = rows =/= 0.U && columns =/= 0.U && tileRows =/= 0.U && tileColumns =/= 0.U
-      val multipleSlots = (params.bufferSlots > 1).B && (rows > tileRows || columns > tileColumns)
+      val multipleSlots = rows > tileRows || columns > tileColumns
       val regionValid = regions.map(region => region.rows === 0.U ||
         (region.columns =/= 0.U && region.rowStep =/= 0.U && region.columnStep =/= 0.U)).reduce(_ && _)
       val rangeValid = params.dependencies.zipWithIndex.flatMap { case (dependency, index) =>
@@ -85,6 +85,7 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
         AUTO_LINK_RUNNING -> Seq(RegField.r(1, state.running)),
         AUTO_LINK_CYCLES -> Seq(RegField.r(64, state.cycles)),
         AUTO_LINK_OVERLAP -> Seq(RegField.r(64, state.overlap)),
+        AUTO_LINK_PEAK_ACTIVE -> Seq(RegField.r(64, state.peakActive)),
         AUTO_LINK_CONFIG_ERROR -> Seq(RegField.r(1, error))) ++ transferFields ++ regionFields): _*)
     }
   }

@@ -44,19 +44,10 @@ class GemminiRoCCModule(outer: GemminiRoCC)(implicit p: Parameters)
     val endpoint = outer.autoNode.get.in.head._1
     val config = outer.configNode.get.in.head._1
     val observe = outer.observeNode.get.in.head._1
-    val native = outer.config
-    val spm = p(GemminiExternalSpmKey).get
-    val convParams = Option.when(native.has_loop_conv)(GemminiConvParams(
-      dim = native.meshColumns * native.tileColumns,
-      spmRows = native.sp_banks * native.sp_bank_entries,
-      accRows = native.acc_banks * native.acc_bank_entries,
-      elementBytes = native.inputType.getWidth / 8,
-      spmBase = spm.baseAddress,
-      spmBytes = spm.sizeBytes,
-      addressBits = gemmini.coreMaxAddrBits))
-    val adapter = Module(new GemminiLinkAdapter(params, convParams))
+    val adapter = Module(new GemminiLinkAdapter(params))
 
     adapter.io.configIn <> FromAsyncBundle(config.config)
+    adapter.io.patchIn <> FromAsyncBundle(config.patch)
     config.ack <> ToAsyncBundle(adapter.io.configAck, AsyncQueueParams.singleton())
     observe.control <> ToAsyncBundle(adapter.io.publication, AsyncQueueParams.singleton())
     adapter.io.publicationReply <> FromAsyncBundle(observe.reply)

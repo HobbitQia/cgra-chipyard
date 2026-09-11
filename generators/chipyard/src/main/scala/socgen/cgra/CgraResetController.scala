@@ -14,6 +14,7 @@ class CgraResetController(params: CGRAParams) extends Module {
     val safe = Input(Bool())
     val localReset = Output(Bool())
     val holdCpu = Output(Bool())
+    val configChanged = Output(Bool())
   })
 
   object State {
@@ -44,6 +45,9 @@ class CgraResetController(params: CGRAParams) extends Module {
       command === CGRACmdGenerated.CMD_RECORD_PHI_ADDR.U ||
       command === CGRACmdGenerated.CMD_CONFIG_GEP_STRIDE.U)
   val manualSwitch = (manualDone || (io.manualComplete && manualActive)) && kernelConfig
+  io.configChanged := io.cpuOut.fire &&
+    outputCommand =/= CGRACmdGenerated.CMD_LOAD_REQUEST.U &&
+    outputCommand =/= CGRACmdGenerated.CMD_STORE_REQUEST.U
 
   io.cpuIn.ready := false.B
   io.cpuOut.valid := false.B
@@ -92,7 +96,7 @@ class CgraResetController(params: CGRAParams) extends Module {
     manualActive := false.B
     manualDone := true.B
   }
-  when(io.localReset) {
+  when(io.localReset || (io.cpuOut.fire && outputCommand === CGRACmdGenerated.CMD_REARM.U)) {
     manualActive := false.B
     manualDone := false.B
   }

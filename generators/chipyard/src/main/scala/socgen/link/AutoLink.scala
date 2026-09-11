@@ -15,8 +15,11 @@ object AutoLinkStatus {
 case class AutoBuffer(baseAddress: BigInt, sizeBytes: Int)
 
 case class AutoEndpointSpec(name: String, buffer: Option[AutoBuffer], localBytes: Int,
-    bufferedInput: Boolean = false, inputAlignment: Int = 1) {
+    bufferedInput: Boolean = false, inputAlignment: Int = 1,
+    bufferSlots: Int = 1, releaseOnCopy: Boolean = false) {
   require(isPow2(inputAlignment))
+  require(bufferSlots > 0)
+  val hasStorage: Boolean = buffer.nonEmpty || bufferedInput
 }
 
 case class AutoStageSpec(name: String, endpoint: String, job: Int)
@@ -38,8 +41,7 @@ case class AutoLinkParams(
   addressWidth: Int = 64,
   lengthWidth: Int = 32,
   detailWidth: Int = 8,
-  resultWidth: Int = 32,
-  bufferSlots: Int = 1) {
+  resultWidth: Int = 32) {
   require(stages.nonEmpty)
   require(dependencies.nonEmpty)
   require(endpoints.map(_.name).distinct.size == endpoints.size)
@@ -47,7 +49,6 @@ case class AutoLinkParams(
   require(isPow2(beatBytes))
   require(controlAddress >= 0)
   require(isPow2(controlBytes))
-  require(bufferSlots > 0)
 
   private val endpointMap = endpoints.map(endpoint => endpoint.name -> endpoint).toMap
   require(stages.forall(stage => endpointMap.contains(stage.endpoint)))
@@ -66,6 +67,8 @@ case class AutoLinkParams(
       require(dependency.source.nonEmpty)
       val source = endpointMap(stages(dependency.source.get).endpoint)
       val destination = endpointMap(stages(dependency.destination).endpoint)
+      require(source.name != destination.name,
+        "Data dependencies between stages on the same physical endpoint are unsupported")
       require(source.buffer.nonEmpty)
       require(copy.sourceOffset >= 0)
       require(copy.destinationOffset >= 0)
@@ -97,6 +100,7 @@ case class AutoLinkParams(
   val dependencyWidth: Int = math.max(1, log2Ceil(dependencies.size))
   val jobWidth: Int = math.max(1, log2Ceil(stages.map(_.job).max + 1))
   val stageWidth: Int = math.max(1, log2Ceil(stages.size))
+  val slotWidth: Int = math.max(1, log2Ceil(endpoints.map(_.bufferSlots).max))
   val resultNames: Seq[String] = dependencies.map(_.destination).distinct.map(stages(_).name)
 
   def endpoint(name: String): AutoEndpointSpec = endpointMap(name)
@@ -110,6 +114,7 @@ case class AutoLinkParams(
 
 class AutoWatch(params: AutoLinkParams) extends Bundle {
   val job = UInt(params.jobWidth.W)
+  val slot = UInt(params.slotWidth.W)
   val tile = new AutoTile(params.lengthWidth)
   val address = UInt(params.addressWidth.W)
   val bytes = UInt(params.lengthWidth.W)
@@ -126,6 +131,7 @@ class AutoEvent(params: AutoLinkParams) extends Bundle {
 class AutoTileEvent(params: AutoLinkParams) extends Bundle {
   val event = new AutoEvent(params)
   val tile = new AutoTile(params.lengthWidth)
+  val slot = UInt(params.slotWidth.W)
 }
 
 class AutoCopyRequest(params: AutoLinkParams) extends Bundle {
@@ -133,6 +139,8 @@ class AutoCopyRequest(params: AutoLinkParams) extends Bundle {
   val job = UInt(params.jobWidth.W)
   val tile = new AutoTile(params.lengthWidth)
   val sourceTile = new AutoTile(params.lengthWidth)
+  val sourceSlot = UInt(params.slotWidth.W)
+  val destinationSlot = UInt(params.slotWidth.W)
   val sourceAddress = UInt(params.addressWidth.W)
   val destinationOffset = UInt(params.addressWidth.W)
   val bytes = UInt(params.lengthWidth.W)
@@ -147,6 +155,7 @@ class AutoCopyResult(params: AutoLinkParams) extends Bundle {
 
 class AutoComputeRequest(params: AutoLinkParams) extends Bundle {
   val job = UInt(params.jobWidth.W)
+  val slot = UInt(params.slotWidth.W)
   val tile = new AutoTile(params.lengthWidth)
   val start = Bool()
 }

@@ -19,12 +19,11 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
       AutoDependencySpec(Some(2), 3, Some(AutoCopySpec(0, 0, 32))),
       AutoDependencySpec(Some(0), 2, None)),
     endpoints = Seq(
-      AutoEndpointSpec("gemmini", Some(AutoBuffer(0x60000000L, 256)), 256),
-      AutoEndpointSpec("cgra", Some(AutoBuffer(0x60010000L, 256)), 256)),
+      AutoEndpointSpec("gemmini", Some(AutoBuffer(0x60000000L, 256)), 256, bufferSlots = 2),
+      AutoEndpointSpec("cgra", Some(AutoBuffer(0x60010000L, 256)), 256, bufferSlots = 2, releaseOnCopy = true)),
     beatBytes = 16,
     controlAddress = 0x60020000L,
-    controlBytes = 4096,
-    bufferSlots = 2)
+    controlBytes = 4096)
 
   private def event(port: AutoEvent, job: Int, status: Int = 0, detail: Int = 0): Unit = {
     port.stage.poke(0.U)
@@ -82,12 +81,12 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
         val completed = scala.collection.mutable.Set.empty[(Int, Int)]
         val results = Array.fill(4)(0)
         var overlap = false
-        var slotStall = false
         val deadline = cycle + 2000
         while ((submitted < count || completed.size < count * 4 || results.exists(_ == 0) ||
           dut.io.busy.peek().litToBoolean) && cycle < deadline) {
           dut.io.root.valid.poke((submitted < count).B)
           event(dut.io.root.bits.event, 0)
+          dut.io.root.bits.slot.poke(0.U)
           tile(dut.io.root.bits.tile, submitted, submitted == count - 1)
           dut.io.result.foreach(_.ready.poke((cycle % 7 != 0).B))
           dut.io.endpoint.zipWithIndex.foreach { case (port, index) =>
@@ -111,12 +110,7 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
           }
 
           if (dut.io.root.valid.peek().litToBoolean && dut.io.root.ready.peek().litToBoolean) {
-            if (submitted >= params.bufferSlots) {
-              assert((0 until 4).forall(stage => completed.contains((stage, submitted - params.bufferSlots))))
-            }
             submitted += 1
-          } else if (submitted >= params.bufferSlots && submitted < count) {
-            slotStall = true
           }
 
           dut.io.endpoint.zipWithIndex.foreach { case (port, index) =>
@@ -182,7 +176,6 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
         assert(started.size == count * 4)
         if (count > 1) {
           assert(overlap)
-          assert(slotStall)
         }
       }
 
@@ -195,6 +188,7 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
     test(new AutoStage(params, 3)) { dut =>
       bindings(dut.io.transfers, dut.io.regions)
       dut.io.claim.ready.poke(false.B)
+      dut.io.slot.poke(0.U)
       dut.io.rearm.poke(true.B)
       dut.io.watchOutput.ready.poke(false.B)
       dut.io.requestCopy.ready.poke(false.B)
@@ -207,6 +201,8 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
       val computed = dut.io.dependency(1)
       event(skip.bits.event, 0)
       event(computed.bits.event, 1)
+      skip.bits.slot.poke(0.U)
+      computed.bits.slot.poke(0.U)
       tile(skip.bits.tile, 2, false)
       tile(computed.bits.tile, 3, false)
       skip.valid.poke(true.B)

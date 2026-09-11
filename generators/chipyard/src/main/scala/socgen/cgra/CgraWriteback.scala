@@ -17,6 +17,7 @@ class CgraWritebackConfig extends Bundle {
 class CgraWritebackRequest(params: CgraLinkParams) extends Bundle {
   val config = new CgraWritebackConfig
   val tile = new AutoTile(params.auto.lengthWidth)
+  val slot = UInt(params.auto.slotWidth.W)
 }
 
 class CgraSpmReadArbiter(params: CGRASpmReadParams) extends Module {
@@ -86,7 +87,7 @@ class CgraWriteback(params: CgraLinkParams, window: CGRASpmWindowParams) extends
 
   val config = io.request.bits.config
   val tile = io.request.bits.tile
-  val slot = tile.id % params.auto.bufferSlots.U
+  val slot = io.request.bits.slot
   val firstWord = config.word +& (slot * config.slotStride)
   val requestedRowWords = tile.columns * config.channels
   val totalWords = tile.rows * requestedRowWords

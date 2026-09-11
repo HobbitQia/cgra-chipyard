@@ -12,11 +12,10 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dependencies = Seq(AutoDependencySpec(Some(0), 1, Some(AutoCopySpec(0, 0, 32)))),
     endpoints = Seq(
       AutoEndpointSpec("gemmini", Some(AutoBuffer(0x60000000L, 256)), 256),
-      AutoEndpointSpec("cgra", None, 512)),
+      AutoEndpointSpec("cgra", None, 512, bufferSlots = 3)),
     beatBytes = 16,
     controlAddress = 0x60020000L,
-    controlBytes = 4096,
-    bufferSlots = 3)
+    controlBytes = 4096)
   private val params = CgraLinkParams(auto, CGRAGenerated.params, packetCapacity = 8, symbolCapacity = 2)
   private val payloadLsb = params.cgra.packetLayout.dataPayloadLsb
   private val payloadMask = ((BigInt(1) << params.cgra.dataPayloadWidth) - 1) << payloadLsb
@@ -29,12 +28,16 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
   private val template = Seq(
     packet(CGRACmdGenerated.CMD_CONST, 17),
     packet(CGRACmdGenerated.CMD_CONFIG_TOTAL_CTRL_COUNT, 99),
-    packet(CGRACmdGenerated.CMD_LAUNCH, 0))
+    packet(CGRACmdGenerated.CMD_CONFIG, 0),
+    packet(CGRACmdGenerated.CMD_LAUNCH, 0),
+    packet(CGRACmdGenerated.CMD_LAUNCH, 0) ^ 1)
 
   private def init(dut: CgraLinkAdapter): Unit = {
     dut.io.configIn.valid.poke(false.B)
     dut.io.symbolIn.valid.poke(false.B)
     dut.io.patchIn.valid.poke(false.B)
+    dut.io.repeatIn.valid.poke(false.B)
+    dut.io.invalidateResident.poke(false.B)
     dut.io.packetIn.valid.poke(false.B)
     dut.io.configAck.ready.poke(false.B)
     dut.io.autoLink.watchOutput.valid.poke(false.B)
@@ -63,12 +66,13 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.configAck.ready.poke(false.B)
   }
 
-  private def begin(dut: CgraLinkAdapter, symbolCount: Int, patchCount: Int, writeback: Boolean = false): Unit = {
+  private def begin(dut: CgraLinkAdapter, symbolCount: Int, patchCount: Int, writeback: Boolean = false, repeatCount: Int = 0): Unit = {
     dut.io.configIn.bits.job.poke(0.U)
     dut.io.configIn.bits.packetCount.poke(template.size.U)
     dut.io.configIn.bits.expectedCompletions.poke(1.U)
     dut.io.configIn.bits.symbolCount.poke(symbolCount.U)
     dut.io.configIn.bits.patchCount.poke(patchCount.U)
+    dut.io.configIn.bits.repeatCount.poke(repeatCount.U)
     dut.io.configIn.bits.writeback.enabled.poke(writeback.B)
     dut.io.configIn.bits.writeback.address.poke(0x80001000L.U)
     dut.io.configIn.bits.writeback.word.poke(16.U)
@@ -88,8 +92,9 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     symbols: Seq[(Int, Int, Int)],
     patches: Seq[(Int, Int, Int, Int)],
     detail: Int = 0,
-    writeback: Boolean = false): Unit = {
-    begin(dut, symbols.size, patches.size, writeback)
+    writeback: Boolean = false,
+    repeats: Seq[Int] = Nil): Unit = {
+    begin(dut, symbols.size, patches.size, writeback, repeats.size)
     ack(dut, done = false, detail = 0)
     for ((base, stride, source) <- symbols) {
       dut.io.packetIn.ready.expect(false.B)
@@ -111,6 +116,13 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.patchIn.valid.poke(true.B)
       dut.clock.step()
       dut.io.patchIn.valid.poke(false.B)
+    }
+    for (index <- repeats) {
+      dut.io.repeatIn.ready.expect(true.B)
+      dut.io.repeatIn.bits.poke(index.U)
+      dut.io.repeatIn.valid.poke(true.B)
+      dut.clock.step()
+      dut.io.repeatIn.valid.poke(false.B)
     }
     for (value <- template) {
       dut.io.packetIn.ready.expect(true.B)
@@ -148,10 +160,11 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.clock.step()
   }
 
-  private def replay(dut: CgraLinkAdapter, id: Int, expected: Seq[BigInt]): Unit = {
+  private def replay(dut: CgraLinkAdapter, id: Int, expected: Seq[BigInt], slot: Int = 0): Unit = {
     dut.io.autoLink.requestCompute.bits.job.poke(0.U)
     dut.io.autoLink.requestCompute.bits.start.poke(true.B)
     dut.io.autoLink.requestCompute.bits.tile.id.poke(id.U)
+    dut.io.autoLink.requestCompute.bits.slot.poke(slot.U)
     dut.io.autoLink.requestCompute.bits.tile.row.poke(1.U)
     dut.io.autoLink.requestCompute.bits.tile.column.poke(2.U)
     dut.io.autoLink.requestCompute.bits.tile.rows.poke(2.U)
@@ -193,8 +206,8 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.autoLink.reportCompute.ready.poke(false.B)
   }
 
-  private def compute(dut: CgraLinkAdapter, id: Int, expected: Seq[BigInt]): Unit = {
-    replay(dut, id, expected)
+  private def compute(dut: CgraLinkAdapter, id: Int, expected: Seq[BigInt], slot: Int = 0): Unit = {
+    replay(dut, id, expected, slot)
     dut.io.writeback.valid.expect(false.B)
     report(dut)
   }
@@ -205,13 +218,13 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     test(new CgraLinkAdapter(params)) { dut =>
       init(dut)
       capture(dut, Seq((4, 16, 0), (0, 0, 1)), Seq((0, 0, 1, 0), (1, 1, 5, 10)))
-      for ((id, elements) <- Seq((4, 19), (5, 3), (6, 32))) {
+      for ((id, slot, elements) <- Seq((4, 2, 19), (5, 0, 3), (6, 1, 32))) {
         copy(dut, elements)
         val expected = template.zipWithIndex.map { case (value, index) =>
-          val payload = if (index == 0) 4 + (id % auto.bufferSlots) * 16 else elements * 5 + 10
+          val payload = if (index == 0) 4 + slot * 16 else elements * 5 + 10
           if (index < 2) (value & ~payloadMask) | (BigInt(payload) << payloadLsb) else value
         }
-        compute(dut, id, expected)
+        compute(dut, id, expected, slot)
       }
       capture(dut, Nil, Nil)
       compute(dut, 7, template)
@@ -224,7 +237,7 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
       begin(dut, symbolCount = 3, patchCount = 1)
       ack(dut, done = true, detail = CgraLinkStatus.BadConfig)
       for (patches <- Seq(
-        Seq((3, 0, 1, 0)),
+        Seq((template.size, 0, 1, 0)),
         Seq((0, 1, 1, 0)),
         Seq((0, 0, 1, 0), (0, 0, 2, 0)))) {
         capture(dut, Seq((0, 0, 0)), patches, CgraLinkStatus.BadPacket)
@@ -239,6 +252,47 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
         dut.io.autoLink.reportCompute.ready.poke(true.B)
         dut.clock.step()
         dut.io.autoLink.reportCompute.ready.poke(false.B)
+      }
+      capture(dut, Nil, Nil)
+      compute(dut, 0, template)
+    }
+  }
+
+  it should "rearm resident launch targets and replay only marked packet indices under backpressure" in {
+    test(new CgraLinkAdapter(params)) { dut =>
+      init(dut)
+      val repeats = Seq(0, 1, 3, 4)
+      capture(dut, Seq((4, 16, CgraSymbolSource.Slot)), Seq((0, 0, 1, 0)), repeats = repeats)
+      val first = template.updated(0, (template.head & ~payloadMask) | (BigInt(4) << payloadLsb))
+      compute(dut, 0, first)
+      val commandLsb = params.cgra.packetLayout.cmdLsb
+      val commandMask = ((BigInt(1) << params.cgra.cmdWidth) - 1) << commandLsb
+      val rearm = template.takeRight(2).map(value =>
+        (value & ~commandMask) | (BigInt(CGRACmdGenerated.CMD_REARM) << commandLsb))
+      // A resident replay must not wait for a full-IP reset acknowledgement.
+      dut.io.resetRequest.ready.poke(false.B)
+      for ((id, slot) <- Seq((1, 2), (2, 0))) {
+        val dynamic = template.updated(0,
+          (template.head & ~payloadMask) | (BigInt(4 + slot * 16) << payloadLsb))
+        compute(dut, id, rearm ++ repeats.map(dynamic), slot)
+        dut.io.resetRequest.valid.expect(false.B)
+      }
+      dut.io.invalidateResident.poke(true.B)
+      dut.clock.step()
+      dut.io.invalidateResident.poke(false.B)
+      dut.io.resetRequest.ready.poke(true.B)
+      compute(dut, 3, first)
+      capture(dut, Nil, Nil)
+      compute(dut, 4, template)
+    }
+  }
+
+  it should "reject repeat descriptors that omit launch or patched packets" in {
+    test(new CgraLinkAdapter(params)) { dut =>
+      init(dut)
+      for (repeats <- Seq(Seq(0), Seq(3, 4), Seq(0, 0, 3, 4), Seq(0, template.size))) {
+        capture(dut, Seq((4, 16, CgraSymbolSource.Slot)), Seq((0, 0, 1, 0)),
+          detail = CgraLinkStatus.BadPacket, repeats = repeats)
       }
       capture(dut, Nil, Nil)
       compute(dut, 0, template)

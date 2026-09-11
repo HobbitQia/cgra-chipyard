@@ -15,8 +15,8 @@ class CgraWritebackSpec extends AnyFlatSpec with ChiselScalatestTester {
   private val auto = AutoLinkParams(
     stages = Seq(AutoStageSpec("output", "cgra", 0)),
     dependencies = Seq(AutoDependencySpec(None, 0, None)),
-    endpoints = Seq(AutoEndpointSpec("cgra", None, 1024)),
-    beatBytes = 16, controlAddress = 0x60020000L, controlBytes = 4096, bufferSlots = 2)
+    endpoints = Seq(AutoEndpointSpec("cgra", None, 1024, bufferSlots = 2)),
+    beatBytes = 16, controlAddress = 0x60020000L, controlBytes = 4096)
   private val params = CgraLinkParams(auto, cgra, packetCapacity = 8)
   private val scale = CgraRequantParams(1, 0)
   private val packed = CGRASpmWindowParams(0x60010000L, 256,
@@ -41,7 +41,8 @@ class CgraWritebackSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.request.bits.config.slotStride.poke(48.U)
     dut.io.request.bits.config.channels.poke(channels.U)
     dut.io.request.bits.config.rowStride.poke(stride.U)
-    dut.io.request.bits.tile.id.poke(3.U)
+    dut.io.request.bits.tile.id.poke(4.U)
+    dut.io.request.bits.slot.poke(1.U)
     dut.io.request.bits.tile.row.poke(1.U)
     dut.io.request.bits.tile.column.poke(1.U)
     dut.io.request.bits.tile.rows.poke(rows.U)

@@ -604,6 +604,8 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     adapter.io.configIn <> FromAsyncBundle(config.config)
     adapter.io.symbolIn <> FromAsyncBundle(config.symbol)
     adapter.io.patchIn <> FromAsyncBundle(config.patch)
+    adapter.io.repeatIn <> FromAsyncBundle(config.repeat)
+    adapter.io.invalidateResident := resetController.io.localReset || resetController.io.configChanged
     config.ack <> ToAsyncBundle(adapter.io.configAck, AsyncQueueParams.singleton())
     adapter.io.autoLink.watchOutput <> FromAsyncBundle(endpoint.watchOutput)
     endpoint.reportOutput <> ToAsyncBundle(
