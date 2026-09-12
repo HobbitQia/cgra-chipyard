@@ -50,7 +50,6 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       val repeatCount = RegInit(0.U(32.W))
       val repeatPacket = RegInit(0.U(32.W))
       val patch = RegInit(0.U.asTypeOf(new CgraPatchConfig))
-      val writeback = RegInit(0.U.asTypeOf(new CgraWritebackConfig))
       val patchPush = Wire(Decoupled(UInt(1.W)))
       val repeatPush = Wire(Decoupled(UInt(1.W)))
       val configSubmit = Wire(Decoupled(UInt(1.W)))
@@ -63,7 +62,6 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       configOut.bits.expectedCompletions := expectedCompletions
       configOut.bits.patchCount := patchCount
       configOut.bits.repeatCount := repeatCount
-      configOut.bits.writeback := writeback
       configSubmit.ready := Mux(configSubmit.bits.asBool, configOut.ready && !configPending, true.B)
       configAck.ready := true.B
       patchOut.valid := patchPush.valid && patchPush.bits.asBool
@@ -74,7 +72,6 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       repeatPush.ready := Mux(repeatPush.bits.asBool, repeatOut.ready, true.B)
 
       when(configOut.fire) {
-        writeback.enabled := false.B
         repeatCount := 0.U
         configPending := true.B
         configReady := false.B
@@ -126,13 +123,7 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
         PATCH_PUSH -> Seq(RegField.w(1, patchPush)),
         REPEAT_COUNT -> Seq(RegField(32, repeatCount)),
         REPEAT_PACKET -> Seq(RegField(32, repeatPacket)),
-        REPEAT_PUSH -> Seq(RegField.w(1, repeatPush)),
-        OUT_ENABLE -> Seq(RegField(1, writeback.enabled)),
-        OUT_ADDRESS -> Seq(RegField(64, writeback.address)),
-        OUT_WORD -> Seq(RegField(32, writeback.word)),
-        OUT_SLOT_STRIDE -> Seq(RegField(32, writeback.slotStride)),
-        OUT_CHANNELS -> Seq(RegField(32, writeback.channels)),
-        OUT_ROW_STRIDE -> Seq(RegField(32, writeback.rowStride)))
+        REPEAT_PUSH -> Seq(RegField.w(1, repeatPush)))
     }
   }
 }

@@ -52,7 +52,6 @@ class CgraLinkConfig(params: CgraLinkParams) extends Bundle {
   val expectedCompletions = UInt(params.packetCountWidth.W)
   val patchCount = UInt(params.packetCountWidth.W)
   val repeatCount = UInt(params.packetCountWidth.W)
-  val writeback = new CgraWritebackConfig
 }
 
 class CgraPatch extends Bundle {
@@ -106,15 +105,13 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
     val invalidateResident = Input(Bool())
     val computeResult = Flipped(Decoupled(UInt(params.auto.resultWidth.W)))
     val computeActive = Output(Bool())
-    val writeback = Decoupled(new CgraWritebackRequest(params))
-    val writebackDone = Flipped(Decoupled(UInt(AutoLinkStatus.Width.W)))
   })
 
   object ConfigState {
     val idle :: collectPatches :: collectRepeats :: collectPackets :: reportConfig :: Nil = Enum(5)
   }
   object ExecState {
-    val idle :: issueDma :: waitDma :: reportCopy :: waitReset :: readPacket :: loadPacket :: sendPacket :: waitCompute :: issueWriteback :: waitWriteback :: reportCompute :: Nil = Enum(12)
+    val idle :: issueDma :: waitDma :: reportCopy :: waitReset :: readPacket :: loadPacket :: sendPacket :: waitCompute :: reportCompute :: Nil = Enum(10)
   }
 
   val configState = RegInit(ConfigState.idle)
@@ -132,7 +129,6 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   val elements = RegInit(VecInit(Seq.fill(params.jobCount)(0.U(params.auto.lengthWidth.W))))
   val jobPacketCount = Reg(Vec(params.jobCount, UInt(params.packetCountWidth.W)))
   val jobExpectedCompletions = Reg(Vec(params.jobCount, UInt(params.packetCountWidth.W)))
-  val jobWriteback = Reg(Vec(params.jobCount, new CgraWritebackConfig))
   val configIndex = RegInit(0.U(params.packetCountWidth.W))
   val patchIndex = RegInit(0.U(params.packetCountWidth.W))
   val repeatIndex = RegInit(0.U(params.packetCountWidth.W))
@@ -148,13 +144,12 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   val configDone = RegInit(false.B)
   val copyDetail = RegInit(0.U(params.auto.detailWidth.W))
   val resultData = RegInit(0.U(params.auto.resultWidth.W))
-  val resultStatus = RegInit(AutoLinkStatus.Success)
   val publicationArmed = RegInit(false.B)
   val publicationValid = RegInit(false.B)
   val publicationData = RegInit(0.U(params.auto.resultWidth.W))
   val publicationJob = RegInit(0.U(params.auto.jobWidth.W))
   val computeJob = RegInit(0.U(params.auto.jobWidth.W))
-  val computeTile = Reg(new AutoTile(params.auto.lengthWidth))
+  val tileId = Reg(UInt((2 * params.auto.lengthWidth).W))
   val slot = RegInit(0.U(params.auto.slotWidth.W))
 
   val packetCommand = io.packetIn.bits(
@@ -207,7 +202,7 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   io.autoLink.reportCompute.valid := execState === ExecState.reportCompute
   io.autoLink.reportCompute.bits.stage := 0.U
   io.autoLink.reportCompute.bits.job := computeJob
-  io.autoLink.reportCompute.bits.status := resultStatus
+  io.autoLink.reportCompute.bits.status := AutoLinkStatus.Success
   io.autoLink.reportCompute.bits.detail := 0.U
   io.autoLink.reportCompute.bits.data := resultData
 
@@ -228,11 +223,6 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
     execState === ExecState.loadPacket || execState === ExecState.sendPacket ||
     execState === ExecState.waitCompute
   io.computeActive := io.computeResult.ready
-  io.writeback.valid := execState === ExecState.issueWriteback
-  io.writeback.bits.config := selected(jobWriteback, computeJob)
-  io.writeback.bits.tile := computeTile
-  io.writeback.bits.slot := slot
-  io.writebackDone.ready := execState === ExecState.waitWriteback
 
   when(io.autoLink.watchOutput.fire) {
     publicationJob := io.autoLink.watchOutput.bits.job
@@ -291,7 +281,6 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
     when(configIndex + 1.U === config.packetCount) {
       selected(jobPacketCount, config.job) := config.packetCount
       selected(jobExpectedCompletions, config.job) := config.expectedCompletions
-      selected(jobWriteback, config.job) := config.writeback
       configDone := true.B
       configState := ConfigState.reportConfig
     }.otherwise {
@@ -328,7 +317,6 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
 
   def finishCompute(data: UInt): Unit = {
     resultData := data
-    resultStatus := AutoLinkStatus.Success
     priorJobComplete := true.B
     residentValid := selected(repeatMask, computeJob).orR
     residentJob := computeJob
@@ -337,13 +325,12 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
       publicationValid := true.B
       publicationData := data
     }
-    execState := Mux(selected(jobWriteback, computeJob).enabled,
-      ExecState.issueWriteback, ExecState.reportCompute)
+    execState := ExecState.reportCompute
   }
 
   when(io.autoLink.requestCompute.fire) {
     computeJob := io.autoLink.requestCompute.bits.job
-    computeTile := io.autoLink.requestCompute.bits.tile
+    tileId := io.autoLink.requestCompute.bits.tile.id
     slot := io.autoLink.requestCompute.bits.slot
     when(io.autoLink.requestCompute.bits.start) {
       val job = io.autoLink.requestCompute.bits.job
@@ -356,7 +343,6 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
       expectedCompletions := selected(jobExpectedCompletions, job)
       completed := 0.U
       resultData := 0.U
-      resultStatus := AutoLinkStatus.Success
       when(priorJobComplete && !reuse) {
         execState := ExecState.waitReset
       }.otherwise {
@@ -377,7 +363,7 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   when(execState === ExecState.loadPacket) {
     val value = MuxLookup(patchRead.source, slot)(Seq(
       CgraSymbolSource.Elements.U -> selected(elements, computeJob),
-      CgraSymbolSource.TileId.U -> computeTile.id))
+      CgraSymbolSource.TileId.U -> tileId))
     val payload = Wire(UInt(params.cgra.dataPayloadWidth.W))
     payload := value * patchRead.coefficient + patchRead.bias
     val lsb = params.cgra.packetLayout.dataPayloadLsb
@@ -419,13 +405,6 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   }
   when(io.autoLink.reportCompute.fire) {
     execState := ExecState.idle
-  }
-  when(io.writeback.fire) {
-    execState := ExecState.waitWriteback
-  }
-  when(io.writebackDone.fire) {
-    resultStatus := io.writebackDone.bits
-    execState := ExecState.reportCompute
   }
   when(io.invalidateResident) { residentValid := false.B }
 }

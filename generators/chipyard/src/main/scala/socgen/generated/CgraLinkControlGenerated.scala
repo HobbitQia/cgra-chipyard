@@ -29,12 +29,6 @@ object CgraLinkControlGenerated {
   val PATCH_COEFFICIENT: Int = 0x0b8
   val PATCH_BIAS: Int = 0x0c0
   val PATCH_PUSH: Int = 0x0c8
-  val OUT_ENABLE: Int = 0x0d0
-  val OUT_ADDRESS: Int = 0x0d8
-  val OUT_WORD: Int = 0x0e0
-  val OUT_SLOT_STRIDE: Int = 0x0e8
-  val OUT_CHANNELS: Int = 0x0f0
-  val OUT_ROW_STRIDE: Int = 0x0f8
   val REPEAT_COUNT: Int = 0x100
   val REPEAT_PACKET: Int = 0x108
   val REPEAT_PUSH: Int = 0x110
