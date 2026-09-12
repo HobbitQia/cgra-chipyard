@@ -13,11 +13,6 @@ class GemminiWindow extends Bundle {
   val address = UInt(64.W)
   val pixelBytes = UInt(32.W)
   val rowBytes = UInt(32.W)
-  val outputBytes = UInt(32.W)
-  val maxRows = UInt(32.W)
-  val maxColumns = UInt(32.W)
-  val outputBase = UInt(64.W)
-  val outputSize = UInt(32.W)
 }
 
 object GemminiValue {
@@ -53,15 +48,11 @@ class GemminiPatch(params: GemminiLinkParams)(implicit p: Parameters) extends Mo
     val begin = Flipped(Valid(new GemminiLinkConfig(params)))
     val patch = Flipped(Decoupled(new GemminiPatchEntry))
     val configured = Output(Bool())
-    val captureValid = Output(Bool())
     val copy = Flipped(Valid(new AutoCopyRequest(params.auto)))
     val request = Input(new AutoComputeRequest(params.auto))
     val watch = Input(new AutoWatch(params.auto))
-    val watchValid = Input(Bool())
     val start = Input(Bool())
-    val requestValid = Output(Bool())
     val ready = Output(Bool())
-    val boundValid = Output(Bool())
     val job = Input(UInt(params.auto.jobWidth.W))
     val index = Input(UInt(params.commandCountWidth.W))
     val command = Input(new RoCCCommand)
@@ -71,45 +62,27 @@ class GemminiPatch(params: GemminiLinkParams)(implicit p: Parameters) extends Mo
   val entries = Reg(Vec(params.jobCount, Vec(params.patchCapacity, new GemminiPatchEntry)))
   val counts = RegInit(VecInit(Seq.fill(params.jobCount)(0.U(32.W))))
   val windows = Reg(Vec(params.jobCount, new GemminiWindow))
-  val valid = RegInit(VecInit(Seq.fill(params.jobCount)(false.B)))
   val captureJob = RegInit(0.U(params.jobIndexWidth.W))
   val captured = RegInit(0.U(32.W))
-  val commands = Reg(UInt(32.W))
   def selected[T <: Data](values: Vec[T], job: UInt): T =
     if (params.jobCount == 1) values.head else values(job(params.jobIndexWidth - 1, 0))
 
   io.patch.ready := captured < selected(counts, captureJob)
   io.configured := captured === selected(counts, captureJob)
-  io.captureValid := selected(valid, captureJob)
   when(io.begin.valid) {
     captureJob := io.begin.bits.job
     captured := 0.U
-    commands := io.begin.bits.commandCount
     selected(counts, io.begin.bits.job) := io.begin.bits.patchCount
     selected(windows, io.begin.bits.job) := io.begin.bits.window
-    selected(valid, io.begin.bits.job) := true.B
   }
   when(io.patch.fire) {
     selected(entries, captureJob)(captured(log2Ceil(params.patchCapacity) - 1, 0)) := io.patch.bits
     captured := captured + 1.U
-    val overlaps = (0 until params.patchCapacity).map { index =>
-      val entry = selected(entries, captureJob)(index)
-      index.U < captured && entry.command === io.patch.bits.command &&
-        entry.operand === io.patch.bits.operand &&
-        entry.lsb < (io.patch.bits.lsb +& io.patch.bits.bitCount) &&
-        io.patch.bits.lsb < (entry.lsb +& entry.bitCount)
-    }.reduce(_ || _)
-    when(overlaps || io.patch.bits.command >= commands || io.patch.bits.bitCount === 0.U ||
-        (io.patch.bits.lsb +& io.patch.bits.bitCount) > 64.U || io.patch.bits.source >= GemminiValue.Count.U) {
-      selected(valid, captureJob) := false.B
-    }
   }
 
   val view = Reg(new AutoCopyRequest(params.auto))
-  val viewValid = RegInit(false.B)
   when(io.copy.valid) {
     view := io.copy.bits
-    viewValid := true.B
   }
   val needsView = VecInit((0 until params.jobCount).map { job =>
     params.auto.dependencies.exists { dependency =>
@@ -147,19 +120,7 @@ class GemminiPatch(params: GemminiLinkParams)(implicit p: Parameters) extends Mo
   values(GemminiValue.Right) := Mux(endColumn > config.region.columns.zext, endColumn - config.region.columns.zext, 0.S).asUInt
   values(GemminiValue.Slot) := io.request.slot
   values(GemminiValue.TileId) := tile.id
-  val viewMatches = viewValid && view.job === io.request.job && view.tile.asUInt === tile.asUInt &&
-    view.sourceTile.id === tile.id && sourceRow <= footprint.row && sourceColumn <= footprint.column &&
-    (sourceRow +& inputRows) >= (footprint.row +& footprint.rows) &&
-    (sourceColumn +& inputColumns) >= (footprint.column +& footprint.columns) &&
-    view.bytes === inputRows * inputColumns * config.pixelBytes
   val enabled = selected(counts, io.request.job) =/= 0.U
-  io.requestValid := !enabled || (config.region.rows =/= 0.U && config.region.columns =/= 0.U &&
-    footprint.rows =/= 0.U && footprint.columns =/= 0.U &&
-    tile.rows =/= 0.U && tile.rows <= config.maxRows && tile.columns =/= 0.U && tile.columns <= config.maxColumns &&
-    (!inputView || viewMatches) && io.watchValid && io.watch.job === io.request.job &&
-    io.watch.address >= config.outputBase &&
-    (io.watch.address +& io.watch.bytes) <= (config.outputBase +& config.outputSize) &&
-    io.watch.tile.asUInt === tile.asUInt && io.watch.bytes === tile.rows * tile.columns * config.outputBytes)
 
   val bound = Reg(Vec(GemminiValue.Count, UInt(64.W)))
   val payloads = Reg(Vec(params.patchCapacity, UInt(64.W)))
@@ -167,27 +128,20 @@ class GemminiPatch(params: GemminiLinkParams)(implicit p: Parameters) extends Mo
   val bindJob = Reg(UInt(params.jobIndexWidth.W))
   val bindIndex = RegInit(0.U(log2Ceil(params.patchCapacity).W))
   val preparing = RegInit(false.B)
-  val boundValid = RegInit(true.B)
   io.ready := !preparing
-  io.boundValid := boundValid
   when(io.start) {
     bound := values
     bindJob := io.request.job
     bindIndex := 0.U
     preparing := enabled
-    boundValid := true.B
-    viewValid := false.B
   }
   // Share one field evaluator; command replay only applies the prepared masks.
   when(preparing) {
     val entry = selected(entries, bindJob)(bindIndex)
-    val value = (bound(entry.source) * entry.scale).zext + entry.offset.asSInt
+    val value = (bound(entry.source) * entry.scale)(63, 0) + entry.offset.asSInt.pad(64).asUInt
     val mask = (((1.U(65.W) << entry.bitCount) - 1.U)(63, 0) << entry.lsb)(63, 0)
     masks(bindIndex) := mask
-    payloads(bindIndex) := (value.asUInt << entry.lsb) & mask
-    when(value < 0.S || (value.asUInt >> entry.bitCount) =/= 0.U) {
-      boundValid := false.B
-    }
+    payloads(bindIndex) := (value << entry.lsb) & mask
     when(bindIndex +& 1.U === selected(counts, bindJob)) {
       preparing := false.B
     }.otherwise {

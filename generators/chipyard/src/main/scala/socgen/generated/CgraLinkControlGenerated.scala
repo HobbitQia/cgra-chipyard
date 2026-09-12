@@ -23,16 +23,11 @@ object CgraLinkControlGenerated {
   val CONFIG_DONE: Int = 0x060
   val CONFIG_STATUS: Int = 0x068
   val CONFIG_DETAIL: Int = 0x070
-  val SYMBOL_COUNT: Int = 0x078
   val PATCH_COUNT: Int = 0x080
-  val SYMBOL_BASE: Int = 0x088
-  val SYMBOL_STRIDE: Int = 0x090
-  val SYMBOL_SOURCE: Int = 0x098
-  val SYMBOL_PUSH: Int = 0x0a0
   val PATCH_PACKET: Int = 0x0a8
-  val PATCH_SYMBOL: Int = 0x0b0
-  val PATCH_SCALE: Int = 0x0b8
-  val PATCH_OFFSET: Int = 0x0c0
+  val PATCH_SOURCE: Int = 0x0b0
+  val PATCH_COEFFICIENT: Int = 0x0b8
+  val PATCH_BIAS: Int = 0x0c0
   val PATCH_PUSH: Int = 0x0c8
   val OUT_ENABLE: Int = 0x0d0
   val OUT_ADDRESS: Int = 0x0d8
@@ -62,7 +57,6 @@ object CgraLinkControlGenerated {
   val GEMMINI_WINDOW_ADDRESS: Int = 0x080
   val GEMMINI_WINDOW_PIXEL_BYTES: Int = 0x088
   val GEMMINI_WINDOW_ROW_BYTES: Int = 0x090
-  val GEMMINI_WINDOW_OUTPUT_BYTES: Int = 0x098
   val GEMMINI_PATCH_COMMAND: Int = 0x0a0
   val GEMMINI_PATCH_OPERAND: Int = 0x0a8
   val GEMMINI_PATCH_LSB: Int = 0x0b0
@@ -71,10 +65,6 @@ object CgraLinkControlGenerated {
   val GEMMINI_PATCH_SCALE: Int = 0x0c8
   val GEMMINI_PATCH_OFFSET: Int = 0x0d0
   val GEMMINI_PATCH_PUSH: Int = 0x0d8
-  val GEMMINI_WINDOW_MAX_ROWS: Int = 0x0e0
-  val GEMMINI_WINDOW_MAX_COLUMNS: Int = 0x0e8
-  val GEMMINI_WINDOW_OUTPUT_BASE: Int = 0x0f0
-  val GEMMINI_WINDOW_OUTPUT_SIZE: Int = 0x0f8
   val GEMMINI_VALUE_ROWS: Int = 0
   val GEMMINI_VALUE_COLUMNS: Int = 1
   val GEMMINI_VALUE_INPUT_ROWS: Int = 2
@@ -110,7 +100,6 @@ object CgraLinkControlGenerated {
   val AUTO_LINK_TILE_ROWS: Int = 0x018
   val AUTO_LINK_TILE_COLUMNS: Int = 0x020
   val AUTO_LINK_EMITTING: Int = 0x028
-  val AUTO_LINK_CONFIG_ERROR: Int = 0x030
   val AUTO_LINK_RUNNING: Int = 0x038
   val AUTO_LINK_CYCLES: Int = 0x040
   val AUTO_LINK_OVERLAP: Int = 0x048

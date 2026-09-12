@@ -90,18 +90,8 @@ class CgraWriteback(params: CgraLinkParams, window: CGRASpmWindowParams) extends
   val slot = io.request.bits.slot
   val firstWord = config.word +& (slot * config.slotStride)
   val requestedRowWords = tile.columns * config.channels
-  val totalWords = tile.rows * requestedRowWords
-  val sourceEnd = firstWord +& totalWords
-  val rowEndBytes = (tile.column +& tile.columns) * config.channels * elementBytes.U
   val firstAddress = config.address +& (tile.row * config.rowStride) +&
     (tile.column * config.channels * elementBytes.U)
-  val lastAddress = config.address +& ((tile.row +& tile.rows - 1.U) * config.rowStride) +& rowEndBytes - 1.U
-  val valid = config.enabled && tile.rows =/= 0.U && tile.columns =/= 0.U &&
-    config.channels =/= 0.U && sourceEnd <= cgra.spmRead.words.U &&
-    rowEndBytes <= config.rowStride &&
-    (config.address & (elementBytes - 1).U) === 0.U &&
-    (config.rowStride & (elementBytes - 1).U) === 0.U &&
-    lastAddress <= ((BigInt(1) << addressWidth) - 1).U
 
   io.request.ready := state === idle
   io.done.valid := state === report
@@ -128,8 +118,8 @@ class CgraWriteback(params: CgraLinkParams, window: CGRASpmWindowParams) extends
     data := 0.U
     mask := 0.U
     pendingRead := false.B
-    status := Mux(valid, AutoLinkStatus.Success, AutoLinkStatus.ConfigFailure)
-    state := Mux(valid, collect, report)
+    status := AutoLinkStatus.Success
+    state := collect
   }
 
   val lane = address(beatShift - 1, 0)

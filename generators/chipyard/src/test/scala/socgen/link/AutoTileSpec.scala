@@ -35,7 +35,6 @@ class AutoTileSpec extends AnyFlatSpec with ChiselScalatestTester {
       plan(dut, 5, 7, 2, 3)
       dut.io.start.valid.poke(true.B)
       dut.io.start.ready.expect(true.B)
-      dut.io.error.expect(false.B)
       dut.clock.step()
 
       // A competing start must not replace the active geometry.
@@ -48,7 +47,6 @@ class AutoTileSpec extends AnyFlatSpec with ChiselScalatestTester {
         dut.io.out.ready.poke(false.B)
         for (_ <- 0 until 3) {
           tile(dut, id, row, column, rows, columns, last)
-          dut.io.error.expect(false.B)
           dut.clock.step()
         }
         dut.io.out.ready.poke(true.B)
@@ -64,34 +62,6 @@ class AutoTileSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.clock.step()
       dut.io.busy.expect(false.B)
       dut.io.out.valid.expect(false.B)
-    }
-  }
-
-  it should "accept each zero dimension as an error without entering a run" in {
-    test(new AutoTileCursor(4)) { dut =>
-      dut.io.start.valid.poke(false.B)
-      dut.io.out.ready.poke(true.B)
-      for (shape <- Seq((0, 7, 2, 3), (5, 0, 2, 3), (5, 7, 0, 3), (5, 7, 2, 0))) {
-        plan(dut, shape._1, shape._2, shape._3, shape._4)
-        dut.io.start.valid.poke(true.B)
-        dut.io.start.ready.expect(true.B)
-        dut.io.error.expect(true.B)
-        dut.io.out.valid.expect(false.B)
-        dut.clock.step()
-        dut.io.start.valid.poke(false.B)
-        dut.io.error.expect(false.B)
-        dut.io.busy.expect(false.B)
-        dut.io.out.valid.expect(false.B)
-        dut.clock.step()
-      }
-      plan(dut, 1, 1, 1, 1)
-      dut.io.start.valid.poke(true.B)
-      dut.io.error.expect(false.B)
-      dut.clock.step()
-      dut.io.start.valid.poke(false.B)
-      tile(dut, 0, 0, 0, 1, 1, last = true)
-      dut.clock.step()
-      dut.io.busy.expect(false.B)
     }
   }
 

@@ -16,7 +16,7 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     beatBytes = 16,
     controlAddress = 0x60020000L,
     controlBytes = 4096)
-  private val params = CgraLinkParams(auto, CGRAGenerated.params, packetCapacity = 8, symbolCapacity = 2)
+  private val params = CgraLinkParams(auto, CGRAGenerated.params, packetCapacity = 8)
   private val payloadLsb = params.cgra.packetLayout.dataPayloadLsb
   private val payloadMask = ((BigInt(1) << params.cgra.dataPayloadWidth) - 1) << payloadLsb
 
@@ -34,7 +34,6 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   private def init(dut: CgraLinkAdapter): Unit = {
     dut.io.configIn.valid.poke(false.B)
-    dut.io.symbolIn.valid.poke(false.B)
     dut.io.patchIn.valid.poke(false.B)
     dut.io.repeatIn.valid.poke(false.B)
     dut.io.invalidateResident.poke(false.B)
@@ -55,22 +54,19 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.writebackDone.valid.poke(false.B)
   }
 
-  private def ack(dut: CgraLinkAdapter, done: Boolean, detail: Int): Unit = {
+  private def ack(dut: CgraLinkAdapter, done: Boolean): Unit = {
     dut.io.configAck.valid.expect(true.B)
     dut.io.configAck.bits.done.expect(done.B)
-    dut.io.configAck.bits.detail.expect(detail.U)
-    dut.io.configAck.bits.status.expect(if (detail == 0) AutoLinkStatus.Success else AutoLinkStatus.SinkFailure)
     dut.clock.step(2)
     dut.io.configAck.ready.poke(true.B)
     dut.clock.step()
     dut.io.configAck.ready.poke(false.B)
   }
 
-  private def begin(dut: CgraLinkAdapter, symbolCount: Int, patchCount: Int, writeback: Boolean = false, repeatCount: Int = 0): Unit = {
+  private def begin(dut: CgraLinkAdapter, patchCount: Int, writeback: Boolean = false, repeatCount: Int = 0): Unit = {
     dut.io.configIn.bits.job.poke(0.U)
     dut.io.configIn.bits.packetCount.poke(template.size.U)
     dut.io.configIn.bits.expectedCompletions.poke(1.U)
-    dut.io.configIn.bits.symbolCount.poke(symbolCount.U)
     dut.io.configIn.bits.patchCount.poke(patchCount.U)
     dut.io.configIn.bits.repeatCount.poke(repeatCount.U)
     dut.io.configIn.bits.writeback.enabled.poke(writeback.B)
@@ -89,30 +85,18 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   private def capture(
     dut: CgraLinkAdapter,
-    symbols: Seq[(Int, Int, Int)],
     patches: Seq[(Int, Int, Int, Int)],
-    detail: Int = 0,
     writeback: Boolean = false,
     repeats: Seq[Int] = Nil): Unit = {
-    begin(dut, symbols.size, patches.size, writeback, repeats.size)
-    ack(dut, done = false, detail = 0)
-    for ((base, stride, source) <- symbols) {
-      dut.io.packetIn.ready.expect(false.B)
-      dut.io.symbolIn.ready.expect(true.B)
-      dut.io.symbolIn.bits.base.poke(base.U)
-      dut.io.symbolIn.bits.stride.poke(stride.U)
-      dut.io.symbolIn.bits.source.poke(source.U)
-      dut.io.symbolIn.valid.poke(true.B)
-      dut.clock.step()
-      dut.io.symbolIn.valid.poke(false.B)
-    }
-    for ((index, symbol, scale, offset) <- patches) {
+    begin(dut, patches.size, writeback, repeats.size)
+    ack(dut, done = false)
+    for ((index, source, coefficient, bias) <- patches) {
       dut.io.packetIn.ready.expect(false.B)
       dut.io.patchIn.ready.expect(true.B)
       dut.io.patchIn.bits.packetIndex.poke(index.U)
-      dut.io.patchIn.bits.symbolIndex.poke(symbol.U)
-      dut.io.patchIn.bits.scale.poke(scale.U)
-      dut.io.patchIn.bits.offset.poke(offset.U)
+      dut.io.patchIn.bits.source.poke(source.U)
+      dut.io.patchIn.bits.coefficient.poke(coefficient.U)
+      dut.io.patchIn.bits.bias.poke(bias.U)
       dut.io.patchIn.valid.poke(true.B)
       dut.clock.step()
       dut.io.patchIn.valid.poke(false.B)
@@ -131,7 +115,7 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.clock.step()
       dut.io.packetIn.valid.poke(false.B)
     }
-    ack(dut, done = true, detail = detail)
+    ack(dut, done = true)
     dut.io.captureActive.expect(false.B)
   }
 
@@ -217,7 +201,7 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
   it should "bind copy counts and slots on each replay, preserve other bits and clear old patches" in {
     test(new CgraLinkAdapter(params)) { dut =>
       init(dut)
-      capture(dut, Seq((4, 16, 0), (0, 0, 1)), Seq((0, 0, 1, 0), (1, 1, 5, 10)))
+      capture(dut, Seq((0, CgraSymbolSource.Slot, 16, 4), (1, CgraSymbolSource.Elements, 5, 10)))
       for ((id, slot, elements) <- Seq((4, 2, 19), (5, 0, 3), (6, 1, 32))) {
         copy(dut, elements)
         val expected = template.zipWithIndex.map { case (value, index) =>
@@ -226,35 +210,8 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
         }
         compute(dut, id, expected, slot)
       }
-      capture(dut, Nil, Nil)
+      capture(dut, Nil)
       compute(dut, 7, template)
-    }
-  }
-
-  it should "drain malformed metadata, reject execution and accept a replacement capture" in {
-    test(new CgraLinkAdapter(params)) { dut =>
-      init(dut)
-      begin(dut, symbolCount = 3, patchCount = 1)
-      ack(dut, done = true, detail = CgraLinkStatus.BadConfig)
-      for (patches <- Seq(
-        Seq((template.size, 0, 1, 0)),
-        Seq((0, 1, 1, 0)),
-        Seq((0, 0, 1, 0), (0, 0, 2, 0)))) {
-        capture(dut, Seq((0, 0, 0)), patches, CgraLinkStatus.BadPacket)
-        dut.io.autoLink.requestCompute.bits.job.poke(0.U)
-        dut.io.autoLink.requestCompute.bits.start.poke(true.B)
-        dut.io.autoLink.requestCompute.valid.poke(true.B)
-        dut.clock.step()
-        dut.io.autoLink.requestCompute.valid.poke(false.B)
-        dut.io.jobPacket.valid.expect(false.B)
-        dut.io.autoLink.reportCompute.valid.expect(true.B)
-        dut.io.autoLink.reportCompute.bits.detail.expect(CgraLinkStatus.BadConfig.U)
-        dut.io.autoLink.reportCompute.ready.poke(true.B)
-        dut.clock.step()
-        dut.io.autoLink.reportCompute.ready.poke(false.B)
-      }
-      capture(dut, Nil, Nil)
-      compute(dut, 0, template)
     }
   }
 
@@ -262,7 +219,7 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     test(new CgraLinkAdapter(params)) { dut =>
       init(dut)
       val repeats = Seq(0, 1, 3, 4)
-      capture(dut, Seq((4, 16, CgraSymbolSource.Slot)), Seq((0, 0, 1, 0)), repeats = repeats)
+      capture(dut, Seq((0, CgraSymbolSource.Slot, 16, 4)), repeats = repeats)
       val first = template.updated(0, (template.head & ~payloadMask) | (BigInt(4) << payloadLsb))
       compute(dut, 0, first)
       val commandLsb = params.cgra.packetLayout.cmdLsb
@@ -282,39 +239,25 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.invalidateResident.poke(false.B)
       dut.io.resetRequest.ready.poke(true.B)
       compute(dut, 3, first)
-      capture(dut, Nil, Nil)
+      capture(dut, Nil)
       compute(dut, 4, template)
     }
   }
 
-  it should "reject repeat descriptors that omit launch or patched packets" in {
-    test(new CgraLinkAdapter(params)) { dut =>
-      init(dut)
-      for (repeats <- Seq(Seq(0), Seq(3, 4), Seq(0, 0, 3, 4), Seq(0, template.size))) {
-        capture(dut, Seq((4, 16, CgraSymbolSource.Slot)), Seq((0, 0, 1, 0)),
-          detail = CgraLinkStatus.BadPacket, repeats = repeats)
-      }
-      capture(dut, Nil, Nil)
-      compute(dut, 0, template)
-    }
-  }
-
-  it should "reject an element-count source for a job without incoming data" in {
+  it should "bind tile identity for a job without incoming data" in {
     val noCopy = auto.copy(
       stages = Seq(AutoStageSpec("sink", "cgra", 0)),
       dependencies = Seq(AutoDependencySpec(None, 0, None)),
       endpoints = Seq(AutoEndpointSpec("cgra", None, 512)))
     test(new CgraLinkAdapter(params.copy(auto = noCopy))) { dut =>
       init(dut)
-      capture(dut, Seq((0, 0, 1)), Seq((0, 0, 1, 0)), CgraLinkStatus.BadPacket)
-      capture(dut, Seq((4, 16, CgraSymbolSource.TileId)), Seq((0, 0, 1, 0)))
+      capture(dut, Seq((0, CgraSymbolSource.TileId, 16, 4)))
       for (id <- Seq(4, 7)) {
         val expected = template.updated(0,
           (template.head & ~payloadMask) | (BigInt(4 + id * 16) << payloadLsb))
         compute(dut, id, expected)
       }
-      capture(dut, Seq((0, 0, 3)), Seq((0, 0, 1, 0)), CgraLinkStatus.BadPacket)
-      capture(dut, Nil, Nil)
+      capture(dut, Nil)
       compute(dut, 8, template)
     }
   }
@@ -322,7 +265,7 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
   it should "retain the compute result until captured writeback drains and propagate failure" in {
     test(new CgraLinkAdapter(params)) { dut =>
       init(dut)
-      capture(dut, Nil, Nil, writeback = true)
+      capture(dut, Nil, writeback = true)
       dut.io.configIn.bits.writeback.enabled.poke(false.B)
       dut.io.configIn.bits.writeback.address.poke(0.U)
       for ((id, status) <- Seq((4, AutoLinkStatus.Success), (5, AutoLinkStatus.SinkFailure))) {
@@ -376,7 +319,7 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
         dut.io.writebackDone.valid.poke(false.B)
         report(dut, status)
       }
-      capture(dut, Nil, Nil)
+      capture(dut, Nil)
       compute(dut, 6, template)
     }
   }

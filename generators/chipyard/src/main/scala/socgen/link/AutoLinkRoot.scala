@@ -8,7 +8,6 @@ import freechips.rocketchip.prci.{ClockSinkDomain, ClockSinkParameters}
 import freechips.rocketchip.regmapper.RegField
 import freechips.rocketchip.resources.SimpleDevice
 import freechips.rocketchip.tilelink.TLRegisterNode
-import freechips.rocketchip.util.{AsyncBundle, AsyncQueueParams, ToAsyncBundle}
 import org.chipsalliance.cde.config.Parameters
 
 /** Snapshots geometry and transfer bindings once, before releasing a run. */
@@ -20,8 +19,7 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
     device = device,
     beatBytes = 8,
     concurrency = 1)
-  val runNode = BundleBridgeSource(() =>
-    new AsyncBundle(new AutoRun(params), AsyncQueueParams.singleton()))
+  val runNode = BundleBridgeSource(() => Decoupled(new AutoRun(params)))
   // Root and fabric are both on the fixed peripheral-bus clock.
   val stateNode = BundleBridgeSink[AutoProgress]()
 
@@ -39,27 +37,15 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
       val tileColumns = RegInit(1.U(params.lengthWidth.W))
       val transfers = RegInit(AutoTileBinding.defaults(params))
       val regions = RegInit(0.U.asTypeOf(Vec(params.stages.size, new AutoRegion(params.lengthWidth))))
-      val error = RegInit(false.B)
-      val shapeValid = rows =/= 0.U && columns =/= 0.U && tileRows =/= 0.U && tileColumns =/= 0.U
-      val multipleSlots = rows > tileRows || columns > tileColumns
-      val regionValid = regions.map(region => region.rows === 0.U ||
-        (region.columns =/= 0.U && region.rowStep =/= 0.U && region.columnStep =/= 0.U)).reduce(_ && _)
-      val rangeValid = params.dependencies.zipWithIndex.flatMap { case (dependency, index) =>
-        dependency.copy.map(_ => AutoTileBinding.transferValid(params, index, transfers(index), multipleSlots))
-      }.reduceOption(_ && _).getOrElse(true.B)
-      val valid = shapeValid && regionValid && rangeValid
-      run.valid := inputReady.valid && inputReady.bits.asBool && valid
+      run.valid := inputReady.valid && inputReady.bits.asBool
       run.bits.plan.rows := rows
       run.bits.plan.columns := columns
       run.bits.plan.tileRows := tileRows
       run.bits.plan.tileColumns := tileColumns
       run.bits.transfers := transfers
       run.bits.regions := regions
-      inputReady.ready := !inputReady.bits.asBool || !valid || run.ready
-      when(inputReady.fire && inputReady.bits.asBool) {
-        error := !valid
-      }
-      runNode.out.head._1 <> ToAsyncBundle(run, AsyncQueueParams.singleton())
+      inputReady.ready := !inputReady.bits.asBool || run.ready
+      runNode.out.head._1 <> Queue(run, 1)
       val state = stateNode.in.head._1
       val transferFields = transfers.zipWithIndex.flatMap { case (transfer, index) =>
         Seq(transfer.sourceOffset, transfer.destinationOffset, transfer.sourceStride,
@@ -85,8 +71,7 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
         AUTO_LINK_RUNNING -> Seq(RegField.r(1, state.running)),
         AUTO_LINK_CYCLES -> Seq(RegField.r(64, state.cycles)),
         AUTO_LINK_OVERLAP -> Seq(RegField.r(64, state.overlap)),
-        AUTO_LINK_PEAK_ACTIVE -> Seq(RegField.r(64, state.peakActive)),
-        AUTO_LINK_CONFIG_ERROR -> Seq(RegField.r(1, error))) ++ transferFields ++ regionFields): _*)
+        AUTO_LINK_PEAK_ACTIVE -> Seq(RegField.r(64, state.peakActive))) ++ transferFields ++ regionFields): _*)
     }
   }
 }

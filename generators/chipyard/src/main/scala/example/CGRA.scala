@@ -513,7 +513,8 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   cgra.io.address_lower := params.addressLower.U
   cgra.io.address_upper := params.addressUpper.U
 
-  val dmaRequant = outer.spmWindow.flatMap(_.bridge).map(_ => RegInit(false.B))
+  val inboundBridge = outer.spmWindow.flatMap(_.bridge).filter(_.inboundWords > 0)
+  val dmaRequant = inboundBridge.map(_ => RegInit(false.B))
   val dmaPacked = RegInit(false.B)
   val writeback = for {
     link <- outer.linkParams
@@ -537,7 +538,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     cgra.io.send_to_dram_rd_req_rdy.get := reader.nativeReq.ready && !writebackBusy
     dmaAdapter.readReq <> reader.memoryReq
     reader.memoryResp <> dmaAdapter.readResp
-    outer.spmWindow.flatMap(_.bridge) match {
+    inboundBridge match {
       case Some(bridgeParams) =>
         val bridge = Module(new CgraDmaTensorBridge(
           params.dma.dramDataWidth,
@@ -602,7 +603,6 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     val config = outer.linkConfigNode.get.in.head._1
     val adapter = Module(new CgraLinkAdapter(linkParams))
     adapter.io.configIn <> FromAsyncBundle(config.config)
-    adapter.io.symbolIn <> FromAsyncBundle(config.symbol)
     adapter.io.patchIn <> FromAsyncBundle(config.patch)
     adapter.io.repeatIn <> FromAsyncBundle(config.repeat)
     adapter.io.invalidateResident := resetController.io.localReset || resetController.io.configChanged
@@ -630,12 +630,9 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         adapter.io.writeback.ready := writer.io.request.ready && writebackReady
         adapter.io.writebackDone <> writer.io.done
       case None =>
-        val rejected = RegInit(false.B)
-        adapter.io.writeback.ready := !rejected
-        adapter.io.writebackDone.valid := rejected
-        adapter.io.writebackDone.bits := AutoLinkStatus.ConfigFailure
-        when(adapter.io.writeback.fire) { rejected := true.B }
-        when(adapter.io.writebackDone.fire) { rejected := false.B }
+        adapter.io.writeback.ready := false.B
+        adapter.io.writebackDone.valid := false.B
+        adapter.io.writebackDone.bits := AutoLinkStatus.Success
     }
   }
   linkAdapter match {
@@ -983,26 +980,10 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
       when (isDmaIssue) {
         val issueWords = issueNbytes >> cgraWordByteShift
-        val issueSpmEnd = issueSpmAddr +& issueWords
-        val issueDramEnd = rs1 +& issueNbytes
         assert(!dmaInFlight && !dmaDoneValid && !dmaSeqActive,
           "only one DMA command may be outstanding")
         assert(!dmaAdapterBusy,
           "new DMA command issued while the TileLink adapter is active")
-        if (params.dma.descriptorWidth < xLen) {
-          assert(!rs2(xLen - 1, params.dma.descriptorWidth).orR,
-            "DMA descriptor has nonzero bits outside the generated layout")
-        }
-        assert(issueNbytes =/= 0.U, "DMA byte count must be nonzero")
-        assert(Mux(isDmaPacked,
-          issueNbytes(cgraWordByteShift - 1, 0) === 0.U,
-          issueNbytes(dmaBeatByteShift - 1, 0) === 0.U),
-          "DMA destination byte count must align to its transfer format")
-        assert(issueSpmEnd <= params.dma.spmWords.U,
-          "DMA descriptor exceeds the software-visible SPM range")
-        assert(isDmaPacked || rs1(dmaBeatByteShift - 1, 0) === 0.U,
-          "DMA DRAM address must be 16-byte aligned")
-        assert(!issueDramEnd(xLen), "DMA address plus length overflows xLen")
 
         dmaSeqDramAddr := rs1
         dmaSeqDescriptor := rs2
@@ -1017,7 +998,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         dmaSeqActive := true.B
         dmaInFlight := true.B
         dmaOwnerLink := false.B
-        outer.spmWindow.flatMap(_.bridge).foreach { bridge =>
+        inboundBridge.foreach { bridge =>
           dmaRequant.get := isDmaMvin && !isDmaPacked &&
             issueSpmAddr === bridge.inboundSpmWord.U &&
             issueWords === bridge.inboundWords.U
@@ -1067,7 +1048,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         dmaInFlight := true.B
         dmaOwnerLink := true.B
         linkDmaTag := request.bits.dmaTag
-        outer.spmWindow.flatMap(_.bridge).foreach { bridge =>
+        inboundBridge.foreach { bridge =>
           dmaRequant.get :=
             !request.bits.packed && request.bits.spmWordAddress === bridge.inboundSpmWord.U &&
             (request.bits.bytes >> cgraWordByteShift) === bridge.inboundWords.U

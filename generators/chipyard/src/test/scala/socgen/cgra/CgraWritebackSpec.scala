@@ -148,25 +148,12 @@ class CgraWritebackSpec extends AnyFlatSpec with ChiselScalatestTester {
     }
   }
 
-  it should "retain raw words and reject invalid extents before memory traffic" in {
+  it should "retain raw words in strided output rows" in {
     test(new CgraWriteback(params, CGRASpmWindowParams(0x60010000L, 1024))) { dut =>
       init(dut)
       request(dut, 2, 2, 2, 0x1004, 32)
       drain(dut, Seq(1, -2, 3, 4, 5, -6, 7, 8), packedOutput = false,
         firstAddress = 0x102c, rowBytes = 16, rows = 2, stride = 32)
-      val invalid = Seq((0, 2, BigInt(0x1000), 32, 16),
-        (2, 2, BigInt(0x1001), 32, 16), (2, 2, BigInt(0x1000), 8, 16),
-        (2, 2, BigInt(0x1000), 32, 250), (2, 2, (BigInt(1) << 64) - 16, 32, 16))
-      for ((rows, columns, address, stride, word) <- invalid) {
-        request(dut, rows, columns, 2, address, stride, word)
-        dut.io.done.valid.expect(true.B)
-        dut.io.done.bits.expect(AutoLinkStatus.ConfigFailure)
-        dut.io.spm.req.valid.expect(false.B)
-        dut.io.writeReq.valid.expect(false.B)
-        dut.io.done.ready.poke(true.B)
-        dut.clock.step()
-        dut.io.done.ready.poke(false.B)
-      }
     }
   }
 

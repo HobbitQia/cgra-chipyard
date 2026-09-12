@@ -42,12 +42,8 @@ object PoolMode {
 object PoolStatus {
   val Width = 8
   val Success = 0.U(Width.W)
-  val BadJob = 1.U(Width.W)
   val Denied = 2.U(Width.W)
   val Corrupt = 3.U(Width.W)
-  val BadLength = 4.U(Width.W)
-  val UnsupportedMode = 5.U(Width.W)
-  val BadAddress = 6.U(Width.W)
 }
 
 class PoolJob(params: PoolParams) extends Bundle {
@@ -155,28 +151,7 @@ class PoolEngine(params: PoolParams, beatBits: Int) extends Module {
   val rowBytes = rowElements << log2Ceil(params.elementBytes)
   val rowStride = Mux(io.job.bits.outputStride === 0.U, rowBytes, io.job.bits.outputStride)
   val inputBytes = inputElements << log2Ceil(params.elementBytes)
-  val outputSpan = (nextOutputHeight - 1.U) * rowStride +& rowBytes
-  val sourceEnd = io.job.bits.source.pad(params.addressBits + 1) + inputBytes.pad(params.addressBits + 1)
-  val destinationEnd = io.job.bits.destination +& outputSpan
-  val rangesOverlap = io.job.bits.source.pad(params.addressBits + 1) < destinationEnd &&
-    io.job.bits.destination.pad(params.addressBits + 1) < sourceEnd
-  val lineEntries = ((io.job.bits.kernelHeight - 1.U) * io.job.bits.inputWidth +
-    io.job.bits.kernelWidth) * nextGroups
-  val shapeValid = io.job.bits.inputHeight =/= 0.U &&
-    io.job.bits.inputWidth =/= 0.U && io.job.bits.channels =/= 0.U &&
-    io.job.bits.kernelHeight =/= 0.U && io.job.bits.kernelWidth =/= 0.U &&
-    io.job.bits.strideHeight =/= 0.U && io.job.bits.strideWidth =/= 0.U &&
-    paddedHeight >= io.job.bits.kernelHeight && paddedWidth >= io.job.bits.kernelWidth
-  val addressValid =
-    (io.job.bits.source & (params.elementBytes - 1).U) === 0.U &&
-      (io.job.bits.destination & (params.elementBytes - 1).U) === 0.U &&
-      (rowStride & (params.elementBytes - 1).U) === 0.U &&
-      sourceEnd <= (BigInt(1) << params.addressBits).U &&
-      destinationEnd <= (BigInt(1) << params.addressBits).U
-  val validJob = shapeValid && addressValid &&
-    rowStride >= rowBytes && lineEntries <= params.lineBufferEntries.U && !rangesOverlap
-  val supportedJob = io.job.bits.mode === PoolMode.Max
-  val startJob = io.job.fire && validJob && supportedJob
+  val startJob = io.job.fire
 
   val inputOffset = io.job.bits.source(beatShift - 1, 0)
   val alignedSource = io.job.bits.source & (~(beatBytes - 1).U(params.addressBits.W))
@@ -299,29 +274,17 @@ class PoolEngine(params: PoolParams, beatBits: Int) extends Module {
     failed := false.B
     failStatus := PoolStatus.Success
     writeComplete := false.B
-    when(!supportedJob) {
-      inputStatus := PoolStatus.UnsupportedMode
-      doneStatus := PoolStatus.UnsupportedMode
-      inputEventValid := true.B
-      doneEventValid := true.B
-    }.elsewhen(!validJob) {
-      inputStatus := PoolStatus.BadJob
-      doneStatus := PoolStatus.BadJob
-      inputEventValid := true.B
-      doneEventValid := true.B
-    }.otherwise {
-      job := io.job.bits
-      outputHeight := nextOutputHeight
-      outputWidth := nextOutputWidth
-      channelGroups := nextGroups
-      inputEntries := io.job.bits.inputHeight * io.job.bits.inputWidth * nextGroups
-      outputRow := 0.U
-      outputColumn := 0.U
-      group := 0.U
-      kernelRow := 0.U
-      kernelColumn := 0.U
-      state := State.prepare
-    }
+    job := io.job.bits
+    outputHeight := nextOutputHeight
+    outputWidth := nextOutputWidth
+    channelGroups := nextGroups
+    inputEntries := io.job.bits.inputHeight * io.job.bits.inputWidth * nextGroups
+    outputRow := 0.U
+    outputColumn := 0.U
+    group := 0.U
+    kernelRow := 0.U
+    kernelColumn := 0.U
+    state := State.prepare
   }
 
   when(state === State.prepare) {

@@ -23,6 +23,8 @@ class GemminiPublicationHarness(params: GemminiLinkParams)(implicit p: Parameter
   adapter.io.configIn.valid := false.B
   adapter.io.configIn.bits := 0.U.asTypeOf(new GemminiLinkConfig(params))
   adapter.io.configAck.ready := true.B
+  adapter.io.patchIn.valid := false.B
+  adapter.io.patchIn.bits := 0.U.asTypeOf(new GemminiPatchEntry)
   adapter.io.cpuCommand.valid := false.B
   adapter.io.cpuCommand.bits := 0.U.asTypeOf(new RoCCCommand)
   adapter.io.command.ready := true.B

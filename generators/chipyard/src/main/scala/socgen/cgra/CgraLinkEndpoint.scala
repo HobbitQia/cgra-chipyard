@@ -12,17 +12,9 @@ import freechips.rocketchip.resources.SimpleDevice
 import freechips.rocketchip.subsystem.{BaseSubsystem, InstantiatesHierarchicalElements, PBUS}
 import freechips.rocketchip.tile.RocketTile
 import freechips.rocketchip.tilelink._
-import freechips.rocketchip.util.{AsyncBundle, AsyncQueueParams, FromAsyncBundle, ToAsyncBundle}
+import freechips.rocketchip.util.{AsyncQueueParams, FromAsyncBundle, ToAsyncBundle}
 import org.chipsalliance.cde.config.Parameters
 import org.chipsalliance.diplomacy.lazymodule.LazyModule
-
-class CgraLinkResult(params: CgraLinkParams) extends Bundle {
-  val stage = UInt(32.W)
-  val job = UInt(32.W)
-  val status = UInt(AutoLinkStatus.Width.W)
-  val detail = UInt(params.auto.detailWidth.W)
-  val data = UInt(params.auto.resultWidth.W)
-}
 
 /** SoC attachment and CPU-visible registers for the CGRA AutoLink adapter. */
 class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address: BigInt, pageSizeBytes: Int)(implicit p: Parameters) extends ClockSinkDomain(ClockSinkParameters())(p) {
@@ -34,57 +26,46 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
     concurrency = 1)
   val configNode = BundleBridgeSource(() => new CgraLinkConfigAsync(params))
   private val resultNodes = resultNames.map(name =>
-    name -> BundleBridgeSink[AsyncBundle[AutoEvent]]()).toMap
+    name -> BundleBridgeSink[DecoupledIO[AutoEvent]]()).toMap
 
-  def resultNode(name: String): BundleBridgeSink[AsyncBundle[AutoEvent]] = resultNodes(name)
+  def resultNode(name: String): BundleBridgeSink[DecoupledIO[AutoEvent]] = resultNodes(name)
 
   override lazy val module = new EndpointImpl
   class EndpointImpl extends Impl {
     withClockAndReset(clock, reset) {
       val configLink = configNode.out.head._1
       val configOut = Wire(Decoupled(new CgraLinkConfig(params)))
-      val symbolOut = Wire(Decoupled(new CgraSymbolConfig))
       val patchOut = Wire(Decoupled(new CgraPatchConfig))
       val repeatOut = Wire(Decoupled(UInt(32.W)))
       val configAck = FromAsyncBundle(configLink.ack)
-      val resultIn = resultNames.map(name => FromAsyncBundle(resultNodes(name).in.head._1))
+      val resultIn = resultNames.map(name => resultNodes(name).in.head._1)
       configLink.config <> ToAsyncBundle(configOut, AsyncQueueParams.singleton())
-      configLink.symbol <> ToAsyncBundle(symbolOut, AsyncQueueParams.singleton())
       configLink.patch <> ToAsyncBundle(patchOut, AsyncQueueParams.singleton())
       configLink.repeat <> ToAsyncBundle(repeatOut, AsyncQueueParams.singleton())
 
       val job = RegInit(0.U(32.W))
       val packetCount = RegInit(0.U(32.W))
       val expectedCompletions = RegInit(0.U(32.W))
-      val symbolCount = RegInit(0.U(32.W))
       val patchCount = RegInit(0.U(32.W))
       val repeatCount = RegInit(0.U(32.W))
       val repeatPacket = RegInit(0.U(32.W))
-      val symbol = RegInit(0.U.asTypeOf(new CgraSymbolConfig))
       val patch = RegInit(0.U.asTypeOf(new CgraPatchConfig))
       val writeback = RegInit(0.U.asTypeOf(new CgraWritebackConfig))
-      val symbolPush = Wire(Decoupled(UInt(1.W)))
       val patchPush = Wire(Decoupled(UInt(1.W)))
       val repeatPush = Wire(Decoupled(UInt(1.W)))
       val configSubmit = Wire(Decoupled(UInt(1.W)))
       val configPending = RegInit(false.B)
       val configReady = RegInit(false.B)
       val configDone = RegInit(false.B)
-      val configStatus = RegInit(AutoLinkStatus.Success)
-      val configDetail = RegInit(0.U(params.auto.detailWidth.W))
       configOut.valid := configSubmit.valid && configSubmit.bits.asBool && !configPending
       configOut.bits.job := job
       configOut.bits.packetCount := packetCount
       configOut.bits.expectedCompletions := expectedCompletions
-      configOut.bits.symbolCount := symbolCount
       configOut.bits.patchCount := patchCount
       configOut.bits.repeatCount := repeatCount
       configOut.bits.writeback := writeback
       configSubmit.ready := Mux(configSubmit.bits.asBool, configOut.ready && !configPending, true.B)
       configAck.ready := true.B
-      symbolOut.valid := symbolPush.valid && symbolPush.bits.asBool
-      symbolOut.bits := symbol
-      symbolPush.ready := Mux(symbolPush.bits.asBool, symbolOut.ready, true.B)
       patchOut.valid := patchPush.valid && patchPush.bits.asBool
       patchOut.bits := patch
       patchPush.ready := Mux(patchPush.bits.asBool, patchOut.ready, true.B)
@@ -98,29 +79,22 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
         configPending := true.B
         configReady := false.B
         configDone := false.B
-        configStatus := AutoLinkStatus.Success
-        configDetail := 0.U
       }
       when(configAck.fire) {
         configPending := !configAck.bits.done
         configReady := true.B
         configDone := configAck.bits.done
-        configStatus := configAck.bits.status
-        configDetail := configAck.bits.detail
       }
 
-      val results = Module(new Queue(new CgraLinkResult(params), math.max(2, resultNames.size)))
-      val resultArbiter = Module(new Arbiter(new CgraLinkResult(params), resultIn.size))
+      val results = Module(new Queue(new AutoEvent(params.auto), math.max(2, resultNames.size)))
+      val resultArbiter = Module(new Arbiter(new AutoEvent(params.auto), resultIn.size))
       resultIn.zipWithIndex.foreach { case (result, index) =>
-        val input = resultArbiter.io.in(index)
-        input.valid := result.valid
-        input.bits := result.bits
-        result.ready := input.ready
+        resultArbiter.io.in(index) <> result
       }
       results.io.enq <> resultArbiter.io.out
 
       val resultPop = Wire(Decoupled(UInt(1.W)))
-      val result = RegInit(0.U.asTypeOf(new CgraLinkResult(params)))
+      val result = RegInit(0.U.asTypeOf(new AutoEvent(params.auto)))
       resultPop.ready := Mux(resultPop.bits.asBool, results.io.deq.valid, true.B)
       results.io.deq.ready := resultPop.valid && resultPop.bits.asBool
       when(results.io.deq.fire) {
@@ -142,18 +116,13 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
         EXPECTED_COMPLETES -> Seq(RegField(32, expectedCompletions)),
         CONFIG_READY -> Seq(RegField.r(1, configReady)),
         CONFIG_DONE -> Seq(RegField.r(1, configDone)),
-        CONFIG_STATUS -> Seq(RegField.r(32, configStatus)),
-        CONFIG_DETAIL -> Seq(RegField.r(32, configDetail)),
-        SYMBOL_COUNT -> Seq(RegField(32, symbolCount)),
+        CONFIG_STATUS -> Seq(RegField.r(32, AutoLinkStatus.Success)),
+        CONFIG_DETAIL -> Seq(RegField.r(32, 0.U)),
         PATCH_COUNT -> Seq(RegField(32, patchCount)),
-        SYMBOL_BASE -> Seq(RegField(32, symbol.base)),
-        SYMBOL_STRIDE -> Seq(RegField(32, symbol.stride)),
-        SYMBOL_SOURCE -> Seq(RegField(CgraSymbolSource.Width, symbol.source)),
-        SYMBOL_PUSH -> Seq(RegField.w(1, symbolPush)),
         PATCH_PACKET -> Seq(RegField(32, patch.packetIndex)),
-        PATCH_SYMBOL -> Seq(RegField(32, patch.symbolIndex)),
-        PATCH_SCALE -> Seq(RegField(32, patch.scale)),
-        PATCH_OFFSET -> Seq(RegField(32, patch.offset)),
+        PATCH_SOURCE -> Seq(RegField(CgraSymbolSource.Width, patch.source)),
+        PATCH_COEFFICIENT -> Seq(RegField(32, patch.coefficient)),
+        PATCH_BIAS -> Seq(RegField(32, patch.bias)),
         PATCH_PUSH -> Seq(RegField.w(1, patchPush)),
         REPEAT_COUNT -> Seq(RegField(32, repeatCount)),
         REPEAT_PACKET -> Seq(RegField(32, repeatPacket)),

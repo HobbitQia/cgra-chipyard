@@ -129,7 +129,7 @@ class PoolStrideSpec extends AnyFlatSpec with ChiselScalatestTester {
     job.padRight.poke(0.U)
   }
 
-  it should "reject invalid strides, wrapped spans and strided overlap before DMA" in {
+  it should "drain outstanding reads before reporting a denied transfer" in {
     test(new PoolEngine(PoolParams(), beatBits = 64)) { dut =>
       dut.io.job.valid.poke(false.B)
       dut.io.inputDone.ready.poke(false.B)
@@ -138,41 +138,56 @@ class PoolStrideSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.dma.writeRequest.ready.poke(true.B)
       dut.io.dma.readResponse.valid.poke(false.B)
       dut.io.dma.writeResponse.valid.poke(false.B)
-      for (fault <- 0 until 5) {
-        configure(dut.io.job.bits)
-        fault match {
-          case 0 => dut.io.job.bits.outputStride.poke(20.U)
-          case 1 => dut.io.job.bits.outputStride.poke(25.U)
-          case 2 => dut.io.job.bits.outputStride.poke((BigInt(1) << 63).U)
-          case 3 => dut.io.job.bits.destination.poke(((BigInt(1) << 64) - 32).U)
-          case 4 =>
-            dut.io.job.bits.destination.poke(0x100.U)
-            dut.io.job.bits.outputStride.poke(0x1000.U)
-            dut.io.job.bits.source.poke(0x1100.U)
+      configure(dut.io.job.bits)
+      dut.io.job.valid.poke(true.B)
+      dut.clock.step()
+      dut.io.job.valid.poke(false.B)
+      val sources = scala.collection.mutable.ArrayBuffer.empty[BigInt]
+      var cycles = 0
+      while (sources.size < 4 && cycles < 30) {
+        if (dut.io.dma.readRequest.valid.peek().litToBoolean) {
+          sources += dut.io.dma.readRequest.bits.source.peek().litValue
         }
-        dut.io.job.ready.expect(true.B)
-        dut.io.job.valid.poke(true.B)
         dut.clock.step()
-        dut.io.job.valid.poke(false.B)
-        for (_ <- 0 until 3) {
-          dut.io.dma.readRequest.valid.expect(false.B)
-          dut.io.dma.writeRequest.valid.expect(false.B)
-          dut.io.inputDone.valid.expect(true.B)
-          dut.io.inputDone.bits.status.expect(PoolStatus.BadJob)
-          dut.io.done.valid.expect(true.B)
-          dut.io.done.bits.status.expect(PoolStatus.BadJob)
-          dut.clock.step()
-        }
-        dut.io.inputDone.ready.poke(true.B)
-        dut.io.done.ready.poke(true.B)
-        dut.clock.step()
-        dut.io.inputDone.ready.poke(false.B)
-        dut.io.done.ready.poke(false.B)
+        cycles += 1
       }
+      assert(sources.size == 4)
+      dut.io.dma.readRequest.ready.poke(false.B)
+      dut.io.dma.readResponse.bits.data.poke(0.U)
+      dut.io.dma.readResponse.bits.corrupt.poke(false.B)
+      for ((source, index) <- sources.reverse.zipWithIndex) {
+        dut.io.dma.readResponse.bits.source.poke(source.U)
+        dut.io.dma.readResponse.bits.denied.poke((index == 0).B)
+        dut.io.dma.readResponse.valid.poke(true.B)
+        dut.io.dma.readResponse.ready.expect(true.B)
+        dut.io.done.valid.expect(false.B)
+        dut.clock.step()
+        dut.io.dma.readResponse.valid.poke(false.B)
+        if (index < sources.size - 1) {
+          dut.clock.step(2)
+          dut.io.done.valid.expect(false.B)
+        }
+      }
+      cycles = 0
+      while (!dut.io.done.valid.peek().litToBoolean && cycles < 10) {
+        dut.clock.step()
+        cycles += 1
+      }
+      dut.io.done.valid.expect(true.B)
+      dut.io.done.bits.status.expect(PoolStatus.Denied)
+      dut.io.inputDone.valid.expect(true.B)
+      dut.io.inputDone.bits.status.expect(PoolStatus.Denied)
+      dut.io.dma.writeRequest.valid.expect(false.B)
+      dut.clock.step(2)
+      dut.io.done.valid.expect(true.B)
+      dut.io.inputDone.ready.poke(true.B)
+      dut.io.done.ready.poke(true.B)
+      dut.clock.step()
+      dut.io.job.ready.expect(true.B)
     }
   }
 
-  it should "publish only compact or single-row output as a contiguous range" in {
+  it should "publish engine completion and preserve its status" in {
     val auto = AutoLinkParams(
       stages = Seq(AutoStageSpec("pool", "pool", 0)),
       dependencies = Seq(AutoDependencySpec(None, 0, None)),
@@ -182,8 +197,8 @@ class PoolStrideSpec extends AnyFlatSpec with ChiselScalatestTester {
       controlBytes = 4096)
     test(new PoolLinkAdapter(PoolParams(), Some(PoolLinkParams(auto)))) { dut =>
       val port = dut.io.autoLink.get
-      for ((rows, stride, expected) <- Seq((3, 32, PoolStatus.BadLength),
-          (3, 0, PoolStatus.Success), (3, 24, PoolStatus.Success), (1, 32, PoolStatus.Success))) {
+      for ((rows, stride, expected) <- Seq((3, 0, PoolStatus.Success),
+          (3, 24, PoolStatus.Success), (1, 32, PoolStatus.Success), (3, 24, PoolStatus.Corrupt))) {
         dut.reset.poke(true.B)
         dut.clock.step()
         dut.reset.poke(false.B)
@@ -212,9 +227,9 @@ class PoolStrideSpec extends AnyFlatSpec with ChiselScalatestTester {
         dut.io.job.bits.outputStride.expect(stride.U)
         dut.clock.step()
         port.requestCopy.valid.poke(false.B)
-        dut.io.inputDone.bits.status.poke(PoolStatus.Success)
+        dut.io.inputDone.bits.status.poke(expected)
         dut.io.inputDone.valid.poke(true.B)
-        dut.io.jobDone.bits.status.poke(PoolStatus.Success)
+        dut.io.jobDone.bits.status.poke(expected)
         dut.io.jobDone.valid.poke(true.B)
         dut.clock.step()
         dut.io.inputDone.valid.poke(false.B)

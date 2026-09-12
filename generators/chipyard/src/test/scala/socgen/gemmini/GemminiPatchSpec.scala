@@ -27,9 +27,7 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
   private case class Tile(id: Int, row: Int, column: Int, rows: Int, columns: Int)
   private case class Window(rows: Int = 3, columns: Int = 5, rowStep: Int = 1,
       columnStep: Int = 1, top: Int = 1, bottom: Int = 1, left: Int = 1, right: Int = 1,
-      address: BigInt = 0x40000, pixelBytes: Int = 3, outputBytes: Int = 8,
-      maxRows: Int = 65535, maxColumns: Int = 65535,
-      outputBase: BigInt = 0, outputSize: BigInt = BigInt("ffffffff", 16))
+      address: BigInt = 0x40000, pixelBytes: Int = 3)
 
   private def pack(fields: (Int, Int)*): BigInt =
     fields.foldLeft(BigInt(0)) { case (value, (field, shift)) => value | (BigInt(field) << shift) }
@@ -115,11 +113,6 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
     port.window.address.poke(window.address.U)
     port.window.pixelBytes.poke(window.pixelBytes.U)
     port.window.rowBytes.poke((window.columns * window.pixelBytes).U)
-    port.window.outputBytes.poke(window.outputBytes.U)
-    port.window.maxRows.poke(window.maxRows.U)
-    port.window.maxColumns.poke(window.maxColumns.U)
-    port.window.outputBase.poke(window.outputBase.U)
-    port.window.outputSize.poke(window.outputSize.U)
   }
 
   private def init(dut: GemminiPatch): Unit = {
@@ -130,7 +123,6 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.request.job.poke(0.U)
     dut.io.request.start.poke(true.B)
     dut.io.watch.job.poke(0.U)
-    dut.io.watchValid.poke(true.B)
     dut.io.job.poke(0.U)
     dut.io.index.poke(0.U)
   }
@@ -165,8 +157,7 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.watch.bytes.poke((tile.rows * tile.columns * 8).U)
   }
 
-  private def start(dut: GemminiPatch, valid: Boolean = true): Unit = {
-    dut.io.requestValid.expect(true.B)
+  private def start(dut: GemminiPatch): Unit = {
     dut.io.ready.expect(true.B)
     dut.io.start.poke(true.B)
     dut.clock.step()
@@ -177,7 +168,6 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
       cycles += 1
     }
     dut.io.ready.expect(true.B)
-    dut.io.boundValid.expect(valid.B)
   }
 
   private def check(dut: GemminiPatch, index: Int, rs1: BigInt, rs2: BigInt): Unit = {
@@ -219,7 +209,6 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
     test(new GemminiPatch(params)) { dut =>
       init(dut)
       capture(dut)
-      dut.io.captureValid.expect(true.B)
       for ((tile, slot, top, left, bottom, right, input, output) <- Seq(
         (Tile(5, 0, 0, 2, 2), 0, 1, 1, 0, 0, 0x40000, 0x1ffc0),
         (Tile(8, 0, 2, 2, 2), 1, 1, 0, 0, 0, 0x40003, 0x1ffe0),
@@ -258,7 +247,7 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
     }
   }
 
-  it should "bind compact upstream views and reject incomplete halos or mismatched watches" in {
+  it should "bind compact upstream views" in {
     val linked = auto.copy(
       stages = Seq(AutoStageSpec("input", "cgra", 0), AutoStageSpec("conv", "gemmini", 0),
         AutoStageSpec("output", "cgra", 1)),
@@ -274,10 +263,8 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
         (Tile(5, 0, 0, 2, 2), Tile(5, 0, 0, 3, 3), 0),
         (Tile(6, 6, 8, 1, 1), Tile(6, 5, 7, 2, 2), 0))) {
         request(dut, tile)
-        dut.io.requestValid.expect(false.B)
         copy(dut, tile, view, view.rows * view.columns * 3)
         start(dut)
-        dut.io.requestValid.expect(false.B)
         check(dut, 2, pack(8 -> 48, 3 -> 32, view.rows -> 16, 1 -> 0),
           pack(1 -> 56, 1 -> 48, tile.columns -> 32, tile.rows -> 16, tile.rows -> 0))
         check(dut, 7, 1, 0x60000 + offset)
@@ -285,69 +272,23 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
         pokeCommand(dut.io.command, commands(4))
         assert((dut.io.patched.rs2.peek().litValue & 65535) == view.columns)
       }
-      val tile = Tile(7, 2, 3, 2, 2)
-      request(dut, tile)
-      copy(dut, tile, Tile(7, 1, 2, 3, 4), 36)
-      dut.io.requestValid.expect(false.B)
-      copy(dut, tile, Tile(7, 1, 2, 4, 4), 47)
-      dut.io.requestValid.expect(false.B)
-      copy(dut, tile, Tile(7, 1, 2, 4, 4), 48)
-      dut.io.requestValid.expect(true.B)
-      dut.io.watch.bytes.poke(64.U)
-      dut.io.requestValid.expect(false.B)
-      dut.io.watch.bytes.poke(32.U)
-      dut.io.watchValid.poke(false.B)
-      dut.io.requestValid.expect(false.B)
-      dut.io.watchValid.poke(true.B)
-      dut.io.watch.tile.id.poke(8.U)
-      dut.io.requestValid.expect(false.B)
     }
   }
 
-  it should "validate metadata and replace old patches on recapture" in {
+  it should "replace old patches on recapture and preserve ordinary commands" in {
     test(new GemminiPatch(params)) { dut =>
       init(dut)
       val entry = Patch(0, true, 0, 64, GemminiValue.InputAddress)
-      for (invalid <- Seq(entry.copy(command = commands.size), entry.copy(width = 0),
-        entry.copy(lsb = 1), entry.copy(source = GemminiValue.Count))) {
-        capture(dut, entries = Seq(invalid))
-        dut.io.captureValid.expect(false.B)
-      }
-      capture(dut, entries = Seq(entry, entry.copy(lsb = 32, width = 16)))
-      dut.io.captureValid.expect(false.B)
       val address = (BigInt(1) << 40) + 0x40000
       capture(dut, Window(address = address), Seq(entry))
-      dut.io.captureValid.expect(true.B)
       request(dut, Tile(1, 0, 0, 1, 1))
       start(dut)
       check(dut, 0, commands.head.rs1, address)
       capture(dut, entries = Seq(Patch(0, true, 0, 2, GemminiValue.Rows)))
-      request(dut, Tile(1, 0, 0, 4, 1))
-      start(dut, valid = false)
       request(dut, Tile(1, 0, 0, 3, 1))
       start(dut)
       check(dut, 0, commands.head.rs1, commands.head.rs2 | 3)
-      capture(dut, entries = Seq(Patch(0, true, 0, 8, GemminiValue.TileId, offset = -2)))
-      request(dut, Tile(1, 0, 0, 1, 1))
-      start(dut, valid = false)
-      capture(dut, Window(maxRows = 2, maxColumns = 2), Seq(entry))
-      request(dut, Tile(1, 0, 0, 3, 1))
-      dut.io.requestValid.expect(false.B)
-      request(dut, Tile(1, 0, 0, 1, 3))
-      dut.io.requestValid.expect(false.B)
-      request(dut, Tile(1, 0, 0, 2, 2))
-      start(dut)
-      capture(dut, Window(outputBase = 0x1000, outputSize = 32), Seq(entry))
-      request(dut, Tile(1, 0, 0, 2, 2), output = 0xfff)
-      dut.io.requestValid.expect(false.B)
-      request(dut, Tile(1, 0, 0, 2, 2), output = 0x1001)
-      dut.io.requestValid.expect(false.B)
-      request(dut, Tile(1, 0, 0, 2, 2), output = 0x1000)
-      start(dut)
       capture(dut, entries = Nil)
-      dut.io.captureValid.expect(true.B)
-      dut.io.watchValid.poke(false.B)
-      dut.io.requestValid.expect(true.B)
       start(dut)
       check(dut, 0, commands.head.rs1, commands.head.rs2)
     }

@@ -53,29 +53,6 @@ class AutoProgress extends Bundle {
 }
 
 object AutoTileBinding {
-  def transferValid(params: AutoLinkParams, index: Int, transfer: AutoTransfer, multipleSlots: Bool): Bool = {
-    val dependency = params.dependencies(index)
-    val copy = dependency.copy.get
-    val sourceEndpoint = params.endpoint(params.stage(dependency.source.get).endpoint)
-    val source = sourceEndpoint.buffer.get
-    val destination = params.endpoint(params.stage(dependency.destination).endpoint)
-    val destinationSlots = if (destination.bufferedInput) destination.bufferSlots else 1
-    val sourceEnd = transfer.sourceOffset +& transfer.sourceStride * (sourceEndpoint.bufferSlots - 1).U +& copy.bytes.U
-    val destinationEnd = transfer.destinationOffset +& transfer.destinationStride * (destinationSlots - 1).U +& copy.destinationBytes.U
-    val separate = ((sourceEndpoint.bufferSlots == 1).B || transfer.sourceStride >= copy.bytes.U) &&
-      ((destinationSlots == 1).B || transfer.destinationStride >= copy.destinationBytes.U)
-    val aligned = if (destination.bufferedInput) {
-      val alignment = if (copy.expansion == 1) params.beatBytes else destination.inputAlignment
-      val destinationAligned = ((transfer.destinationOffset | transfer.destinationStride) & (alignment - 1).U) === 0.U
-      val sourceAligned = if (copy.expansion == 1) {
-        (((source.baseAddress.U + transfer.sourceOffset) | transfer.sourceStride) & (params.beatBytes - 1).U) === 0.U
-      } else true.B
-      destinationAligned && sourceAligned
-    } else true.B
-    sourceEnd <= source.sizeBytes.U && destinationEnd <= destination.localBytes.U &&
-      transfer.bytesPerPixel <= copy.bytes.U && (!multipleSlots || separate) && aligned
-  }
-
   def region(tile: AutoTile, shape: AutoRegion): AutoTile = {
     val mapped = WireDefault(tile)
     val row = tile.row * shape.rowStep
@@ -114,7 +91,6 @@ class AutoTileCursor(width: Int = 32) extends Module {
     val start = Flipped(Decoupled(new AutoTilePlan(width)))
     val out = Decoupled(new AutoTile(width))
     val busy = Output(Bool())
-    val error = Output(Bool())
   })
 
   val active = RegInit(false.B)
@@ -128,9 +104,6 @@ class AutoTileCursor(width: Int = 32) extends Module {
   val columns = Mux(remainingColumns < plan.tileColumns, remainingColumns, plan.tileColumns)
   val lastRow = rows === remainingRows
   val lastColumn = columns === remainingColumns
-  val validPlan = io.start.bits.rows =/= 0.U && io.start.bits.columns =/= 0.U &&
-    io.start.bits.tileRows =/= 0.U && io.start.bits.tileColumns =/= 0.U
-
   io.start.ready := !active
   io.out.valid := active
   io.out.bits.id := id
@@ -140,14 +113,13 @@ class AutoTileCursor(width: Int = 32) extends Module {
   io.out.bits.columns := columns
   io.out.bits.last := lastRow && lastColumn
   io.busy := active
-  io.error := io.start.fire && !validPlan
 
   when(io.start.fire) {
     plan := io.start.bits
     row := 0.U
     column := 0.U
     id := 0.U
-    active := validPlan
+    active := true.B
   }
   when(io.out.fire) {
     when(io.out.bits.last) {

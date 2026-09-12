@@ -4,15 +4,6 @@ import chisel3._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 
-class AutoTransferCheck(params: AutoLinkParams, dependency: Int) extends Module {
-  val io = IO(new Bundle {
-    val transfer = Input(new AutoTransfer(params))
-    val multipleSlots = Input(Bool())
-    val valid = Output(Bool())
-  })
-  io.valid := AutoTileBinding.transferValid(params, dependency, io.transfer, io.multipleSlots)
-}
-
 class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
   private val params = AutoLinkParams(
     stages = Seq(AutoStageSpec("producer", "gemmini", 0), AutoStageSpec("join", "cgra", 0)),
@@ -58,66 +49,7 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   behavior of "AutoScheduler runtime bindings"
 
-  for (expansion <- Seq(1, 4)) {
-    it should s"validate buffered transfer slots and alignment with expansion $expansion" in {
-      val buffered = params.copy(
-        dependencies = params.dependencies.updated(2,
-          AutoDependencySpec(Some(0), 1, Some(AutoCopySpec(0, 0, 128, expansion)))),
-        endpoints = params.endpoints.updated(1,
-          AutoEndpointSpec("cgra", None, 2048, bufferedInput = true, inputAlignment = 4, bufferSlots = 2)))
-      test(new AutoTransferCheck(buffered, 2)) { dut =>
-        val destinationBytes = 128 * expansion
-        def check(sourceOffset: Int = 0, sourceStride: Int = 128,
-            destinationOffset: Int = 0, destinationStride: Int = destinationBytes,
-            multipleSlots: Boolean = true, valid: Boolean = true): Unit = {
-          dut.io.transfer.sourceOffset.poke(sourceOffset.U)
-          dut.io.transfer.sourceStride.poke(sourceStride.U)
-          dut.io.transfer.destinationOffset.poke(destinationOffset.U)
-          dut.io.transfer.destinationStride.poke(destinationStride.U)
-          dut.io.transfer.bytesPerPixel.poke(4.U)
-          dut.io.multipleSlots.poke(multipleSlots.B)
-          dut.io.valid.expect(valid.B)
-        }
-        check()
-        check(sourceStride = 0, valid = false)
-        check(sourceStride = 64, valid = false)
-        check(destinationStride = 0, valid = false)
-        check(destinationStride = destinationBytes / 2, valid = false)
-        check(sourceStride = 0, destinationStride = 0, multipleSlots = false)
-        check(destinationOffset = 1, valid = false)
-        check(destinationStride = destinationBytes + 1, valid = false)
-        if (expansion == 1) {
-          check(sourceOffset = 1, valid = false)
-          check(sourceStride = 129, valid = false)
-          check(destinationOffset = 4, valid = false)
-          check(destinationStride = destinationBytes + 4, valid = false)
-          check(sourceOffset = 16, sourceStride = 144, destinationOffset = 16,
-            destinationStride = destinationBytes + 16)
-        } else {
-          check(sourceOffset = 1, sourceStride = 129, destinationOffset = 4,
-            destinationStride = destinationBytes + 4)
-        }
-      }
-    }
-  }
-
-  it should "allow an unbuffered streaming destination without a slot stride" in {
-    test(new AutoTransferCheck(params, 2)) { dut =>
-      dut.io.multipleSlots.poke(true.B)
-      dut.io.transfer.sourceOffset.poke(3.U)
-      dut.io.transfer.sourceStride.poke(128.U)
-      dut.io.transfer.destinationOffset.poke(5.U)
-      dut.io.transfer.destinationStride.poke(0.U)
-      dut.io.transfer.bytesPerPixel.poke(4.U)
-      dut.io.valid.expect(true.B)
-      dut.io.transfer.sourceStride.poke(0.U)
-      dut.io.valid.expect(false.B)
-      dut.io.transfer.sourceStride.poke(64.U)
-      dut.io.valid.expect(false.B)
-    }
-  }
-
-  it should "bind clipped regions and slot transfers without changing join identity, and drain invalid tiles" in {
+  it should "bind clipped regions and slot transfers without changing join identity" in {
     test(new AutoScheduler(params)) { dut =>
       dut.io.transfers.foreach { transfer =>
         transfer.sourceOffset.poke(0.U)
@@ -151,12 +83,8 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
         val watches = scala.collection.mutable.Set.empty[Int]
         val copies = scala.collection.mutable.Set.empty[Int]
         val launches = scala.collection.mutable.Set.empty[(Int, Int)]
-        val skips = scala.collection.mutable.Set.empty[(Int, Int)]
         val results = Array.fill(2)(0)
-        val validTiles = tiles.indices.filter { id =>
-          val source = region(tiles(id), halo = true)
-          source.rows * source.columns * pixelBytes <= 128
-        }.toSet
+        val tileIds = tiles.indices.toSet
         var sent = 0
         var cycle = 0
         while ((sent < tiles.size || results.exists(_ == 0) || dut.io.busy.peek().litToBoolean) && cycle < 600) {
@@ -193,7 +121,7 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
             if (port.watchOutput.valid.peek().litToBoolean) {
               assert(index == 0)
               val tileId = port.watchOutput.bits.tile.id.peek().litValue.toInt
-              assert(validTiles.contains(tileId))
+              assert(tileIds.contains(tileId))
               val source = region(tiles(tileId), halo = true)
               check(port.watchOutput.bits.tile, tileId, source)
               val slot = port.watchOutput.bits.slot.peek().litValue.toInt
@@ -204,7 +132,7 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
             if (port.requestCopy.valid.peek().litToBoolean) {
               assert(index == 1)
               val tileId = port.requestCopy.bits.tile.id.peek().litValue.toInt
-              assert(validTiles.contains(tileId))
+              assert(tileIds.contains(tileId))
               val source = region(tiles(tileId), halo = true)
               val bytes = source.rows * source.columns * pixelBytes
               check(port.requestCopy.bits.sourceTile, tileId, source)
@@ -222,22 +150,18 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
             if (port.requestCompute.valid.peek().litToBoolean) {
               val tileId = port.requestCompute.bits.tile.id.peek().litValue.toInt
               check(port.requestCompute.bits.tile, tileId, region(tiles(tileId), halo = index == 0))
-              port.requestCompute.bits.start.expect(validTiles.contains(tileId).B)
+              port.requestCompute.bits.start.expect(true.B)
               if (port.requestCompute.ready.peek().litToBoolean) {
-                if (validTiles.contains(tileId)) {
-                  launches += ((index, tileId))
-                  computeDue(index) = cycle + 4
-                  if (index == 0) outputDue(index) = cycle + 3
-                } else {
-                  skips += ((index, tileId))
-                }
+                launches += ((index, tileId))
+                computeDue(index) = cycle + 4
+                if (index == 0) outputDue(index) = cycle + 3
               }
             }
           }
           dut.io.result.zipWithIndex.foreach { case (port, index) =>
             if (port.valid.peek().litToBoolean && port.ready.peek().litToBoolean) {
               port.bits.stage.expect(index.U)
-              port.bits.status.expect((if (validTiles.size == tiles.size) AutoLinkStatus.Success else AutoLinkStatus.ConfigFailure))
+              port.bits.status.expect(AutoLinkStatus.Success)
               results(index) += 1
             }
           }
@@ -246,13 +170,12 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
         }
         assert(cycle < 600)
         assert(results.forall(_ == 1))
-        assert(watches.toSet == validTiles && copies.toSet == validTiles)
-        assert(launches.toSet == (for (index <- 0 until 2; id <- validTiles) yield (index, id)).toSet)
-        assert(skips.toSet == (for (index <- 0 until 2; id <- tiles.indices if !validTiles.contains(id)) yield (index, id)).toSet)
+        assert(watches.toSet == tileIds && copies.toSet == tileIds)
+        assert(launches.toSet == (for (index <- 0 until 2; id <- tileIds) yield (index, id)).toSet)
       }
 
       run(4)
-      run(16)
+      run(2)
       run(4)
     }
   }

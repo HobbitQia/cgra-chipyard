@@ -11,52 +11,30 @@ class PoolTileBinding(params: PoolParams, auto: AutoLinkParams) extends Module {
     val configured = Input(new PoolJob(params))
     val request = Input(new AutoCopyRequest(auto))
     val job = Output(new PoolJob(params))
-    val valid = Output(Bool())
   })
 
   val configured = io.configured
   val tile = io.request.tile
   val source = io.request.sourceTile
-  val paddedHeight = configured.inputHeight +& configured.padHeight +& configured.padBottom
   val paddedWidth = configured.inputWidth +& configured.padWidth +& configured.padRight
-  val outputHeight = (paddedHeight - configured.kernelHeight) / configured.strideHeight + 1.U
   val outputWidth = (paddedWidth - configured.kernelWidth) / configured.strideWidth + 1.U
 
-  def region(origin: UInt, count: UInt, stride: UInt, kernel: UInt, padding: UInt, limit: UInt): (UInt, UInt, UInt, UInt) = {
-    val first = (origin * stride).zext - padding.zext
+  def padding(origin: UInt, count: UInt, stride: UInt, kernel: UInt, pad: UInt, limit: UInt): (UInt, UInt) = {
+    val first = (origin * stride).zext - pad.zext
     val end = first + ((count - 1.U) * stride +& kernel).zext
-    val start = Mux(first < 0.S, 0.S, first).asUInt
-    val stop = Mux(end > limit.zext, limit.zext, Mux(end < 0.S, 0.S, end)).asUInt
     val before = Mux(first < 0.S, -first, 0.S).asUInt
     val after = Mux(end > limit.zext, end - limit.zext, 0.S).asUInt
-    (start, stop, before, after)
+    (before, after)
   }
 
-  val (firstRow, endRow, top, bottom) = region(tile.row, tile.rows,
+  val (top, bottom) = padding(tile.row, tile.rows,
     configured.strideHeight, configured.kernelHeight, configured.padHeight, configured.inputHeight)
-  val (firstColumn, endColumn, left, right) = region(tile.column, tile.columns,
+  val (left, right) = padding(tile.column, tile.columns,
     configured.strideWidth, configured.kernelWidth, configured.padWidth, configured.inputWidth)
   val pixelBytes = configured.channels * params.elementBytes.U
   val rowBytes = outputWidth * pixelBytes
   val rowStride = Mux(configured.outputStride === 0.U, rowBytes, configured.outputStride)
   val destination = configured.destination +& tile.row * rowStride +& tile.column * pixelBytes
-  val expectedBytes = source.rows * source.columns * pixelBytes
-  val dimensionMax = ((BigInt(1) << params.dimensionBits) - 1).U
-  val shapeValid = configured.inputHeight =/= 0.U && configured.inputWidth =/= 0.U &&
-    configured.channels =/= 0.U && configured.kernelHeight =/= 0.U && configured.kernelWidth =/= 0.U &&
-    configured.strideHeight =/= 0.U && configured.strideWidth =/= 0.U &&
-    paddedHeight >= configured.kernelHeight && paddedWidth >= configured.kernelWidth
-  val outputValid = tile.rows =/= 0.U && tile.columns =/= 0.U &&
-    tile.rows <= dimensionMax && tile.columns <= dimensionMax &&
-    tile.row +& tile.rows <= outputHeight && tile.column +& tile.columns <= outputWidth
-  val sourceValid = source.id === tile.id && source.last === tile.last &&
-    source.row === firstRow && source.column === firstColumn &&
-    endRow > firstRow && endColumn > firstColumn &&
-    source.rows === endRow - firstRow && source.columns === endColumn - firstColumn &&
-    source.rows <= dimensionMax && source.columns <= dimensionMax &&
-    top <= dimensionMax && bottom <= dimensionMax && left <= dimensionMax && right <= dimensionMax
-  val addressValid = rowStride >= rowBytes &&
-    destination < (BigInt(1) << params.addressBits).U
 
   io.job := configured
   io.job.source := io.request.sourceAddress
@@ -68,8 +46,6 @@ class PoolTileBinding(params: PoolParams, auto: AutoLinkParams) extends Module {
   io.job.padWidth := left
   io.job.padBottom := bottom
   io.job.padRight := right
-  io.valid := shapeValid && outputValid && sourceValid && addressValid &&
-    io.request.bytes === expectedBytes
 }
 
 class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends Module {
@@ -91,7 +67,6 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
   val copyStatus = RegInit(PoolStatus.Success)
   val doneStatus = RegInit(PoolStatus.Success)
   val doneSeen = RegInit(false.B)
-  val activeJob = Reg(new PoolJob(params))
   val watch = link.map(value => Reg(new AutoWatch(value.auto)))
   val publicationArmed = RegInit(false.B)
   val publicationValid = RegInit(false.B)
@@ -101,13 +76,9 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
   val idle = autoState === AutoState.idle
   val autoRequest = link.map(_.auto).map { auto =>
     val port = io.autoLink.get
-    val expectedBytes = io.configuredJob.inputHeight * io.configuredJob.inputWidth *
-      io.configuredJob.channels * params.elementBytes.U
     val binding = Module(new PoolTileBinding(params, auto))
     binding.io.configured := io.configuredJob
     binding.io.request := port.requestCopy.bits
-    val lengthValid = Mux(io.configuredJob.tiled,
-      binding.io.valid, port.requestCopy.bits.bytes === expectedBytes)
     val autoJob = Wire(new PoolJob(params))
     autoJob := Mux(io.configuredJob.tiled, binding.io.job, io.configuredJob)
     autoJob.source := port.requestCopy.bits.sourceAddress
@@ -123,7 +94,7 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
     port.reportOutput.bits.detail := publicationStatus
     port.reportOutput.bits.data := 0.U
 
-    port.requestCopy.ready := idle && Mux(lengthValid, io.job.ready, true.B)
+    port.requestCopy.ready := idle && io.job.ready
     port.reportCopy.valid := autoState === AutoState.reportCopy
     port.reportCopy.bits.task := copyTask.get
     port.reportCopy.bits.status := Mux(
@@ -155,10 +126,10 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
     }
     when(port.requestCopy.fire) {
       copyTask.get := port.requestCopy.bits.task
-      copyStatus := Mux(lengthValid, PoolStatus.Success, PoolStatus.BadLength)
+      copyStatus := PoolStatus.Success
       doneStatus := PoolStatus.Success
       doneSeen := false.B
-      autoState := Mux(lengthValid, AutoState.running, AutoState.reportCopy)
+      autoState := AutoState.running
     }
     when(port.reportCopy.fire) {
       autoState := AutoState.waitCompute
@@ -177,7 +148,7 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
       autoState := AutoState.idle
       doneSeen := false.B
     }
-    (port.requestCopy.valid && idle && lengthValid, autoJob)
+    (port.requestCopy.valid && idle, autoJob)
   }
 
   val autoJobValid = autoRequest.map(_._1).getOrElse(false.B)
@@ -191,9 +162,6 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
   io.jobDone.ready := !idle
   io.active := !idle || requestPending
 
-  when(io.job.fire) {
-    activeJob := io.job.bits
-  }
   when(io.inputDone.fire) {
     copyStatus := io.inputDone.bits.status
     autoState := AutoState.reportCopy
@@ -201,21 +169,7 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
   when(io.jobDone.fire) {
     link.foreach { _ =>
       when(publicationArmed) {
-        val paddedHeight = activeJob.inputHeight +& activeJob.padHeight +& activeJob.padBottom
-        val paddedWidth = activeJob.inputWidth +& activeJob.padWidth +& activeJob.padRight
-        val outputHeight = (paddedHeight - activeJob.kernelHeight) / activeJob.strideHeight + 1.U
-        val outputWidth = (paddedWidth - activeJob.kernelWidth) / activeJob.strideWidth + 1.U
-        val outputBytes = outputHeight * outputWidth * activeJob.channels * params.elementBytes.U
-        val rowBytes = outputWidth * activeJob.channels * params.elementBytes.U
-        val contiguous = outputHeight === 1.U || activeJob.outputStride === 0.U ||
-          activeJob.outputStride === rowBytes
-        val addressValid = activeJob.destination === watch.get.address
-        val lengthValid = outputBytes === watch.get.bytes && contiguous
-        publicationStatus := Mux(
-          io.jobDone.bits.status =/= PoolStatus.Success,
-          io.jobDone.bits.status,
-          Mux(!addressValid, PoolStatus.BadAddress,
-            Mux(!lengthValid, PoolStatus.BadLength, PoolStatus.Success)))
+        publicationStatus := io.jobDone.bits.status
         publicationValid := true.B
       }
     }
