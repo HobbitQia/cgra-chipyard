@@ -49,15 +49,12 @@ class AES256ECBAccelImp(outer: AES256ECBAccel)(implicit p: Parameters)
 
   val hwActive = RegInit(false.B)
   val readDoneSeen = RegInit(false.B)
-  val completionSeen = RegInit(false.B)
-  val completedAtStart = Reg(UInt(64.W))
-  val hwCompleted = RegInit(0.U(64.W))
 
   cmd_router.io.rocc_in.valid := io.cmd.valid && !hwActive
   cmd_router.io.rocc_in.bits := io.cmd.bits
   io.cmd.ready := cmd_router.io.rocc_in.ready && !hwActive
 
-  val cpuIdle = memwriter.io.bufs_completed === cmd_router.io.cpuJobs + hwCompleted &&
+  val cpuIdle = memwriter.io.bufs_completed === cmd_router.io.issuedJobs &&
     memwriter.io.no_writes_inflight
   cmd_router.io.hwJob.valid := job.valid && !hwActive && cpuIdle
   cmd_router.io.hwJob.bits := job.bits
@@ -66,8 +63,6 @@ class AES256ECBAccelImp(outer: AES256ECBAccel)(implicit p: Parameters)
   when(job.fire) {
     hwActive := true.B
     readDoneSeen := false.B
-    completionSeen := false.B
-    completedAtStart := memwriter.io.bufs_completed
   }
 
   val inputReadDone = hwActive && !readDoneSeen && streamer.io.inputReadDone
@@ -75,16 +70,9 @@ class AES256ECBAccelImp(outer: AES256ECBAccel)(implicit p: Parameters)
     readDoneSeen := true.B
   }
 
-  val completionAdvanced = memwriter.io.bufs_completed =/= completedAtStart
-  when(hwActive && completionAdvanced) {
-    completionSeen := true.B
-  }
-  val jobDone = hwActive &&
-    (completionSeen || completionAdvanced) &&
-    memwriter.io.no_writes_inflight
+  val jobDone = hwActive && cpuIdle
   when(jobDone) {
     hwActive := false.B
-    hwCompleted := hwCompleted + 1.U
   }
 
   outer.jobNode.foreach { node =>

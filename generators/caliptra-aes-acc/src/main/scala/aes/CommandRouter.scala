@@ -14,7 +14,7 @@ class CommandRouter(val cmd_queue_depth: Int)(implicit val p: Parameters) extend
     val key = Valid(UInt(AES256Consts.KEY_SZ_BITS.W))
     val mode = Valid(Bool())
     val hwJob = Flipped(Decoupled(new AesJob))
-    val cpuJobs = Output(UInt(64.W))
+    val issuedJobs = Output(UInt(64.W))
   }
   lazy val io = IO(new AesStreamerCmdBundle) // lazy matters
 
@@ -22,11 +22,8 @@ class CommandRouter(val cmd_queue_depth: Int)(implicit val p: Parameters) extend
   val FUNCT_KEY_0                         = 5.U
   val FUNCT_KEY_1                         = 6.U
 
-  val cpuJobs = RegInit(0.U(64.W))
-  when (io.rocc_in.fire && cur_funct === FUNCT_SRC_INFO) {
-    cpuJobs := cpuJobs + 1.U
-  }
-  io.cpuJobs := cpuJobs
+  val issuedJobs = RegInit(0.U(64.W))
+  io.issuedJobs := issuedJobs
 
   // Mode interface
   val mode_queue = Module(new Queue(Bool(), cmd_queue_depth))
@@ -71,6 +68,9 @@ class CommandRouter(val cmd_queue_depth: Int)(implicit val p: Parameters) extend
     mode_queue.io.enq.ready
   io.hwJob.ready := hwReady
   val hwFire = io.hwJob.fire
+  when ((io.rocc_in.fire && cur_funct === FUNCT_SRC_INFO) || hwFire) {
+    issuedJobs := issuedJobs + 1.U
+  }
 
   src_info_queue.io.enq.valid := src_info_fire.fire(src_info_queue.io.enq.ready) || hwFire
   src_info_queue.io.enq.bits.ip := Mux(hwFire, io.hwJob.bits.source.ip, cur_rs1)
