@@ -2,7 +2,7 @@ package chipyard.example
 
 import chisel3._
 import chisel3.util._
-import chipyard.socgen.cgra.{CgraDmaTensorBridge, CgraLinkAdapter, CgraLinkConfigAsync, CgraLinkKey, CgraPackedReader, CgraReadRequest, CgraPacketArbiter, CgraResetController, CgraSpmManager, CgraTensorBridgeParams}
+import chipyard.socgen.cgra.{CgraDmaTensorBridge, CgraLinkAdapter, CgraLinkConfigAsync, CgraLinkKey, CgraPackedReader, CgraReadRequest, CgraPacketArbiter, CgraSpmManager, CgraTensorBridgeParams}
 import chipyard.socgen.link.AutoEndpointAsyncLink
 
 import org.chipsalliance.cde.config.{Parameters, Field, Config}
@@ -498,15 +498,10 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
 
   // ---- CGRA BlackBox instantiation ----
   val cgra = Module(new CGRABlackBox(params))
-  val resetController = Module(new CgraResetController(params))
-  val localResetSafe = Wire(Bool())
-  val manualJobComplete = Wire(Bool())
 
   // Clock and reset
   cgra.io.clk   := clock
-  cgra.io.reset := reset.asBool || resetController.io.localReset
-  resetController.io.safe := localResetSafe
-  resetController.io.manualComplete := manualJobComplete
+  cgra.io.reset := reset.asBool
 
   // Static configuration
   cgra.io.cgra_id       := 0.U  // Single CGRA, ID = 0
@@ -557,7 +552,6 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     cgra.io.recv_from_dram_wr_resp_msg.get := dmaAdapter.writeResp.bits
     dmaAdapter.writeResp.ready := cgra.io.recv_from_dram_wr_resp_rdy.get
   }
-  val spmReadBusy = WireDefault(false.B)
   outer.spmManager match {
     case Some(manager) =>
       val spm = manager.module.io
@@ -567,7 +561,6 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       spm.resp.valid := cgra.io.send_to_ext_spm_rd_resp_val.get
       spm.resp.bits := cgra.io.send_to_ext_spm_rd_resp_data.get
       cgra.io.send_to_ext_spm_rd_resp_rdy.get := spm.resp.ready
-      spmReadBusy := spm.busy
     case None =>
       cgra.io.recv_from_ext_spm_rd_req_val.foreach(_ := false.B)
       cgra.io.recv_from_ext_spm_rd_req_addr.foreach(_ := 0.U)
@@ -581,8 +574,6 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     val adapter = Module(new CgraLinkAdapter(linkParams))
     adapter.io.configIn <> FromAsyncBundle(config.config)
     adapter.io.patchIn <> FromAsyncBundle(config.patch)
-    adapter.io.repeatIn <> FromAsyncBundle(config.repeat)
-    adapter.io.invalidateResident := resetController.io.localReset || resetController.io.configChanged
     config.ack <> ToAsyncBundle(adapter.io.configAck, AsyncQueueParams.singleton())
     adapter.io.autoLink.watchOutput <> FromAsyncBundle(endpoint.watchOutput)
     endpoint.reportOutput <> ToAsyncBundle(
@@ -597,12 +588,6 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       adapter.io.autoLink.reportCompute,
       AsyncQueueParams.singleton())
     adapter
-  }
-  linkAdapter match {
-    case Some(adapter) => resetController.io.autoRequest <> adapter.io.resetRequest
-    case None =>
-      resetController.io.autoRequest.valid := false.B
-      resetController.io.autoRequest.bits := false.B
   }
 
   // ---- Tie off unused ports ----
@@ -736,8 +721,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
     pipe = false,
     flow = false))
   cpuPacketBuffer.io.enq <> cpuPacketCandidate
-  resetController.io.cpuIn <> cpuPacketBuffer.io.deq
-  packetInputArbiter.io.cpu <> resetController.io.cpuOut
+  packetInputArbiter.io.cpu <> cpuPacketBuffer.io.deq
   packetInputArbiter.io.dma <> dmaPacketCandidate
   linkAdapter match {
     case Some(adapter) =>
@@ -754,7 +738,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   cgra.io.recv_from_cpu_pkt_msg := packetFifo.io.deq.bits
   packetFifo.io.deq.ready := cgra.io.recv_from_cpu_pkt_rdy
 
-  val packetFifoEmpty = !packetFifo.io.deq.valid
+  val packetFifoEmpty = !packetFifo.io.deq.valid && !cpuPacketBuffer.io.deq.valid
   val completesPacket = if (needsRawPktTop) isRawPktTop else isRawPktHi
   val completesSpmPacket = if (needsRawPktTop) isSpmPktTop else isSpmPktHi
   val linkCaptureActive = linkAdapter.map(_.io.captureActive).getOrElse(false.B)
@@ -1061,11 +1045,6 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
       cgraResponseCommand === CGRACmdGenerated.CMD_COMPLETE.U(
         params.cmdWidth.W)
   }.getOrElse(false.B)
-  manualJobComplete := cgra.io.send_to_cpu_pkt_val &&
-    cgra.io.send_to_cpu_pkt_rdy && !linkCompleteOwned &&
-    cgraResponseCommand === CGRACmdGenerated.CMD_COMPLETE.U(params.cmdWidth.W) &&
-    expectedCompleteCount =/= 0.U &&
-    completeCount + 1.U >= expectedCompleteCount
   linkAdapter.foreach { adapter =>
     adapter.io.computeResult.valid := cgra.io.send_to_cpu_pkt_val && linkCompleteOwned
     adapter.io.computeResult.bits := cgraResponseData
@@ -1137,17 +1116,11 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   // ---- RoCC Command Ready ----
   val dmaIssueReady = !dmaInFlight && !dmaDoneValid && !dmaSeqActive &&
                       !dmaAdapterBusy && !linkDmaDonePending
-  // Completed results live in the wrapper and survive the local CGRA reset.
-  localResetSafe := packetFifoEmpty && !packetInputArbiter.io.out.valid &&
-                    !dmaSeqActive && !dmaInFlight && !dmaAdapterBusy &&
-                    !expectLoadResponse && !spmReadBusy &&
-                    !cgra.io.send_to_cpu_pkt_val
   linkAdapter.foreach { adapter =>
     adapter.io.dmaRequest.ready := dmaIssueReady && state === s_idle &&
       !respValid && !cmd.valid
   }
-  cmd.ready := !resetController.io.holdCpu &&
-               (state === s_idle) && !respValid && !dmaSeqActive &&
+  cmd.ready := (state === s_idle) && !respValid && !dmaSeqActive &&
                (!completesPacket || (!linkCaptureActive && cpuPacketCandidate.ready)) &&
                (!completesSpmPacket || linkPacketCandidate.ready) &&
                (!isDmaIssue || dmaIssueReady)
@@ -1163,7 +1136,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   }
 
   // ---- RoCC Busy / Interrupt ----
-  io.busy := cmd.valid || cgraBusy || packetFifo.io.deq.valid ||
+  io.busy := cmd.valid || cgraBusy || !packetFifoEmpty ||
              dmaSeqActive || dmaInFlight || dmaAdapterBusy ||
              (state =/= s_idle)
   io.interrupt := false.B

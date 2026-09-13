@@ -29,9 +29,6 @@ object CgraLinkControlGenerated {
   val PATCH_COEFFICIENT: Int = 0x0b8
   val PATCH_BIAS: Int = 0x0c0
   val PATCH_PUSH: Int = 0x0c8
-  val REPEAT_COUNT: Int = 0x100
-  val REPEAT_PACKET: Int = 0x108
-  val REPEAT_PUSH: Int = 0x110
   val GEMMINI_COMMAND_COUNT: Int = 0x000
   val GEMMINI_SUBMIT: Int = 0x008
   val GEMMINI_CONFIG_READY: Int = 0x010

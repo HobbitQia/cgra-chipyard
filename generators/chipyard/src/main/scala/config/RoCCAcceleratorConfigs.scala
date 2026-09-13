@@ -88,7 +88,7 @@ object CGRAMinimalGemminiAutoLinkRocketConfig {
     adapter = CgraLinkParams(
       auto = autoLink,
       cgra = chipyard.example.CGRAGenerated.params,
-      packetCapacity = 128),
+      packetCapacity = 96),
     portName = "cgra",
     resultNames = autoLink.resultNames,
     controlAddress = CgraLinkControlGenerated.baseAddress,
@@ -149,7 +149,7 @@ object CGRAMinimalGemminiAESAutoLinkRocketConfig {
     adapter = CgraLinkParams(
       auto = autoLink,
       cgra = chipyard.example.CGRAGenerated.params,
-      packetCapacity = 128),
+      packetCapacity = 96),
     portName = "cgra",
     resultNames = autoLink.resultNames,
     controlAddress = CgraLinkControlGenerated.baseAddress,
@@ -205,7 +205,7 @@ object CGRAMinimalGemminiPoolAutoLinkRocketConfig {
     adapter = CgraLinkParams(
       auto = autoLink,
       cgra = chipyard.example.CGRAGenerated.params,
-      packetCapacity = 128),
+      packetCapacity = 96),
     portName = "cgra",
     resultNames = autoLink.resultNames,
     controlAddress = CgraLinkControlGenerated.baseAddress,
@@ -275,7 +275,7 @@ object CGRAMinimalGemminiResidualAutoLinkRocketConfig {
     adapter = CgraLinkParams(
       auto = autoLink,
       cgra = chipyard.example.CGRAGenerated.params,
-      packetCapacity = 140),
+      packetCapacity = 96),
     portName = "cgra",
     resultNames = autoLink.resultNames,
     controlAddress = CgraLinkControlGenerated.baseAddress,

@@ -26,17 +26,17 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   private val template = Seq(
+    packet(CGRACmdGenerated.CMD_REARM, 0),
+    packet(CGRACmdGenerated.CMD_REARM, 0) ^ 1,
     packet(CGRACmdGenerated.CMD_CONST, 17),
     packet(CGRACmdGenerated.CMD_CONFIG_TOTAL_CTRL_COUNT, 99),
-    packet(CGRACmdGenerated.CMD_CONFIG, 0),
+    packet(CGRACmdGenerated.CMD_CONFIG_CTRL_LOWER_BOUND, 0),
     packet(CGRACmdGenerated.CMD_LAUNCH, 0),
     packet(CGRACmdGenerated.CMD_LAUNCH, 0) ^ 1)
 
   private def init(dut: CgraLinkAdapter): Unit = {
     dut.io.configIn.valid.poke(false.B)
     dut.io.patchIn.valid.poke(false.B)
-    dut.io.repeatIn.valid.poke(false.B)
-    dut.io.invalidateResident.poke(false.B)
     dut.io.packetIn.valid.poke(false.B)
     dut.io.configAck.ready.poke(false.B)
     dut.io.autoLink.watchOutput.valid.poke(false.B)
@@ -48,7 +48,6 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.dmaRequest.ready.poke(true.B)
     dut.io.dmaCompletion.valid.poke(false.B)
     dut.io.jobPacket.ready.poke(false.B)
-    dut.io.resetRequest.ready.poke(true.B)
     dut.io.computeResult.valid.poke(false.B)
   }
 
@@ -61,12 +60,11 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.configAck.ready.poke(false.B)
   }
 
-  private def begin(dut: CgraLinkAdapter, patchCount: Int, repeatCount: Int = 0): Unit = {
-    dut.io.configIn.bits.job.poke(0.U)
-    dut.io.configIn.bits.packetCount.poke(template.size.U)
+  private def begin(dut: CgraLinkAdapter, packetCount: Int, patchCount: Int, job: Int): Unit = {
+    dut.io.configIn.bits.job.poke(job.U)
+    dut.io.configIn.bits.packetCount.poke(packetCount.U)
     dut.io.configIn.bits.expectedCompletions.poke(1.U)
     dut.io.configIn.bits.patchCount.poke(patchCount.U)
-    dut.io.configIn.bits.repeatCount.poke(repeatCount.U)
     dut.io.configIn.valid.poke(true.B)
     dut.io.configIn.ready.expect(true.B)
     dut.clock.step()
@@ -78,8 +76,9 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
   private def capture(
     dut: CgraLinkAdapter,
     patches: Seq[(Int, Int, Int, Int)],
-    repeats: Seq[Int] = Nil): Unit = {
-    begin(dut, patches.size, repeats.size)
+    packets: Seq[BigInt] = template,
+    job: Int = 0): Unit = {
+    begin(dut, packets.size, patches.size, job)
     ack(dut, done = false)
     for ((index, source, coefficient, bias) <- patches) {
       dut.io.packetIn.ready.expect(false.B)
@@ -92,14 +91,7 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.clock.step()
       dut.io.patchIn.valid.poke(false.B)
     }
-    for (index <- repeats) {
-      dut.io.repeatIn.ready.expect(true.B)
-      dut.io.repeatIn.bits.poke(index.U)
-      dut.io.repeatIn.valid.poke(true.B)
-      dut.clock.step()
-      dut.io.repeatIn.valid.poke(false.B)
-    }
-    for (value <- template) {
+    for (value <- packets) {
       dut.io.packetIn.ready.expect(true.B)
       dut.io.packetIn.bits.poke(value.U)
       dut.io.packetIn.valid.poke(true.B)
@@ -135,8 +127,8 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.clock.step()
   }
 
-  private def replay(dut: CgraLinkAdapter, id: Int, expected: Seq[BigInt], slot: Int = 0): Unit = {
-    dut.io.autoLink.requestCompute.bits.job.poke(0.U)
+  private def replay(dut: CgraLinkAdapter, id: Int, expected: Seq[BigInt], slot: Int = 0, job: Int = 0): Unit = {
+    dut.io.autoLink.requestCompute.bits.job.poke(job.U)
     dut.io.autoLink.requestCompute.bits.start.poke(true.B)
     dut.io.autoLink.requestCompute.bits.tile.id.poke(id.U)
     dut.io.autoLink.requestCompute.bits.slot.poke(slot.U)
@@ -171,8 +163,9 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.computeResult.valid.poke(false.B)
   }
 
-  private def report(dut: CgraLinkAdapter): Unit = {
+  private def report(dut: CgraLinkAdapter, job: Int = 0): Unit = {
     dut.io.autoLink.reportCompute.valid.expect(true.B)
+    dut.io.autoLink.reportCompute.bits.job.expect(job.U)
     dut.io.autoLink.reportCompute.bits.status.expect(AutoLinkStatus.Success)
     dut.io.autoLink.reportCompute.bits.data.expect(7.U)
     dut.clock.step(2)
@@ -181,9 +174,9 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.autoLink.reportCompute.ready.poke(false.B)
   }
 
-  private def compute(dut: CgraLinkAdapter, id: Int, expected: Seq[BigInt], slot: Int = 0): Unit = {
-    replay(dut, id, expected, slot)
-    report(dut)
+  private def compute(dut: CgraLinkAdapter, id: Int, expected: Seq[BigInt], slot: Int = 0, job: Int = 0): Unit = {
+    replay(dut, id, expected, slot, job)
+    report(dut, job)
   }
 
   behavior of "Cgra cached templates"
@@ -191,12 +184,12 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
   it should "bind copy counts and slots on each replay, preserve other bits and clear old patches" in {
     test(new CgraLinkAdapter(params)) { dut =>
       init(dut)
-      capture(dut, Seq((0, CgraSymbolSource.Slot, 16, 4), (1, CgraSymbolSource.Elements, 5, 10)))
+      capture(dut, Seq((2, CgraSymbolSource.Slot, 16, 4), (3, CgraSymbolSource.Elements, 5, 10)))
       for ((id, slot, elements) <- Seq((4, 2, 19), (5, 0, 3), (6, 1, 32))) {
         copy(dut, elements)
         val expected = template.zipWithIndex.map { case (value, index) =>
-          val payload = if (index == 0) 4 + slot * 16 else elements * 5 + 10
-          if (index < 2) (value & ~payloadMask) | (BigInt(payload) << payloadLsb) else value
+          val payload = if (index == 2) 4 + slot * 16 else elements * 5 + 10
+          if (index == 2 || index == 3) (value & ~payloadMask) | (BigInt(payload) << payloadLsb) else value
         }
         compute(dut, id, expected, slot)
       }
@@ -205,32 +198,30 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     }
   }
 
-  it should "rearm resident launch targets and replay only marked packet indices under backpressure" in {
-    test(new CgraLinkAdapter(params)) { dut =>
+  it should "switch captured runtime jobs A B A with independent counts and patches under backpressure" in {
+    val multiJob = auto.copy(
+      stages = auto.stages :+ AutoStageSpec("next", "cgra", 1),
+      dependencies = auto.dependencies :+ AutoDependencySpec(Some(0), 2, None))
+    test(new CgraLinkAdapter(params.copy(auto = multiJob))) { dut =>
       init(dut)
-      val repeats = Seq(0, 1, 3, 4)
-      capture(dut, Seq((0, CgraSymbolSource.Slot, 16, 4)), repeats = repeats)
-      val first = template.updated(0, (template.head & ~payloadMask) | (BigInt(4) << payloadLsb))
-      compute(dut, 0, first)
-      val commandLsb = params.cgra.packetLayout.cmdLsb
-      val commandMask = ((BigInt(1) << params.cgra.cmdWidth) - 1) << commandLsb
-      val rearm = template.takeRight(2).map(value =>
-        (value & ~commandMask) | (BigInt(CGRACmdGenerated.CMD_REARM) << commandLsb))
-      // A resident replay must not wait for a full-IP reset acknowledgement.
-      dut.io.resetRequest.ready.poke(false.B)
-      for ((id, slot) <- Seq((1, 2), (2, 0))) {
-        val dynamic = template.updated(0,
-          (template.head & ~payloadMask) | (BigInt(4 + slot * 16) << payloadLsb))
-        compute(dut, id, rearm ++ repeats.map(dynamic), slot)
-        dut.io.resetRequest.valid.expect(false.B)
+      val second = Seq(
+        packet(CGRACmdGenerated.CMD_REARM, 0),
+        packet(CGRACmdGenerated.CMD_CONFIG_CTRL_LOWER_BOUND, 5),
+        packet(CGRACmdGenerated.CMD_CONST, 53),
+        packet(CGRACmdGenerated.CMD_LAUNCH, 0))
+      capture(dut, Seq((2, CgraSymbolSource.Slot, 16, 4)))
+      capture(dut, Seq((2, CgraSymbolSource.TileId, 3, 7)), second, job = 1)
+      for ((job, id, slot) <- Seq((0, 1, 2), (1, 2, 0), (0, 3, 1))) {
+        val packets = if (job == 0) template else second
+        val payload = if (job == 0) 4 + slot * 16 else 7 + id * 3
+        val expected = packets.updated(2,
+          (packets(2) & ~payloadMask) | (BigInt(payload) << payloadLsb))
+        compute(dut, id, expected, slot, job)
       }
-      dut.io.invalidateResident.poke(true.B)
-      dut.clock.step()
-      dut.io.invalidateResident.poke(false.B)
-      dut.io.resetRequest.ready.poke(true.B)
-      compute(dut, 3, first)
-      capture(dut, Nil)
-      compute(dut, 4, template)
+      capture(dut, Nil, second, job = 1)
+      compute(dut, 4, second, job = 1)
+      val first = template.updated(2, (template(2) & ~payloadMask) | (BigInt(4) << payloadLsb))
+      compute(dut, 5, first)
     }
   }
 
@@ -241,10 +232,10 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
       endpoints = Seq(AutoEndpointSpec("cgra", None, 512)))
     test(new CgraLinkAdapter(params.copy(auto = noCopy))) { dut =>
       init(dut)
-      capture(dut, Seq((0, CgraSymbolSource.TileId, 16, 4)))
+      capture(dut, Seq((2, CgraSymbolSource.TileId, 16, 4)))
       for (id <- Seq(4, 7)) {
-        val expected = template.updated(0,
-          (template.head & ~payloadMask) | (BigInt(4 + id * 16) << payloadLsb))
+        val expected = template.updated(2,
+          (template(2) & ~payloadMask) | (BigInt(4 + id * 16) << payloadLsb))
         compute(dut, id, expected)
       }
       capture(dut, Nil)
