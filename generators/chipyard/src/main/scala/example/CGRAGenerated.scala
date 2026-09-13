@@ -73,7 +73,14 @@ object CGRACmdGenerated {
   val CMD_DMA_MVIN = 49
   val CMD_DMA_MVOUT = 50
   val CMD_DMA_DONE = 51
-  val CMD_REARM = 52
+  val CMD_IM2COL_LAUNCH = 52
+  val CMD_IM2COL_H = 53
+  val CMD_IM2COL_W = 54
+  val CMD_IM2COL_KH = 55
+  val CMD_IM2COL_KW = 56
+  val CMD_IM2COL_LOG2_STRIDE = 57
+  val CMD_IM2COL_DST_SRAM_BASE = 58
+  val CMD_REARM = 59
 }
 
 object CGRAGenerated {
