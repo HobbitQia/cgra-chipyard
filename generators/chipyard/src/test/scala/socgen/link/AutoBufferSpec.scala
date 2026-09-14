@@ -70,7 +70,7 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
       val watch = Array.fill[Option[Work]](size)(None)
       val held = scala.collection.mutable.Map.empty[(Int, Int), (Int, Set[Int])]
       val produced = scala.collection.mutable.Set.empty[(Int, Int)]
-      val deferred = Array.fill(size)(Vector.empty[Copy])
+      val deferred = scala.collection.mutable.Map.empty[(Int, Int), Vector[Copy]]
       val results = Array.fill(size)(0)
       val completed = scala.collection.mutable.Set.empty[(Int, Int)]
       val joinSlots = scala.collection.mutable.Map.empty[Int, Set[Int]]
@@ -78,6 +78,7 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
       var cycle = 0
       var tripleSeen = false
       var advanced = false
+      var bufferedOverlap = false
 
       def consume(value: Copy): Unit = {
         val source = params.dependencies(value.task).source.get
@@ -107,7 +108,7 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
         }
         if (dut.io.root.valid.peek().litToBoolean && dut.io.root.ready.peek().litToBoolean) submitted += 1
 
-        val active = compute.flatten.map(_.id) ++ copy.flatten.map(_.id)
+        val active = compute.indices.flatMap(endpoint => compute(endpoint).map(_.id).orElse(copy(endpoint).map(_.id)))
         if (active.distinct.length >= 3) {
           if (triple) dut.io.activeCount.expect(3.U)
           tripleSeen = true
@@ -116,15 +117,17 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
           if (port.reportCopy.valid.peek().litToBoolean && port.reportCopy.ready.peek().litToBoolean) {
             val value = copy(endpoint).get
             if (params.endpoints(endpoint).releaseOnCopy) consume(value)
-            else deferred(endpoint) :+= value
+            else {
+              val key = (endpoint, value.id)
+              deferred(key) = deferred.getOrElse(key, Vector.empty) :+ value
+            }
             copy(endpoint) = None
           }
           if (port.reportCompute.valid.peek().litToBoolean && port.reportCompute.ready.peek().litToBoolean) {
             val value = compute(endpoint).get
             produced += ((endpoint, value.id))
             completed += ((endpoint, value.id))
-            deferred(endpoint).foreach(consume)
-            deferred(endpoint) = Vector.empty
+            deferred.remove((endpoint, value.id)).getOrElse(Vector.empty).foreach(consume)
             compute(endpoint) = None
           }
           if (port.reportOutput.valid.peek().litToBoolean && port.reportOutput.ready.peek().litToBoolean) {
@@ -132,6 +135,7 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
             watch(endpoint) = None
           }
           if (port.watchOutput.valid.peek().litToBoolean && port.watchOutput.ready.peek().litToBoolean) {
+            assert(watch(endpoint).isEmpty && compute(endpoint).isEmpty && publish(endpoint).isEmpty)
             val id = port.watchOutput.bits.tile.id.peek().litValue.toInt
             val slot = port.watchOutput.bits.slot.peek().litValue.toInt
             val key = (endpoint, slot)
@@ -146,7 +150,7 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
             if (endpoint == 0 && id >= 2 && !completed.contains((size - 1, id - 2))) advanced = true
           }
           if (port.requestCopy.valid.peek().litToBoolean && port.requestCopy.ready.peek().litToBoolean) {
-            assert(copy(endpoint).isEmpty && compute(endpoint).isEmpty)
+            assert(copy(endpoint).isEmpty)
             val id = port.requestCopy.bits.tile.id.peek().litValue.toInt
             val task = port.requestCopy.bits.task.peek().litValue.toInt
             val slot = port.requestCopy.bits.sourceSlot.peek().litValue.toInt
@@ -157,6 +161,15 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
             if (params.endpoints(endpoint).bufferedInput) {
               val offset = params.dependencies(task).copy.get.destinationOffset
               port.requestCopy.bits.destinationOffset.expect((offset + destinationSlot * 64).U)
+              compute(endpoint).foreach { active =>
+                assert(id != active.id && destinationSlot != active.slot)
+                bufferedOverlap = true
+              }
+            } else {
+              assert(compute(endpoint).isEmpty)
+              if (params.dependencies.exists(dependency => dependency.source.contains(endpoint) && dependency.copy.nonEmpty)) {
+                assert(watch(endpoint).exists(_.id == id))
+              }
             }
             if (endpoint == size - 1) joinSlots(id) = joinSlots.getOrElse(id, Set.empty) + slot
             copy(endpoint) = Some(Copy(id, task, slot, cycle + (if (endpoint == size - 1) 45 else 7)))
@@ -169,7 +182,8 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
             watch(endpoint).foreach(value => assert(value.id == id && value.slot == slot))
             val value = Work(id, slot, cycle + 25 + endpoint * 5)
             compute(endpoint) = Some(value)
-            watch(endpoint).foreach(_ => publish(endpoint) = Some(value.copy(due = value.due - 1)))
+            val delay = if (params.endpoints(endpoint).bufferedInput) 5 else -1
+            watch(endpoint).foreach(_ => publish(endpoint) = Some(value.copy(due = value.due + delay)))
           }
         }
         dut.io.result.zipWithIndex.foreach { case (port, stage) =>
@@ -188,6 +202,7 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
       if (triple) {
         assert(tripleSeen)
         assert(advanced)
+        assert(bufferedOverlap)
       } else {
         assert(joinSlots.values.exists(_.size > 1))
       }

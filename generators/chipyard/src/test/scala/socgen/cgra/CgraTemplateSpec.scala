@@ -102,12 +102,13 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.captureActive.expect(false.B)
   }
 
-  private def copy(dut: CgraLinkAdapter, elements: Int): Unit = {
+  private def copy(dut: CgraLinkAdapter, elements: Int, slot: Int = 0): Unit = {
     val request = dut.io.autoLink.requestCopy
     request.bits.task.poke(0.U)
     request.bits.job.poke(0.U)
     request.bits.sourceAddress.poke(0x60000000L.U)
-    request.bits.destinationOffset.poke(0.U)
+    request.bits.destinationSlot.poke(slot.U)
+    request.bits.destinationOffset.poke((slot * 128).U)
     request.bits.bytes.poke(elements.U)
     request.bits.destinationBytes.poke((elements * params.wordBytes).U)
     request.valid.poke(true.B)
@@ -127,7 +128,7 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.clock.step()
   }
 
-  private def replay(dut: CgraLinkAdapter, id: Int, expected: Seq[BigInt], slot: Int = 0, job: Int = 0): Unit = {
+  private def start(dut: CgraLinkAdapter, id: Int, slot: Int, job: Int): Unit = {
     dut.io.autoLink.requestCompute.bits.job.poke(job.U)
     dut.io.autoLink.requestCompute.bits.start.poke(true.B)
     dut.io.autoLink.requestCompute.bits.tile.id.poke(id.U)
@@ -141,6 +142,9 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.autoLink.requestCompute.ready.expect(true.B)
     dut.clock.step()
     dut.io.autoLink.requestCompute.valid.poke(false.B)
+  }
+
+  private def packets(dut: CgraLinkAdapter, expected: Seq[BigInt]): Unit = {
     for (value <- expected) {
       var cycles = 0
       while (!dut.io.jobPacket.valid.peek().litToBoolean && cycles < 8) {
@@ -163,6 +167,11 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.computeResult.valid.poke(false.B)
   }
 
+  private def replay(dut: CgraLinkAdapter, id: Int, expected: Seq[BigInt], slot: Int = 0, job: Int = 0): Unit = {
+    start(dut, id, slot, job)
+    packets(dut, expected)
+  }
+
   private def report(dut: CgraLinkAdapter, job: Int = 0): Unit = {
     dut.io.autoLink.reportCompute.valid.expect(true.B)
     dut.io.autoLink.reportCompute.bits.job.expect(job.U)
@@ -180,6 +189,25 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   behavior of "Cgra cached templates"
+
+  it should "copy the next tile during replay without changing the active element count" in {
+    test(new CgraLinkAdapter(params)) { dut =>
+      init(dut)
+      capture(dut, Seq((3, CgraSymbolSource.Elements, 1, 0)))
+      copy(dut, 19)
+      start(dut, id = 0, slot = 0, job = 0)
+      dut.io.computeActive.expect(true.B)
+      dut.io.autoLink.requestCompute.ready.expect(false.B)
+      dut.io.configIn.ready.expect(false.B)
+      copy(dut, 3, slot = 1)
+      dut.io.computeActive.expect(true.B)
+      val first = template.updated(3, (template(3) & ~payloadMask) | (BigInt(19) << payloadLsb))
+      packets(dut, first)
+      report(dut)
+      val next = template.updated(3, (template(3) & ~payloadMask) | (BigInt(3) << payloadLsb))
+      compute(dut, 1, next, slot = 1)
+    }
+  }
 
   it should "bind copy counts and slots on each replay, preserve other bits and clear old patches" in {
     test(new CgraLinkAdapter(params)) { dut =>
@@ -268,7 +296,7 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
           dut.io.autoLink.reportCompute.valid.expect(true.B)
           dut.io.autoLink.reportOutput.valid.expect(true.B)
           dut.io.autoLink.requestCompute.ready.expect(false.B)
-          dut.io.autoLink.requestCopy.ready.expect(false.B)
+          dut.io.autoLink.requestCopy.ready.expect(true.B)
           dut.io.configIn.ready.expect(false.B)
           dut.clock.step()
         }

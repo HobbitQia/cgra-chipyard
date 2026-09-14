@@ -105,11 +105,15 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   object ConfigState {
     val idle :: collectPatches :: collectPackets :: reportConfig :: Nil = Enum(4)
   }
+  object CopyState {
+    val idle :: issueDma :: waitDma :: reportCopy :: Nil = Enum(4)
+  }
   object ExecState {
-    val idle :: issueDma :: waitDma :: reportCopy :: readPacket :: loadPacket :: sendPacket :: waitCompute :: reportCompute :: Nil = Enum(9)
+    val idle :: readPacket :: loadPacket :: sendPacket :: waitCompute :: reportCompute :: Nil = Enum(6)
   }
 
   val configState = RegInit(ConfigState.idle)
+  val copyState = RegInit(CopyState.idle)
   val execState = RegInit(ExecState.idle)
   val config = Reg(new CgraLinkConfig(params))
   val copy = Reg(new AutoCopyRequest(params.auto))
@@ -136,6 +140,7 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   val publicationData = RegInit(0.U(params.auto.resultWidth.W))
   val publicationJob = RegInit(0.U(params.auto.jobWidth.W))
   val computeJob = RegInit(0.U(params.auto.jobWidth.W))
+  val computeElements = Reg(UInt(params.auto.lengthWidth.W))
   val tileId = Reg(UInt((2 * params.auto.lengthWidth).W))
   val slot = RegInit(0.U(params.auto.slotWidth.W))
 
@@ -155,7 +160,8 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   val completedNext = completed + completionFire
   val finalResultData = Mux(completionFire, io.computeResult.bits, resultData)
 
-  io.configIn.ready := configState === ConfigState.idle && execState === ExecState.idle
+  io.configIn.ready := configState === ConfigState.idle &&
+    copyState === CopyState.idle && execState === ExecState.idle
   io.packetIn.ready := configState === ConfigState.collectPackets
   io.patchIn.ready := configState === ConfigState.collectPatches
   io.captureActive := configState =/= ConfigState.idle || io.configIn.valid
@@ -169,10 +175,9 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   io.autoLink.reportOutput.bits.status := AutoLinkStatus.Success
   io.autoLink.reportOutput.bits.detail := 0.U
   io.autoLink.reportOutput.bits.data := publicationData
-  io.autoLink.requestCopy.ready := execState === ExecState.idle &&
-    configState === ConfigState.idle && !io.configIn.valid &&
-    !io.autoLink.requestCompute.valid
-  io.autoLink.reportCopy.valid := execState === ExecState.reportCopy
+  io.autoLink.requestCopy.ready := copyState === CopyState.idle &&
+    configState === ConfigState.idle && !io.configIn.valid
+  io.autoLink.reportCopy.valid := copyState === CopyState.reportCopy
   io.autoLink.reportCopy.bits.task := copy.task
   io.autoLink.reportCopy.bits.status := Mux(
     copyDetail === 0.U,
@@ -188,14 +193,14 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   io.autoLink.reportCompute.bits.detail := 0.U
   io.autoLink.reportCompute.bits.data := resultData
 
-  io.dmaRequest.valid := execState === ExecState.issueDma
+  io.dmaRequest.valid := copyState === CopyState.issueDma
   io.dmaRequest.bits.sourceAddress := copy.sourceAddress
   io.dmaRequest.bits.spmWordAddress :=
     copy.destinationOffset >> log2Ceil(params.wordBytes)
   io.dmaRequest.bits.bytes := copy.destinationBytes
   io.dmaRequest.bits.packed := copy.destinationBytes =/= copy.bytes
   io.dmaRequest.bits.dmaTag := autoDmaTag
-  io.dmaCompletion.ready := execState === ExecState.waitDma
+  io.dmaCompletion.ready := copyState === CopyState.waitDma
 
   io.jobPacket.valid := execState === ExecState.sendPacket
   io.jobPacket.bits := replayPacket
@@ -259,10 +264,10 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   when(io.autoLink.requestCopy.fire) {
     copy := io.autoLink.requestCopy.bits
     copyDetail := 0.U
-    execState := ExecState.issueDma
+    copyState := CopyState.issueDma
   }
   when(io.dmaRequest.fire) {
-    execState := ExecState.waitDma
+    copyState := CopyState.waitDma
   }
   when(io.dmaCompletion.fire) {
     when(io.dmaCompletion.bits.dmaTag =/= autoDmaTag) {
@@ -270,10 +275,10 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
     }.otherwise {
       selected(elements, copy.job) := copy.destinationBytes >> log2Ceil(params.wordBytes)
     }
-    execState := ExecState.reportCopy
+    copyState := CopyState.reportCopy
   }
   when(io.autoLink.reportCopy.fire) {
-    execState := ExecState.idle
+    copyState := CopyState.idle
   }
 
   def finishCompute(data: UInt): Unit = {
@@ -292,6 +297,8 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
     slot := io.autoLink.requestCompute.bits.slot
     when(io.autoLink.requestCompute.bits.start) {
       val job = io.autoLink.requestCompute.bits.job
+      // A following copy may update this job while its current packets replay.
+      computeElements := selected(elements, job)
       replayIndex := 0.U
       expectedCompletions := selected(jobExpectedCompletions, job)
       completed := 0.U
@@ -307,7 +314,7 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   }
   when(execState === ExecState.loadPacket) {
     val value = MuxLookup(patchRead.source, slot)(Seq(
-      CgraSymbolSource.Elements.U -> selected(elements, computeJob),
+      CgraSymbolSource.Elements.U -> computeElements,
       CgraSymbolSource.TileId.U -> tileId))
     val payload = Wire(UInt(params.cgra.dataPayloadWidth.W))
     payload := value * patchRead.coefficient + patchRead.bias

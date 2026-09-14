@@ -20,7 +20,8 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
       AutoDependencySpec(Some(0), 2, None)),
     endpoints = Seq(
       AutoEndpointSpec("gemmini", Some(AutoBuffer(0x60000000L, 256)), 256, bufferSlots = 2),
-      AutoEndpointSpec("cgra", Some(AutoBuffer(0x60010000L, 256)), 256, bufferSlots = 2, releaseOnCopy = true)),
+      AutoEndpointSpec("cgra", Some(AutoBuffer(0x60010000L, 256)), 256, bufferedInput = true,
+        bufferSlots = 2, releaseOnCopy = true)),
     beatBytes = 16,
     controlAddress = 0x60020000L,
     controlBytes = 4096)
@@ -132,7 +133,8 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
                 port.watchOutput.bits.tile.id.peek().litValue.toInt))
             }
             if (port.requestCopy.valid.peek().litToBoolean && port.requestCopy.ready.peek().litToBoolean) {
-              assert(copies(index).isEmpty && compute(index).isEmpty)
+              assert(copies(index).isEmpty)
+              if (!params.endpoints(index).bufferedInput) assert(compute(index).isEmpty)
               copies(index) = Some(Copy(cycle + 2 + index, port.requestCopy.bits.task.peek().litValue.toInt))
             }
             if (port.requestCompute.valid.peek().litToBoolean && port.requestCompute.ready.peek().litToBoolean) {
