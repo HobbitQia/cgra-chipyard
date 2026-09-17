@@ -18,10 +18,10 @@ object CgraSymbolSource {
   val TileId = 2
 }
 
-case class CgraLinkParams(auto: AutoLinkParams, cgra: CGRAParams, packetCapacity: Int) {
+case class CgraLinkParams(auto: AutoLinkParams, cgra: CGRAParams, packetCapacity: Int, endpoint: String = "cgra") {
   require(packetCapacity > 0)
 
-  val jobCount: Int = auto.stages.count(_.endpoint == "cgra")
+  val jobCount: Int = auto.stages.count(_.endpoint == endpoint)
   require(jobCount > 0)
 
   val packetCountWidth: Int = log2Ceil(packetCapacity + 1)
@@ -38,7 +38,8 @@ case class CgraLinkAttachParams(
   controlAddress: BigInt,
   controlBytes: Int) {
   require(adapter.auto.endpoints.exists(_.name == portName))
-  require(resultNames.nonEmpty && resultNames.distinct.size == resultNames.size)
+  require(adapter.endpoint == portName)
+  require(resultNames.distinct.size == resultNames.size)
   require(resultNames.forall(adapter.auto.resultNames.contains))
 }
 

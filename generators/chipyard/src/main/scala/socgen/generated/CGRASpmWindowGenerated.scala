@@ -15,4 +15,5 @@ object CGRASpmWindowGenerated {
     outboundScale = CgraRequantParams(multiplier = 1, shift = 0),
     inboundScale = CgraRequantParams(multiplier = 1, shift = 0))
   val params = CGRASpmWindowParams(baseAddress, sizeBytes, Some(bridge))
+  val windows: Map[String, CGRASpmWindowParams] = Map("cgra" -> params)
 }

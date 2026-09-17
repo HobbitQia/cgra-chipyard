@@ -1,6 +1,6 @@
 package chipyard.socgen.pool
 
-import chipyard.socgen.link.CanHaveAutoLink
+import chipyard.socgen.link.{CanHaveAutoLink, RoCCGroup}
 import freechips.rocketchip.subsystem.{BaseSubsystem, InstantiatesHierarchicalElements}
 import freechips.rocketchip.tile.RocketTile
 import org.chipsalliance.cde.config.{Config, Field}
@@ -17,14 +17,10 @@ class WithPoolLink(params: PoolLinkAttachParams)
 trait CanHavePoolLink {
   this: BaseSubsystem with InstantiatesHierarchicalElements with CanHaveAutoLink =>
 
-  val poolLink = p(PoolLinkKey).map { attach =>
-    val accelerators = totalTiles.values.toSeq.flatMap {
-      case tile: RocketTile =>
-        tile.roccs.collect { case accelerator: PoolAccelerator => accelerator }
-      case _ => Nil
-    }
-    require(accelerators.size == 1)
-    val accelerator = accelerators.head
+  val poolLink = totalTiles.values.toSeq.flatMap {
+    case tile: RocketTile => RoCCGroup.flatten(tile.roccs).collect { case accelerator: PoolAccelerator => accelerator }
+    case _ => Nil
+  }.flatMap(accelerator => accelerator.linkAttach.map(attach => (accelerator, attach))).map { case (accelerator, attach) =>
     require(accelerator.autoNode.nonEmpty)
     accelerator.autoNode.get := autoLink.get.endpoint(attach.portName)
     accelerator

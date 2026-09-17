@@ -454,7 +454,8 @@ class CGRAAccelerator(opcodes: OpcodeSet, params: CGRAParams = CGRAGenerated.par
     manager.node := TLFragmenter(bus.beatBytes, bus.blockBytes) := node
     node
   }.getOrElse(TLIdentityNode())
-  val linkParams = p(CgraLinkKey).map(_.adapter)
+  val linkAttach = p(CgraLinkKey)
+  val linkParams = linkAttach.map(_.adapter)
   val autoNode = if (params.dma.enabled && linkParams.isDefined)
     Some(BundleBridgeSink[AutoEndpointAsyncLink]()) else None
   val linkConfigNode = if (params.dma.enabled && linkParams.isDefined)

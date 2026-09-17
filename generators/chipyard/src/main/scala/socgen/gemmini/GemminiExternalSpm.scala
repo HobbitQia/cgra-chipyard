@@ -2,6 +2,7 @@ package chipyard.socgen.gemmini
 
 import chisel3._
 import chisel3.util._
+import chipyard.socgen.link.RoCCGroup
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.prci.{ClockSinkDomain, ClockSinkParameters}
 import freechips.rocketchip.resources.SimpleDevice
@@ -282,18 +283,15 @@ trait CanHaveGemminiExternalSpm {
   this: BaseSubsystem with InstantiatesHierarchicalElements =>
   private val sbus = locateTLBusWrapper(SBUS)
 
-  val gemminiExternalSpm = p(GemminiExternalSpmKey).map { params =>
-    val gemminis = totalTiles.values.toSeq.flatMap {
-      case tile: RocketTile =>
-        tile.roccs.collect { case accelerator: GemminiRoCC => accelerator }
-      case _ => Nil
-    }
-    require(gemminis.size == 1)
-    val attach = LazyModule(new GemminiExternalSpmAttach(gemminis.head, params))
+  val gemminiExternalSpm = totalTiles.values.toSeq.flatMap {
+    case tile: RocketTile => RoCCGroup.flatten(tile.roccs).collect { case accelerator: GemminiRoCC => accelerator }
+    case _ => Nil
+  }.zipWithIndex.map { case (gemmini, index) =>
+    val attach = LazyModule(new GemminiExternalSpmAttach(gemmini, gemmini.externalSpm))
 
     attach.clockNode := sbus.fixedClockNode
     attach.spm.clockNode := sbus.fixedClockNode
-    sbus.coupleTo("gemmini-ext-spm") {
+    sbus.coupleTo(s"gemmini-ext-spm-$index") {
       attach.systemPorts := TLFIFOFixer() := TLFragmenter(
         attach.systemMaxBytes,
         sbus.blockBytes) := TLWidthWidget(sbus) := _
@@ -306,8 +304,7 @@ trait CanHaveGemminiExternalSpmWriter {
   this: BaseSubsystem with InstantiatesHierarchicalElements with CanHaveGemminiExternalSpm =>
   private val sbus = locateTLBusWrapper(SBUS)
 
-  val gemminiExternalSpmWriter = Option.when(p(GemminiExternalSpmWriterKey)) {
-    val attach = gemminiExternalSpm.get
+  val gemminiExternalSpmWriter = gemminiExternalSpm.filter(_.gemminiRoCC.externalSpmWriter).map { attach =>
     val writer = LazyModule(new GemminiExternalSpmWriter(attach.gemminiAccelerator))
 
     attach.writerNode := writer.node

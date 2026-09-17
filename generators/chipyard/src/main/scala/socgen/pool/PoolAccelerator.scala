@@ -16,7 +16,8 @@ class PoolAccelerator(opcodes: OpcodeSet, params: PoolParams)(implicit p: Parame
   val bus = LazyModule(new PoolTileLink(params))
   private val dmaNode = TLIdentityNode()
   dmaNode := TLWidthWidget(p(SystemBusKey).beatBytes) := bus.node
-  val linkParams = p(PoolLinkKey).map(_.adapter)
+  val linkAttach = p(PoolLinkKey)
+  val linkParams = linkAttach.map(_.adapter)
   val autoNode = linkParams.map(_ => BundleBridgeSink[AutoEndpointAsyncLink]())
   override val tlNode: TLNode = dmaNode
   override lazy val module = new PoolAcceleratorImp(this, params)

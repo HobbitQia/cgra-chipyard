@@ -6,6 +6,15 @@ import chipyard.socgen.generated.{AutoLinkGenerated, CgraLinkControlGenerated, C
 import chipyard.socgen.gemmini.{GemminiLinkAttachParams, GemminiLinkParams, WithGemminiExternalSpm, WithGemminiExternalSpmWriter, WithGemminiLink, WithGemminiRoCC}
 import chipyard.socgen.link.WithAutoLink
 import chipyard.socgen.pool.{PoolLinkAttachParams, PoolLinkParams, PoolParams, WithPoolAccelerator, WithPoolLink}
+import chipyard.example.{CGRAAccelerator, CGRAGenerated, CGRASpmWindowKey}
+import chipyard.socgen.cgra.CgraLinkKey
+import chipyard.socgen.generated.AccelGenerated
+import chipyard.socgen.gemmini.{GemminiExternalSpmKey, GemminiExternalSpmParams, GemminiExternalSpmWriterKey, GemminiLinkKey, GemminiRoCC}
+import chipyard.socgen.link.{AccelSpec, RoCCGroup}
+import chipyard.socgen.pool.{PoolAccelerator, PoolLinkKey}
+import freechips.rocketchip.tile.{BuildRoCC, LazyRoCC, OpcodeSet}
+import org.chipsalliance.cde.config.Parameters
+import org.chipsalliance.diplomacy.lazymodule.LazyModule
 import org.chipsalliance.cde.config.{Config}
 
 // ------------------------------
@@ -15,6 +24,63 @@ import org.chipsalliance.cde.config.{Config}
 // CGRA RoCC Accelerator Config (2x2 Mesh CGRA via custom0)
 class CGRARocketConfig extends Config(
   new chipyard.config.WithCGRA() ++
+  new freechips.rocketchip.rocket.WithNBigCores(1) ++
+  new chipyard.config.WithSystemBusWidth(256) ++
+  new chipyard.config.AbstractConfig)
+
+object MultiAccelRocketConfig {
+  private def gemmini(spec: AccelSpec, p: Parameters): LazyRoCC = {
+    val config = CGRAMinimalGemminiRocketConfig.minimalGemminiConfig.copy(tl_ext_mem_base = spec.spmBase)
+    val link = GemminiLinkParams(
+      auto = AutoLinkGenerated.params,
+      beatBytes = config.meshColumns * config.tileColumns * config.accType.getWidth / 8,
+      commandCapacity = 16,
+      maxInflight = config.max_in_flight_mem_reqs * (1 + config.dma_maxbytes / (config.dma_buswidth / 8)),
+      endpoint = spec.name)
+    val attach = GemminiLinkAttachParams(link, spec.name, spec.controlAddress)
+    implicit val q: Parameters = p.alterPartial {
+      case GemminiExternalSpmKey => Some(GemminiExternalSpmParams(spec.spmBase, spec.spmBytes))
+      case GemminiExternalSpmWriterKey => false
+      case GemminiLinkKey => Some(attach)
+    }
+    LazyModule(new GemminiRoCC(config, Some(link)))
+  }
+
+  private def cgra(spec: AccelSpec, p: Parameters): LazyRoCC = {
+    val auto = AutoLinkGenerated.params
+    val results = if (AccelGenerated.instances.find(_.kind == "cgra").contains(spec)) auto.resultNames else Nil
+    val attach = CgraLinkAttachParams(
+      CgraLinkParams(auto, CGRAGenerated.params, packetCapacity = 96, endpoint = spec.name),
+      spec.name, results, spec.controlAddress, CgraLinkControlGenerated.pageSizeBytes)
+    implicit val q: Parameters = p.alterPartial {
+      case CGRASpmWindowKey => Some(CGRASpmWindowGenerated.windows(spec.name))
+      case CgraLinkKey => Some(attach)
+    }
+    LazyModule(new CGRAAccelerator(OpcodeSet.custom0))
+  }
+
+  private def pool(spec: AccelSpec, p: Parameters): LazyRoCC = {
+    implicit val q: Parameters = p.alterPartial {
+      case PoolLinkKey => Some(PoolLinkAttachParams(PoolLinkParams(AutoLinkGenerated.params), spec.name))
+    }
+    LazyModule(new PoolAccelerator(OpcodeSet.custom2, PoolParams(elementBits = 32)))
+  }
+
+  private val builders: Map[String, (AccelSpec, Parameters) => LazyRoCC] = Map(
+    "gemmini" -> gemmini _, "cgra" -> cgra _, "pool" -> pool _)
+
+  val factories: Seq[Parameters => LazyRoCC] = AccelGenerated.instances.map { spec =>
+    (p: Parameters) => builders(spec.kind)(spec, p)
+  }
+}
+
+class WithAccels extends Config((_, _, _) => {
+  case BuildRoCC => Seq((p: Parameters) => LazyModule(new RoCCGroup(MultiAccelRocketConfig.factories)(p)))
+})
+
+class MultiAccelRocketConfig extends Config(
+  new WithAccels ++
+  new WithAutoLink(AutoLinkGenerated.params) ++
   new freechips.rocketchip.rocket.WithNBigCores(1) ++
   new chipyard.config.WithSystemBusWidth(256) ++
   new chipyard.config.AbstractConfig)

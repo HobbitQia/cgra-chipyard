@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.util._
 import chipyard.example.CGRAAccelerator
 import chipyard.socgen.generated.CgraLinkControlGenerated
-import chipyard.socgen.link.{AutoEvent, AutoLinkStatus, CanHaveAutoLink}
+import chipyard.socgen.link.{AutoEvent, AutoLinkStatus, CanHaveAutoLink, RoCCGroup}
 import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.prci.{ClockSinkDomain, ClockSinkParameters}
 import freechips.rocketchip.regmapper.RegField
@@ -77,26 +77,30 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
         configDone := configAck.bits.done
       }
 
-      val results = Module(new Queue(new AutoEvent(params.auto), math.max(2, resultNames.size)))
-      val resultArbiter = Module(new Arbiter(new AutoEvent(params.auto), resultIn.size))
-      resultIn.zipWithIndex.foreach { case (result, index) =>
-        resultArbiter.io.in(index) <> result
-      }
-      results.io.enq <> resultArbiter.io.out
-
       val resultPop = Wire(Decoupled(UInt(1.W)))
       val result = RegInit(0.U.asTypeOf(new AutoEvent(params.auto)))
-      resultPop.ready := Mux(resultPop.bits.asBool, results.io.deq.valid, true.B)
-      results.io.deq.ready := resultPop.valid && resultPop.bits.asBool
-      when(results.io.deq.fire) {
-        result := results.io.deq.bits
+      val resultValid = WireDefault(false.B)
+      resultPop.ready := true.B
+      if (resultIn.nonEmpty) {
+        val results = Module(new Queue(new AutoEvent(params.auto), math.max(2, resultNames.size)))
+        val resultArbiter = Module(new Arbiter(new AutoEvent(params.auto), resultIn.size))
+        resultIn.zipWithIndex.foreach { case (input, index) =>
+          resultArbiter.io.in(index) <> input
+        }
+        results.io.enq <> resultArbiter.io.out
+        resultValid := results.io.deq.valid
+        resultPop.ready := !resultPop.bits.asBool || results.io.deq.valid
+        results.io.deq.ready := resultPop.valid && resultPop.bits.asBool
+        when(results.io.deq.fire) {
+          result := results.io.deq.bits
+        }
       }
 
       import CgraLinkControlGenerated._
       controlNode.regmap(
         PACKET_COUNT -> Seq(RegField(32, packetCount)),
         CONFIG_SUBMIT -> Seq(RegField.w(1, configSubmit)),
-        RESULT_VALID -> Seq(RegField.r(1, results.io.deq.valid)),
+        RESULT_VALID -> Seq(RegField.r(1, resultValid)),
         RESULT_POP -> Seq(RegField.w(1, resultPop)),
         RESULT_STATUS -> Seq(RegField.r(32, result.status)),
         RESULT_DETAIL -> Seq(RegField.r(32, result.detail)),
@@ -125,15 +129,11 @@ trait CanHaveCgraLink {
   this: BaseSubsystem with InstantiatesHierarchicalElements with CanHaveAutoLink =>
   private val pbus = locateTLBusWrapper(PBUS)
 
-  val cgraLink = p(CgraLinkKey).map { attach =>
-    val cgras = totalTiles.values.toSeq.flatMap {
-      case tile: RocketTile =>
-        tile.roccs.collect { case accelerator: CGRAAccelerator => accelerator }
-      case _ => Nil
-    }
-    require(cgras.size == 1)
+  val cgraLink = totalTiles.values.toSeq.flatMap {
+    case tile: RocketTile => RoCCGroup.flatten(tile.roccs).collect { case accelerator: CGRAAccelerator => accelerator }
+    case _ => Nil
+  }.flatMap(cgra => cgra.linkAttach.map(attach => (cgra, attach))).map { case (cgra, attach) =>
     val params = attach.adapter
-    val cgra = cgras.head
     val endpoint = LazyModule(new CgraLinkEndpoint(params, attach.resultNames, attach.controlAddress, attach.controlBytes))
 
     cgra.autoNode.get := autoLink.get.endpoint(attach.portName)
@@ -142,7 +142,7 @@ trait CanHaveCgraLink {
       endpoint.resultNode(name) := autoLink.get.result(name)
     }
     endpoint.clockNode := pbus.fixedClockNode
-    pbus.coupleTo("cgra-link-control") {
+    pbus.coupleTo(s"${attach.portName}-link-control") {
       endpoint.controlNode := TLBuffer() := TLFragmenter(
         pbus.beatBytes,
         pbus.blockBytes) := _

@@ -21,7 +21,9 @@ class GemminiRoCC(
   val configNode = linkParams.map(params => BundleBridgeSink[GemminiLinkConfigAsync]())
   val observeNode = linkParams.map(params => BundleBridgeSink[GemminiLinkObserveAsync]())
 
-  private val externalSpm = p(GemminiExternalSpmKey).get
+  val externalSpm = p(GemminiExternalSpmKey).get
+  val externalSpmWriter = p(GemminiExternalSpmWriterKey)
+  val linkAttach = p(GemminiLinkKey)
   private val localRange = AddressSet(externalSpm.baseAddress, externalSpm.sizeBytes - 1)
   private val dma = TLXbar()
   private val outward = TLIdentityNode()

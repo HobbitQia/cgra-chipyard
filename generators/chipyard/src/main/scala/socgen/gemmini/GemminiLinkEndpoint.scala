@@ -14,8 +14,10 @@ import freechips.rocketchip.util.{AsyncQueueParams, FromAsyncBundle, ToAsyncBund
 import org.chipsalliance.cde.config.{Config, Field, Parameters}
 import org.chipsalliance.diplomacy.lazymodule.LazyModule
 
-case class GemminiLinkAttachParams(adapter: GemminiLinkParams, portName: String) {
+case class GemminiLinkAttachParams(adapter: GemminiLinkParams, portName: String,
+    controlAddress: BigInt = CgraLinkControlGenerated.gemminiJobAddress) {
   require(adapter.auto.endpoints.exists(_.name == portName))
+  require(adapter.endpoint == portName)
 }
 
 case object GemminiLinkKey extends Field[Option[GemminiLinkAttachParams]](None)
@@ -167,7 +169,7 @@ object GemminiPublication {
 }
 
 /** SoC attachment and CPU-visible registers for the Gemmini AutoLink adapter. */
-class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams)(implicit p: Parameters)
+class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams, address: BigInt)(implicit p: Parameters)
     extends ClockSinkDomain(ClockSinkParameters())(p) {
   private val gemminiAccelerator = gemminiRoCC.accelerator
   val configNode = BundleBridgeSource(() => new GemminiLinkConfigAsync(params))
@@ -177,7 +179,7 @@ class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams)(i
   private val device = new SimpleDevice("gemmini-job", Seq("coredac,gemmini-job"))
   val controlNode = TLRegisterNode(
     address = Seq(AddressSet(
-      CgraLinkControlGenerated.gemminiJobAddress,
+      address,
       CgraLinkControlGenerated.pageSizeBytes - 1)),
     device = device,
     beatBytes = 8,
@@ -307,13 +309,14 @@ trait CanHaveGemminiLink {
   this: BaseSubsystem with InstantiatesHierarchicalElements with CanHaveAutoLink with CanHaveGemminiExternalSpm =>
   private val sbus = locateTLBusWrapper(SBUS)
 
-  val gemminiLink = p(GemminiLinkKey).map { attach =>
+  val gemminiLink = gemminiExternalSpm.flatMap { spm =>
+    spm.gemminiRoCC.linkAttach.map(attach => (spm, attach))
+  }.map { case (externalSpm, attach) =>
     val params = attach.adapter
-    val externalSpm = gemminiExternalSpm.get
     require(externalSpm.readBeatBytes == params.auto.beatBytes)
     require(externalSpm.writeBeatBytes == params.beatBytes)
     val gemminiRoCC = externalSpm.gemminiRoCC
-    val endpoint = LazyModule(new GemminiLinkEndpoint(gemminiRoCC, params))
+    val endpoint = LazyModule(new GemminiLinkEndpoint(gemminiRoCC, params, attach.controlAddress))
 
     require(gemminiRoCC.autoNode.nonEmpty)
     require(gemminiRoCC.configNode.nonEmpty)
@@ -325,7 +328,7 @@ trait CanHaveGemminiLink {
     gemminiRoCC.configNode.get := endpoint.configNode
     gemminiRoCC.observeNode.get := endpoint.observeNode
     endpoint.clockNode := sbus.fixedClockNode
-    sbus.coupleTo("gemmini-job") {
+    sbus.coupleTo(s"${attach.portName}-job") {
       endpoint.controlNode := TLBuffer() := TLFragmenter(
         endpoint.controlNode.beatBytes,
         sbus.blockBytes) := TLWidthWidget(sbus) := _

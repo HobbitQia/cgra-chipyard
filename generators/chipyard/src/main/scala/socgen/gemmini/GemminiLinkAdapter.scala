@@ -15,20 +15,20 @@ object GemminiLinkStatus {
   val Corrupt = 5
 }
 
-case class GemminiLinkParams(auto: AutoLinkParams, beatBytes: Int, commandCapacity: Int, maxInflight: Int = 1, patchCapacity: Int = 32) {
+case class GemminiLinkParams(auto: AutoLinkParams, beatBytes: Int, commandCapacity: Int, maxInflight: Int = 1, patchCapacity: Int = 32, endpoint: String = "gemmini") {
   require(isPow2(beatBytes))
   require(commandCapacity > 0)
   require(maxInflight > 0)
   require(isPow2(patchCapacity) && patchCapacity > 1)
 
-  val jobCount: Int = auto.stages.count(_.endpoint == "gemmini")
+  val jobCount: Int = auto.stages.count(_.endpoint == endpoint)
   require(jobCount > 0)
 
   val commandCountWidth: Int = log2Ceil(commandCapacity + 1)
   val commandAddressWidth: Int = math.max(1, log2Ceil(jobCount * commandCapacity))
   val jobIndexWidth: Int = math.max(1, log2Ceil(jobCount))
   val publicationBytes: Int = auto.dependencies.flatMap { dependency =>
-    dependency.source.filter(index => auto.stage(index).endpoint == "gemmini")
+    dependency.source.filter(index => auto.stage(index).endpoint == endpoint)
       .flatMap(_ => dependency.copy.map(_.bytes))
   }.foldLeft(1)(math.max)
 }
