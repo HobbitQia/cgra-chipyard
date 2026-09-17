@@ -91,4 +91,28 @@ class AES256ECBAccelImp(outer: AES256ECBAccel)(implicit p: Parameters)
 
   streamer.io.key <> cmd_router.io.key
   streamer.io.mode <> cmd_router.io.mode
+
+  val keyReady = RegInit(false.B)
+  val modeReady = RegInit(false.B)
+  val destReady = RegInit(false.B)
+  val sourceReady = keyReady && modeReady && destReady
+
+  // Keep the queued source out of DMA until this job's configuration is applied.
+  memloader.io.src_info.valid := cmd_router.io.src_info.valid && sourceReady
+  cmd_router.io.src_info.ready := memloader.io.src_info.ready && sourceReady
+
+  when(streamer.io.key.valid) {
+    keyReady := true.B
+  }
+  when(streamer.io.mode.valid) {
+    modeReady := true.B
+  }
+  when(memwriter.io.decompress_dest_info.fire) {
+    destReady := true.B
+  }
+  when(memloader.io.src_info.fire) {
+    keyReady := false.B
+    modeReady := false.B
+    destReady := false.B
+  }
 }
