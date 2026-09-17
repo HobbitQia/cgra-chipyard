@@ -28,9 +28,9 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
   private val template = Seq(
     packet(CGRACmdGenerated.CMD_REARM, 0),
     packet(CGRACmdGenerated.CMD_REARM, 0) ^ 1,
+    packet(CGRACmdGenerated.CMD_CONFIG_CTRL_LOWER_BOUND, 0),
     packet(CGRACmdGenerated.CMD_CONST, 17),
     packet(CGRACmdGenerated.CMD_CONFIG_TOTAL_CTRL_COUNT, 99),
-    packet(CGRACmdGenerated.CMD_CONFIG_CTRL_LOWER_BOUND, 0),
     packet(CGRACmdGenerated.CMD_LAUNCH, 0),
     packet(CGRACmdGenerated.CMD_LAUNCH, 0) ^ 1)
 
@@ -49,6 +49,8 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.dmaCompletion.valid.poke(false.B)
     dut.io.jobPacket.ready.poke(false.B)
     dut.io.computeResult.valid.poke(false.B)
+    dut.io.hasRun.poke(false.B)
+    dut.io.nativeConfig.poke(false.B)
   }
 
   private def ack(dut: CgraLinkAdapter, done: Boolean): Unit = {
@@ -60,11 +62,13 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.configAck.ready.poke(false.B)
   }
 
-  private def begin(dut: CgraLinkAdapter, packetCount: Int, patchCount: Int, job: Int): Unit = {
+  private def begin(dut: CgraLinkAdapter, packetCount: Int, patchCount: Int, job: Int, rearmCount: Int, setupCount: Int): Unit = {
     dut.io.configIn.bits.job.poke(job.U)
     dut.io.configIn.bits.packetCount.poke(packetCount.U)
     dut.io.configIn.bits.expectedCompletions.poke(1.U)
     dut.io.configIn.bits.patchCount.poke(patchCount.U)
+    dut.io.configIn.bits.rearmCount.poke(rearmCount.U)
+    dut.io.configIn.bits.setupCount.poke(setupCount.U)
     dut.io.configIn.valid.poke(true.B)
     dut.io.configIn.ready.expect(true.B)
     dut.clock.step()
@@ -77,8 +81,10 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut: CgraLinkAdapter,
     patches: Seq[(Int, Int, Int, Int)],
     packets: Seq[BigInt] = template,
-    job: Int = 0): Unit = {
-    begin(dut, packets.size, patches.size, job)
+    job: Int = 0,
+    rearmCount: Int = 2,
+    setupCount: Int = 1): Unit = {
+    begin(dut, packets.size, patches.size, job, rearmCount, setupCount)
     ack(dut, done = false)
     for ((index, source, coefficient, bias) <- patches) {
       dut.io.packetIn.ready.expect(false.B)
@@ -159,6 +165,10 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.jobPacket.ready.poke(true.B)
       dut.clock.step()
       dut.io.jobPacket.ready.poke(false.B)
+      val command = (value >> params.cgra.packetLayout.cmdLsb) & ((BigInt(1) << params.cgra.cmdWidth) - 1)
+      if (command == CGRACmdGenerated.CMD_LAUNCH || command == CGRACmdGenerated.CMD_RESUME) {
+        dut.io.hasRun.poke(true.B)
+      }
     }
     dut.io.computeResult.bits.poke(7.U)
     dut.io.computeResult.valid.poke(true.B)
@@ -193,7 +203,7 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
   it should "copy the next tile during replay without changing the active element count" in {
     test(new CgraLinkAdapter(params)) { dut =>
       init(dut)
-      capture(dut, Seq((3, CgraSymbolSource.Elements, 1, 0)))
+      capture(dut, Seq((4, CgraSymbolSource.Elements, 1, 0)))
       copy(dut, 19)
       start(dut, id = 0, slot = 0, job = 0)
       dut.io.computeActive.expect(true.B)
@@ -201,25 +211,26 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.configIn.ready.expect(false.B)
       copy(dut, 3, slot = 1)
       dut.io.computeActive.expect(true.B)
-      val first = template.updated(3, (template(3) & ~payloadMask) | (BigInt(19) << payloadLsb))
-      packets(dut, first)
+      val first = template.updated(4, (template(4) & ~payloadMask) | (BigInt(19) << payloadLsb))
+      packets(dut, first.drop(2))
       report(dut)
-      val next = template.updated(3, (template(3) & ~payloadMask) | (BigInt(3) << payloadLsb))
-      compute(dut, 1, next, slot = 1)
+      val next = template.updated(4, (template(4) & ~payloadMask) | (BigInt(3) << payloadLsb))
+      compute(dut, 1, next.take(2) ++ next.drop(3), slot = 1)
     }
   }
 
   it should "bind copy counts and slots on each replay, preserve other bits and clear old patches" in {
     test(new CgraLinkAdapter(params)) { dut =>
       init(dut)
-      capture(dut, Seq((2, CgraSymbolSource.Slot, 16, 4), (3, CgraSymbolSource.Elements, 5, 10)))
+      capture(dut, Seq((3, CgraSymbolSource.Slot, 16, 4), (4, CgraSymbolSource.Elements, 5, 10)))
       for ((id, slot, elements) <- Seq((4, 2, 19), (5, 0, 3), (6, 1, 32))) {
         copy(dut, elements)
         val expected = template.zipWithIndex.map { case (value, index) =>
-          val payload = if (index == 2) 4 + slot * 16 else elements * 5 + 10
-          if (index == 2 || index == 3) (value & ~payloadMask) | (BigInt(payload) << payloadLsb) else value
+          val payload = if (index == 3) 4 + slot * 16 else elements * 5 + 10
+          if (index == 3 || index == 4) (value & ~payloadMask) | (BigInt(payload) << payloadLsb) else value
         }
-        compute(dut, id, expected, slot)
+        val emitted = if (id == 4) expected.drop(2) else expected.take(2) ++ expected.drop(3)
+        compute(dut, id, emitted, slot)
       }
       capture(dut, Nil)
       compute(dut, 7, template)
@@ -237,18 +248,19 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
         packet(CGRACmdGenerated.CMD_CONFIG_CTRL_LOWER_BOUND, 5),
         packet(CGRACmdGenerated.CMD_CONST, 53),
         packet(CGRACmdGenerated.CMD_LAUNCH, 0))
-      capture(dut, Seq((2, CgraSymbolSource.Slot, 16, 4)))
-      capture(dut, Seq((2, CgraSymbolSource.TileId, 3, 7)), second, job = 1)
+      capture(dut, Seq((3, CgraSymbolSource.Slot, 16, 4)))
+      capture(dut, Seq((2, CgraSymbolSource.TileId, 3, 7)), second, job = 1, rearmCount = 1)
       for ((job, id, slot) <- Seq((0, 1, 2), (1, 2, 0), (0, 3, 1))) {
         val packets = if (job == 0) template else second
         val payload = if (job == 0) 4 + slot * 16 else 7 + id * 3
-        val expected = packets.updated(2,
-          (packets(2) & ~payloadMask) | (BigInt(payload) << payloadLsb))
-        compute(dut, id, expected, slot, job)
+        val index = if (job == 0) 3 else 2
+        val expected = packets.updated(index,
+          (packets(index) & ~payloadMask) | (BigInt(payload) << payloadLsb))
+        compute(dut, id, if (id == 1) expected.drop(2) else expected, slot, job)
       }
-      capture(dut, Nil, second, job = 1)
+      capture(dut, Nil, second, job = 1, rearmCount = 1)
       compute(dut, 4, second, job = 1)
-      val first = template.updated(2, (template(2) & ~payloadMask) | (BigInt(4) << payloadLsb))
+      val first = template.updated(3, (template(3) & ~payloadMask) | (BigInt(4) << payloadLsb))
       compute(dut, 5, first)
     }
   }
@@ -260,14 +272,56 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
       endpoints = Seq(AutoEndpointSpec("cgra", None, 512)))
     test(new CgraLinkAdapter(params.copy(auto = noCopy))) { dut =>
       init(dut)
-      capture(dut, Seq((2, CgraSymbolSource.TileId, 16, 4)))
+      capture(dut, Seq((3, CgraSymbolSource.TileId, 16, 4)))
       for (id <- Seq(4, 7)) {
-        val expected = template.updated(2,
-          (template(2) & ~payloadMask) | (BigInt(4 + id * 16) << payloadLsb))
-        compute(dut, id, expected)
+        val expected = template.updated(3,
+          (template(3) & ~payloadMask) | (BigInt(4 + id * 16) << payloadLsb))
+        compute(dut, id, if (id == 4) expected.drop(2) else expected.take(2) ++ expected.drop(3))
       }
       capture(dut, Nil)
       compute(dut, 8, template)
+    }
+  }
+
+  it should "restore setup after native configuration without treating a previous native run as cold" in {
+    test(new CgraLinkAdapter(params)) { dut =>
+      init(dut)
+      dut.io.hasRun.poke(true.B)
+      capture(dut, Nil)
+      compute(dut, 0, template)
+      val repeated = template.take(2) ++ template.drop(3)
+      compute(dut, 1, repeated)
+
+      dut.io.nativeConfig.poke(true.B)
+      start(dut, id = 2, slot = 0, job = 0)
+      dut.io.nativeConfig.poke(false.B)
+      packets(dut, template)
+      report(dut)
+      compute(dut, 3, template)
+      compute(dut, 4, repeated)
+
+      start(dut, id = 5, slot = 0, job = 0)
+      dut.io.nativeConfig.poke(true.B)
+      dut.clock.step()
+      dut.io.nativeConfig.poke(false.B)
+      packets(dut, repeated)
+      report(dut)
+      compute(dut, 6, template)
+    }
+  }
+
+  it should "retain setup when a different job is captured and invalidate the recaptured job" in {
+    val multiJob = auto.copy(
+      stages = auto.stages :+ AutoStageSpec("next", "cgra", 1),
+      dependencies = auto.dependencies :+ AutoDependencySpec(Some(0), 2, None))
+    test(new CgraLinkAdapter(params.copy(auto = multiJob))) { dut =>
+      init(dut)
+      capture(dut, Nil)
+      compute(dut, 0, template.drop(2))
+      capture(dut, Nil, job = 1)
+      compute(dut, 1, template.take(2) ++ template.drop(3))
+      capture(dut, Nil)
+      compute(dut, 2, template)
     }
   }
 
@@ -288,7 +342,7 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
         dut.io.autoLink.reportOutput.ready.poke(false.B)
         dut.clock.step()
         dut.io.autoLink.watchOutput.valid.poke(false.B)
-        replay(dut, id, template)
+        replay(dut, id, if (id == 4) template.drop(2) else template.take(2) ++ template.drop(3))
         dut.io.autoLink.reportOutput.valid.expect(true.B)
         dut.io.autoLink.reportOutput.bits.data.expect(7.U)
         for (_ <- 0 until 3) {

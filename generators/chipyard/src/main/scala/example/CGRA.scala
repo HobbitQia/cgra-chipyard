@@ -769,10 +769,25 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
   }
 
   linkAdapter.foreach { adapter =>
+    import CGRACmdGenerated._
+    val hasRun = RegInit(false.B)
     val command = adapter.io.jobPacket.bits(pktCmdMsb, pktCmdLsb)
-    when(adapter.io.jobPacket.fire &&
-         (command === CGRACmdGenerated.CMD_LAUNCH.U(params.cmdWidth.W) ||
-          command === CGRACmdGenerated.CMD_RESUME.U(params.cmdWidth.W))) {
+    val nativeCommand = cpuPacketCandidate.bits(pktCmdMsb, pktCmdLsb)
+    val nativeLaunch = cpuPacketCandidate.fire &&
+      (nativeCommand === CMD_LAUNCH.U || nativeCommand === CMD_RESUME.U)
+    val autoLaunch = adapter.io.jobPacket.fire &&
+      (command === CMD_LAUNCH.U || command === CMD_RESUME.U)
+    val memoryCommand = Seq(
+      CMD_LOAD_REQUEST, CMD_LOAD_RESPONSE, CMD_STORE_REQUEST,
+      CMD_DMA_CONFIG_DRAM_ADDR_LO, CMD_DMA_CONFIG_DRAM_ADDR_HI,
+      CMD_DMA_CONFIG_SPM_ADDR, CMD_DMA_CONFIG_BYTES, CMD_DMA_CONFIG_TAG,
+      CMD_DMA_MVIN, CMD_DMA_MVOUT, CMD_DMA_DONE).map(nativeCommand === _.U).reduce(_ || _)
+    adapter.io.hasRun := hasRun || nativeLaunch
+    adapter.io.nativeConfig := cpuPacketCandidate.fire && !memoryCommand
+    when(nativeLaunch || autoLaunch) {
+      hasRun := true.B
+    }
+    when(autoLaunch) {
       noteLaunchIssued()
     }
   }

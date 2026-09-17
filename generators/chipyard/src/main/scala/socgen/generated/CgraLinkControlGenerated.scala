@@ -24,6 +24,8 @@ object CgraLinkControlGenerated {
   val CONFIG_STATUS: Int = 0x068
   val CONFIG_DETAIL: Int = 0x070
   val PATCH_COUNT: Int = 0x080
+  val REARM_COUNT: Int = 0x088
+  val SETUP_COUNT: Int = 0x090
   val PATCH_PACKET: Int = 0x0a8
   val PATCH_SOURCE: Int = 0x0b0
   val PATCH_COEFFICIENT: Int = 0x0b8
