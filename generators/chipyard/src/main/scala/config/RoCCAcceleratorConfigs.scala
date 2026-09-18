@@ -30,7 +30,9 @@ class CGRARocketConfig extends Config(
 
 object MultiAccelRocketConfig {
   private def gemmini(spec: AccelSpec, p: Parameters): LazyRoCC = {
-    val config = CGRAMinimalGemminiRocketConfig.minimalGemminiConfig.copy(tl_ext_mem_base = spec.spmBase)
+    val config = CGRAMinimalGemminiRocketConfig.minimalGemminiConfig.copy(
+      has_loop_conv = true,
+      tl_ext_mem_base = spec.spmBase)
     val link = GemminiLinkParams(
       auto = AutoLinkGenerated.params,
       beatBytes = config.meshColumns * config.tileColumns * config.accType.getWidth / 8,
