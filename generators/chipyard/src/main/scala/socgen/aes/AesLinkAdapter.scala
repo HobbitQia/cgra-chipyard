@@ -5,7 +5,7 @@ import chisel3.util._
 import chipyard.socgen.link._
 
 case class AesLinkParams(auto: AutoLinkParams) {
-  val jobCount: Int = auto.stages.count(_.endpoint == "aes")
+  val jobCount: Int = auto.jobCount("aes")
   require(jobCount > 0)
 
   val jobIndexWidth: Int = math.max(1, log2Ceil(jobCount))

@@ -87,7 +87,7 @@ class GemminiPatch(params: GemminiLinkParams)(implicit p: Parameters) extends Mo
   val needsView = VecInit((0 until params.jobCount).map { job =>
     params.auto.dependencies.exists { dependency =>
       val stage = params.auto.stage(dependency.destination)
-      stage.endpoint == params.endpoint && stage.job == job && dependency.copy.nonEmpty
+      stage.endpoint == params.endpoint && job >= stage.job && job < stage.job + stage.jobs && dependency.copy.nonEmpty
     }.B
   })
   val inputView = selected(needsView, io.request.job)

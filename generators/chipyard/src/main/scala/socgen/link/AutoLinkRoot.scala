@@ -37,16 +37,85 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
       val tileColumns = RegInit(1.U(params.lengthWidth.W))
       val transfers = RegInit(AutoTileBinding.defaults(params))
       val regions = RegInit(0.U.asTypeOf(Vec(params.stages.size, new AutoRegion(params.lengthWidth))))
+      val jobs = RegInit(VecInit(params.stages.map(_.job.U(params.jobWidth.W))))
+      val stage = RegInit(0.U(params.stageWidth.W))
+      val jobWrite = Wire(Decoupled(UInt(params.jobWidth.W)))
+      jobWrite.ready := true.B
+      when(jobWrite.fire) {
+        jobs(stage) := jobWrite.bits
+      }
+      val staging = Wire(new AutoRun(params))
+      staging.plan.rows := rows
+      staging.plan.columns := columns
+      staging.plan.tileRows := tileRows
+      staging.plan.tileColumns := tileColumns
+      staging.transfers := transfers
+      staging.regions := regions
+      staging.jobs := jobs
       run.valid := inputReady.valid && inputReady.bits.asBool
-      run.bits.plan.rows := rows
-      run.bits.plan.columns := columns
-      run.bits.plan.tileRows := tileRows
-      run.bits.plan.tileColumns := tileColumns
-      run.bits.transfers := transfers
-      run.bits.regions := regions
+      run.bits := staging
       inputReady.ready := !inputReady.bits.asBool || run.ready
-      runNode.out.head._1 <> Queue(run, 1)
+      val pending = Module(new Queue(new AutoRun(params), 1))
+      pending.io.enq <> run
+      runNode.out.head._1 <> pending.io.deq
       val state = stateNode.in.head._1
+      val sequenceBusy = WireDefault(false.B)
+      val running = state.running || sequenceBusy || pending.io.deq.valid
+      val runFields = if (params.runCapacity > 0) {
+        val indexWidth = math.max(1, log2Ceil(params.runCapacity))
+        val countWidth = math.max(1, log2Ceil(params.runCapacity + 1))
+        val capture = Wire(Decoupled(UInt(indexWidth.W)))
+        val start = Wire(Decoupled(UInt(1.W)))
+        val first = RegInit(0.U(indexWidth.W))
+        val count = RegInit(1.U(countWidth.W))
+        val index = Reg(UInt(indexWidth.W))
+        val remaining = Reg(UInt(countWidth.W))
+        val idle :: fetch :: issue :: waitRun :: Nil = Enum(4)
+        val phase = RegInit(idle)
+        val descriptions = SyncReadMem(params.runCapacity, new AutoRun(params))
+        val description = Reg(new AutoRun(params))
+        sequenceBusy := phase =/= idle
+        capture.ready := !running
+        start.ready := !running && !capture.valid && !inputReady.valid
+        val begin = start.fire && start.bits.asBool
+        val advance = phase === waitRun && state.done && !state.failed && remaining > 1.U
+        val next = index + 1.U
+        val selected = Mux(begin, first, next)
+        val read = descriptions.read(selected, begin || advance)
+        when(capture.fire) {
+          descriptions.write(capture.bits, staging)
+        }
+        when(begin) {
+          index := first
+          remaining := count
+          phase := fetch
+        }
+        when(phase === fetch) {
+          description := read
+          phase := issue
+        }
+        when(sequenceBusy) {
+          inputReady.ready := false.B
+          run.valid := phase === issue
+          run.bits := description
+          when(run.fire) {
+            phase := waitRun
+          }
+        }
+        when(phase === waitRun && state.done) {
+          phase := idle
+          when(advance) {
+            index := next
+            remaining := remaining - 1.U
+            phase := fetch
+          }
+        }
+        Seq(
+          AUTO_LINK_RUN_CAPTURE -> Seq(RegField.w(indexWidth, capture)),
+          AUTO_LINK_RUN_FIRST -> Seq(RegField(indexWidth, first)),
+          AUTO_LINK_RUN_COUNT -> Seq(RegField(countWidth, count)),
+          AUTO_LINK_RUN_START -> Seq(RegField.w(1, start)))
+      } else Seq.empty
       val transferFields = transfers.zipWithIndex.flatMap { case (transfer, index) =>
         Seq(transfer.sourceOffset, transfer.destinationOffset, transfer.sourceStride,
           transfer.destinationStride, transfer.bytesPerPixel).zipWithIndex.map { case (field, offset) =>
@@ -68,10 +137,12 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
         AUTO_LINK_TILE_ROWS -> Seq(RegField(params.lengthWidth, tileRows)),
         AUTO_LINK_TILE_COLUMNS -> Seq(RegField(params.lengthWidth, tileColumns)),
         AUTO_LINK_EMITTING -> Seq(RegField.r(1, state.emitting)),
-        AUTO_LINK_RUNNING -> Seq(RegField.r(1, state.running)),
+        AUTO_LINK_RUNNING -> Seq(RegField.r(1, running)),
         AUTO_LINK_CYCLES -> Seq(RegField.r(64, state.cycles)),
         AUTO_LINK_OVERLAP -> Seq(RegField.r(64, state.overlap)),
-        AUTO_LINK_PEAK_ACTIVE -> Seq(RegField.r(64, state.peakActive))) ++ transferFields ++ regionFields): _*)
+        AUTO_LINK_PEAK_ACTIVE -> Seq(RegField.r(64, state.peakActive)),
+        AUTO_LINK_STAGE -> Seq(RegField(params.stageWidth, stage)),
+        AUTO_LINK_JOB -> Seq(RegField.w(params.jobWidth, jobWrite))) ++ runFields ++ transferFields ++ regionFields): _*)
     }
   }
 }

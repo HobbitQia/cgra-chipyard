@@ -42,11 +42,14 @@ class AutoRun(params: AutoLinkParams) extends Bundle {
   val plan = new AutoTilePlan(params.lengthWidth)
   val transfers = Vec(params.dependencies.size, new AutoTransfer(params))
   val regions = Vec(params.stages.size, new AutoRegion(params.lengthWidth))
+  val jobs = Vec(params.stages.size, UInt(params.jobWidth.W))
 }
 
 class AutoProgress extends Bundle {
   val running = Bool()
   val emitting = Bool()
+  val done = Bool()
+  val failed = Bool()
   val cycles = UInt(64.W)
   val overlap = UInt(64.W)
   val peakActive = UInt(64.W)

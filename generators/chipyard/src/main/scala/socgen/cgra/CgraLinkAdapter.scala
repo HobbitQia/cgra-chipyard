@@ -21,7 +21,7 @@ object CgraSymbolSource {
 case class CgraLinkParams(auto: AutoLinkParams, cgra: CGRAParams, packetCapacity: Int, endpoint: String = "cgra") {
   require(packetCapacity > 0)
 
-  val jobCount: Int = auto.stages.count(_.endpoint == endpoint)
+  val jobCount: Int = auto.jobCount(endpoint)
   require(jobCount > 0)
 
   val packetCountWidth: Int = log2Ceil(packetCapacity + 1)

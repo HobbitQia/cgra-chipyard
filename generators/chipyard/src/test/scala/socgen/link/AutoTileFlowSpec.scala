@@ -19,6 +19,7 @@ class AutoTileFlowSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   it should "retain each dependency context through copy, compute and rearm" in {
     test(new AutoStage(params, 1)) { dut =>
+      dut.io.jobs.zip(params.stages).foreach { case (port, stage) => port.poke(stage.job.U) }
       dut.io.transfers.foreach { transfer =>
         transfer.sourceOffset.poke(0.U)
         transfer.destinationOffset.poke(0.U)
@@ -125,6 +126,7 @@ class AutoTileFlowSpec extends AnyFlatSpec with ChiselScalatestTester {
           bufferedInput = true, bufferSlots = 2, releaseOnCopy = true),
         AutoEndpointSpec("stream", None, 512)))
     test(new AutoStage(buffered, 1)) { dut =>
+      dut.io.jobs.zip(buffered.stages).foreach { case (port, stage) => port.poke(stage.job.U) }
       dut.io.transfers.foreach { transfer =>
         transfer.sourceOffset.poke(0.U)
         transfer.destinationOffset.poke(0.U)

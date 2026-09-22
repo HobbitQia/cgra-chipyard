@@ -21,7 +21,7 @@ case class GemminiLinkParams(auto: AutoLinkParams, beatBytes: Int, commandCapaci
   require(maxInflight > 0)
   require(isPow2(patchCapacity) && patchCapacity > 1)
 
-  val jobCount: Int = auto.stages.count(_.endpoint == endpoint)
+  val jobCount: Int = auto.jobCount(endpoint)
   require(jobCount > 0)
 
   val commandCountWidth: Int = log2Ceil(commandCapacity + 1)

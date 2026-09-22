@@ -23,6 +23,7 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   private def bindings(dut: AutoScheduler, params: AutoLinkParams): Unit = {
+    dut.io.jobs.zip(params.stages).foreach { case (port, stage) => port.poke(stage.job.U) }
     dut.io.transfers.zipWithIndex.foreach { case (transfer, index) =>
       transfer.sourceOffset.poke(0.U)
       transfer.destinationOffset.poke(params.dependencies(index).copy.map(_.destinationOffset).getOrElse(0).U)

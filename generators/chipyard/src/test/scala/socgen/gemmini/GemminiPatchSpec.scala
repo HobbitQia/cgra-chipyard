@@ -187,9 +187,9 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   private def copy(dut: GemminiPatch, tile: Tile, view: Tile, bytes: Int,
-      address: BigInt = 0x60000): Unit = {
+      address: BigInt = 0x60000, job: Int = 0): Unit = {
     dut.io.copy.bits.task.poke(0.U)
-    dut.io.copy.bits.job.poke(0.U)
+    dut.io.copy.bits.job.poke(job.U)
     pokeTile(dut.io.copy.bits.tile, tile)
     pokeTile(dut.io.copy.bits.sourceTile, view)
     dut.io.copy.bits.sourceSlot.poke(1.U)
@@ -247,9 +247,9 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
     }
   }
 
-  it should "bind compact upstream views" in {
+  it should "bind compact upstream views for every cached job of a stage" in {
     val linked = auto.copy(
-      stages = Seq(AutoStageSpec("input", "cgra", 0), AutoStageSpec("conv", "gemmini", 0),
+      stages = Seq(AutoStageSpec("input", "cgra", 0), AutoStageSpec("conv", "gemmini", 0, jobs = 2),
         AutoStageSpec("output", "cgra", 1)),
       dependencies = Seq(AutoDependencySpec(Some(0), 1, Some(AutoCopySpec(0, 0, 64))),
         AutoDependencySpec(Some(1), 2, Some(AutoCopySpec(0, 0, 64)))),
@@ -257,14 +257,15 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
         if (endpoint.name == "cgra") endpoint.copy(buffer = Some(AutoBuffer(0x60000, 256))) else endpoint))
     test(new GemminiPatch(params.copy(auto = linked))) { dut =>
       init(dut)
-      capture(dut, Window(rows = 7, columns = 9))
-      for ((tile, view, offset) <- Seq(
+      for (job <- 0 until 2) capture(dut, Window(rows = 7, columns = 9), job = job)
+      for (job <- 0 until 2; (tile, view, offset) <- Seq(
         (Tile(4, 2, 3, 2, 2), Tile(4, 0, 1, 6, 6), 21),
         (Tile(5, 0, 0, 2, 2), Tile(5, 0, 0, 3, 3), 0),
         (Tile(6, 6, 8, 1, 1), Tile(6, 5, 7, 2, 2), 0))) {
-        request(dut, tile)
-        copy(dut, tile, view, view.rows * view.columns * 3)
+        request(dut, tile, job = job)
+        copy(dut, tile, view, view.rows * view.columns * 3, job = job)
         start(dut)
+        dut.io.job.poke(job.U)
         check(dut, 2, pack(8 -> 48, 3 -> 32, view.rows -> 16, 1 -> 0),
           pack(1 -> 56, 1 -> 48, tile.columns -> 32, tile.rows -> 16, tile.rows -> 0))
         check(dut, 7, 1, 0x60000 + offset)

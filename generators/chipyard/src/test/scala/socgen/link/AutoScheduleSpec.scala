@@ -65,8 +65,9 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   behavior of "AutoScheduler"
 
-  it should "overlap six tiles, retain joins and slot lifetime, and aggregate errors across shared endpoints" in {
-    test(new AutoScheduler(params)) { dut =>
+  it should "select cached jobs across runs while retaining joins, slot lifetime and errors across shared endpoints" in {
+    val cached = params.copy(stages = params.stages.map(stage => stage.copy(job = stage.job * 2, jobs = 2)))
+    test(new AutoScheduler(cached)) { dut =>
       bindings(dut.io.transfers, dut.io.regions)
       case class Completion(due: Int, stage: Int, id: Int, status: Int)
       case class Copy(due: Int, task: Int)
@@ -76,7 +77,9 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
       val watched = Array.fill[Option[(Int, Int)]](2)(None)
       var cycle = 0
 
-      def run(count: Int, injectFailure: Boolean): Unit = {
+      def run(count: Int, injectFailure: Boolean, variant: Int): Unit = {
+        val selected = cached.stages.map(_.job + variant)
+        dut.io.jobs.zip(selected).foreach { case (port, job) => port.poke(job.U) }
         var submitted = 0
         val started = scala.collection.mutable.Set.empty[(Int, Int)]
         val completed = scala.collection.mutable.Set.empty[(Int, Int)]
@@ -100,12 +103,12 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
             port.reportCopy.bits.detail.poke(0.U)
             port.reportCompute.valid.poke(compute(index).exists(_.due <= cycle).B)
             compute(index) match {
-              case Some(value) => event(port.reportCompute.bits, value.stage / 2, value.status, if (value.status != 0) 37 else 0)
+              case Some(value) => event(port.reportCompute.bits, selected(value.stage), value.status, if (value.status != 0) 37 else 0)
               case None => event(port.reportCompute.bits, 0)
             }
             port.reportOutput.valid.poke(publish(index).exists(_.due <= cycle).B)
             publish(index) match {
-              case Some(value) => event(port.reportOutput.bits, value.stage / 2, value.status, if (value.status != 0) 37 else 0)
+              case Some(value) => event(port.reportOutput.bits, selected(value.stage), value.status, if (value.status != 0) 37 else 0)
               case None => event(port.reportOutput.bits, 0)
             }
           }
@@ -129,17 +132,21 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
             }
             if (port.watchOutput.valid.peek().litToBoolean && port.watchOutput.ready.peek().litToBoolean) {
               assert(watched(index).isEmpty && compute(index).isEmpty && publish(index).isEmpty)
-              watched(index) = Some((port.watchOutput.bits.job.peek().litValue.toInt * 2 + index,
-                port.watchOutput.bits.tile.id.peek().litValue.toInt))
+              val stage = port.watchOutput.bits.job.peek().litValue.toInt / 2 * 2 + index
+              port.watchOutput.bits.job.expect(selected(stage).U)
+              watched(index) = Some((stage, port.watchOutput.bits.tile.id.peek().litValue.toInt))
             }
             if (port.requestCopy.valid.peek().litToBoolean && port.requestCopy.ready.peek().litToBoolean) {
               assert(copies(index).isEmpty)
               if (!params.endpoints(index).bufferedInput) assert(compute(index).isEmpty)
-              copies(index) = Some(Copy(cycle + 2 + index, port.requestCopy.bits.task.peek().litValue.toInt))
+              val task = port.requestCopy.bits.task.peek().litValue.toInt
+              port.requestCopy.bits.job.expect(selected(cached.dependencies(task).destination).U)
+              copies(index) = Some(Copy(cycle + 2 + index, task))
             }
             if (port.requestCompute.valid.peek().litToBoolean && port.requestCompute.ready.peek().litToBoolean) {
               val job = port.requestCompute.bits.job.peek().litValue.toInt
-              val stage = job * 2 + index
+              val stage = job / 2 * 2 + index
+              port.requestCompute.bits.job.expect(selected(stage).U)
               val id = port.requestCompute.bits.tile.id.peek().litValue.toInt
               assert(!started.contains((stage, id)))
               assert(compute(index).isEmpty && copies(index).isEmpty)
@@ -165,6 +172,7 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
             if (port.valid.peek().litToBoolean && port.ready.peek().litToBoolean) {
               assert(started.contains((stage, count - 1)))
               port.bits.stage.expect(stage.U)
+              port.bits.job.expect(selected(stage).U)
               port.bits.status.expect((if (injectFailure && stage > 0) 2 else 0).U)
               if (injectFailure && stage > 0) port.bits.detail.expect(37.U)
               results(stage) += 1
@@ -181,14 +189,15 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
         }
       }
 
-      run(6, injectFailure = true)
-      run(1, injectFailure = false)
+      run(6, injectFailure = true, variant = 1)
+      run(1, injectFailure = false, variant = 0)
     }
   }
 
   it should "hold a partial join without replacing its tile with an unmatched dependency" in {
     test(new AutoStage(params, 3)) { dut =>
       bindings(dut.io.transfers, dut.io.regions)
+      dut.io.jobs.zip(params.stages).foreach { case (port, stage) => port.poke(stage.job.U) }
       dut.io.claim.ready.poke(false.B)
       dut.io.slot.poke(0.U)
       dut.io.rearm.poke(true.B)

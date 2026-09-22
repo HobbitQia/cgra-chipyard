@@ -57,6 +57,7 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
   val io = IO(new Bundle {
     val transfers = Input(Vec(params.dependencies.size, new AutoTransfer(params)))
     val regions = Input(Vec(params.stages.size, new AutoRegion(params.lengthWidth)))
+    val jobs = Input(Vec(params.stages.size, UInt(params.jobWidth.W)))
     val dependency = Flipped(Vec(incoming.size, Decoupled(new AutoTileEvent(params))))
     val output = Vec(outgoing.size, Decoupled(new AutoTileEvent(params)))
     val claim = Decoupled(UInt(params.jobWidth.W))
@@ -155,7 +156,7 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
     } else transfer.destinationOffset
     val request = WireDefault(0.U.asTypeOf(new AutoCopyRequest(params)))
     request.task := task.U
-    request.job := params.stage(dependency.destination).job.U
+    request.job := io.jobs(dependency.destination)
     request.tile := AutoTileBinding.region(copyTile, io.regions(dependency.destination))
     request.sourceTile := sourceTile
     request.sourceSlot := sourceSlot
@@ -209,7 +210,7 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
   io.finished := state === State.waitRearm && inputState === State.waitRearm
 
   io.watchOutput.valid := state === State.armWatch
-  io.watchOutput.bits.job := spec.job.U
+  io.watchOutput.bits.job := io.jobs(index)
   io.watchOutput.bits.slot := activeSlot
   io.watchOutput.bits.tile := region
   io.watchOutput.bits.address := dataOutputs.headOption.map(task => copies(task).sourceAddress).getOrElse(0.U)
@@ -217,7 +218,7 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
 
   io.reportOutput.ready := (state === State.requestCopy || state === State.waitCopy ||
     state === State.requestCompute || state === State.waitCompute || state === State.waitExternal) &&
-    publication.nonEmpty.B && !publicationSeen && io.reportOutput.bits.job === spec.job.U
+    publication.nonEmpty.B && !publicationSeen && io.reportOutput.bits.job === io.jobs(index)
 
   io.requestCopy.valid := inputState === State.requestCopy
   io.requestCopy.bits := 0.U.asTypeOf(new AutoCopyRequest(params))
@@ -227,12 +228,12 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
   io.reportCopy.ready := inputState === State.waitCopy && io.reportCopy.bits.task === currentCopy
 
   io.requestCompute.valid := state === State.requestCompute
-  io.requestCompute.bits.job := spec.job.U
+  io.requestCompute.bits.job := io.jobs(index)
   io.requestCompute.bits.slot := activeSlot
   io.requestCompute.bits.tile := region
   io.requestCompute.bits.start := !failed
   io.reportCompute.ready := state === State.waitCompute && !computeSeen &&
-    io.reportCompute.bits.job === spec.job.U
+    io.reportCompute.bits.job === io.jobs(index)
 
   incomingCopies.zipWithIndex.foreach { case (task, input) =>
     val copied = endpoint.releaseOnCopy.B && io.reportCopy.fire && io.reportCopy.bits.task === task.U
@@ -259,7 +260,7 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
     when(hasDependencyFailure) {
       failure := firstFailure
       failure.stage := index.U
-      failure.job := spec.job.U
+      failure.job := io.jobs(index)
     }
     inputState := State.claim
   }
@@ -304,7 +305,7 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
     when(io.reportCopy.bits.status =/= AutoLinkStatus.Success) {
       failed := true.B
       failure.stage := index.U
-      failure.job := spec.job.U
+      failure.job := io.jobs(index)
       failure.status := io.reportCopy.bits.status
       failure.detail := io.reportCopy.bits.detail
       failure.data := 0.U
@@ -360,7 +361,7 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
     runFailed := true.B
     runFailure := PriorityMux(errors)
     runFailure.stage := index.U
-    runFailure.job := spec.job.U
+    runFailure.job := io.jobs(index)
   }
 
   val outputComplete = (!publication.nonEmpty.B || publicationSeen) && computeSeen
@@ -419,6 +420,7 @@ class AutoScheduler(params: AutoLinkParams) extends Module {
   val io = IO(new Bundle {
     val transfers = Input(Vec(params.dependencies.size, new AutoTransfer(params)))
     val regions = Input(Vec(params.stages.size, new AutoRegion(params.lengthWidth)))
+    val jobs = Input(Vec(params.stages.size, UInt(params.jobWidth.W)))
     val root = Flipped(Decoupled(new AutoTileEvent(params)))
     val endpoint = Vec(params.endpoints.size, Flipped(new AutoEndpointIO(params)))
     val result = Vec(params.stages.size, Decoupled(new AutoEvent(params)))
@@ -449,6 +451,7 @@ class AutoScheduler(params: AutoLinkParams) extends Module {
   stages.foreach { stage =>
     stage.io.transfers := io.transfers
     stage.io.regions := io.regions
+    stage.io.jobs := io.jobs
   }
   val rearm = stages.map(_.io.finished).reduce(_ && _)
   stages.foreach(_.io.rearm := (if (rooted) true.B else rearm))
@@ -653,23 +656,31 @@ class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters) extends Clo
       val run = rootNode.in.head._1
       val transfers = RegInit(AutoTileBinding.defaults(params))
       val regions = RegInit(0.U.asTypeOf(Vec(params.stages.size, new AutoRegion(params.lengthWidth))))
+      val jobs = RegInit(VecInit(params.stages.map(_.job.U(params.jobWidth.W))))
       val cursor = Module(new AutoTileCursor(params.lengthWidth))
       val active = RegInit(false.B)
+      val failed = RegInit(false.B)
       val cycles = RegInit(0.U(64.W))
       val overlap = RegInit(0.U(64.W))
       val peakActive = RegInit(0.U(64.W))
       cursor.io.start.valid := run.valid && !active
       cursor.io.start.bits := run.bits.plan
       run.ready := cursor.io.start.ready && !active
+      when(scheduler.io.result.map(result => result.fire && result.bits.status =/= AutoLinkStatus.Success).reduce(_ || _)) {
+        failed := true.B
+      }
       when(run.fire) {
         transfers := run.bits.transfers
         regions := run.bits.regions
+        jobs := run.bits.jobs
         active := true.B
+        failed := false.B
         cycles := 0.U
         overlap := 0.U
         peakActive := 0.U
       }
-      when(active && !cursor.io.busy && !scheduler.io.busy) {
+      val done = active && !cursor.io.busy && !scheduler.io.busy
+      when(done) {
         active := false.B
       }
       when(active) {
@@ -683,12 +694,15 @@ class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters) extends Clo
       }
       scheduler.io.transfers := transfers
       scheduler.io.regions := regions
+      scheduler.io.jobs := jobs
       scheduler.io.root.valid := cursor.io.out.valid
       scheduler.io.root.bits.event := 0.U.asTypeOf(new AutoEvent(params))
       scheduler.io.root.bits.tile := cursor.io.out.bits
       scheduler.io.root.bits.slot := 0.U
       cursor.io.out.ready := scheduler.io.root.ready
       stateNode.out.head._1.running := active
+      stateNode.out.head._1.done := done
+      stateNode.out.head._1.failed := failed
       stateNode.out.head._1.emitting := cursor.io.busy
       stateNode.out.head._1.cycles := cycles
       stateNode.out.head._1.overlap := overlap

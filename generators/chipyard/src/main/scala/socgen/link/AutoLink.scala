@@ -22,7 +22,7 @@ case class AutoEndpointSpec(name: String, buffer: Option[AutoBuffer], localBytes
   val hasStorage: Boolean = buffer.nonEmpty || bufferedInput
 }
 
-case class AutoStageSpec(name: String, endpoint: String, job: Int)
+case class AutoStageSpec(name: String, endpoint: String, job: Int, jobs: Int = 1)
 
 case class AutoCopySpec(sourceOffset: Int, destinationOffset: Int, bytes: Int, expansion: Int = 1) {
   require(isPow2(expansion))
@@ -41,7 +41,8 @@ case class AutoLinkParams(
   addressWidth: Int = 64,
   lengthWidth: Int = 32,
   detailWidth: Int = 8,
-  resultWidth: Int = 32) {
+  resultWidth: Int = 32,
+  runCapacity: Int = 0) {
   require(stages.nonEmpty)
   require(dependencies.nonEmpty)
   require(endpoints.map(_.name).distinct.size == endpoints.size)
@@ -54,7 +55,7 @@ case class AutoLinkParams(
   require(stages.forall(stage => endpointMap.contains(stage.endpoint)))
   require(stages.forall(_.job >= 0))
   endpoints.foreach { endpoint =>
-    val jobs = stages.filter(_.endpoint == endpoint.name).map(_.job)
+    val jobs = stages.filter(_.endpoint == endpoint.name).flatMap(stage => stage.job until stage.job + stage.jobs)
     require(jobs == jobs.indices)
   }
   require(dependencies.forall(dependency =>
@@ -98,12 +99,13 @@ case class AutoLinkParams(
   }
 
   val dependencyWidth: Int = math.max(1, log2Ceil(dependencies.size))
-  val jobWidth: Int = math.max(1, log2Ceil(stages.map(_.job).max + 1))
+  val jobWidth: Int = math.max(1, log2Ceil(stages.map(stage => stage.job + stage.jobs).max))
   val stageWidth: Int = math.max(1, log2Ceil(stages.size))
   val slotWidth: Int = math.max(1, log2Ceil(endpoints.map(_.bufferSlots).max))
   val resultNames: Seq[String] = dependencies.map(_.destination).distinct.map(stages(_).name)
 
   def endpoint(name: String): AutoEndpointSpec = endpointMap(name)
+  def jobCount(name: String): Int = stages.filter(_.endpoint == name).map(_.jobs).sum
   def stage(index: Int): AutoStageSpec = stages(index)
   def sourceAddress(dependency: Int): BigInt = {
     val spec = dependencies(dependency)

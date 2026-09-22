@@ -51,6 +51,7 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   it should "bind clipped regions and slot transfers without changing join identity" in {
     test(new AutoScheduler(params)) { dut =>
+      dut.io.jobs.zip(params.stages).foreach { case (port, stage) => port.poke(stage.job.U) }
       dut.io.transfers.foreach { transfer =>
         transfer.sourceOffset.poke(0.U)
         transfer.destinationOffset.poke(0.U)
