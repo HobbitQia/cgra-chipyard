@@ -13,6 +13,7 @@ import chipyard.socgen.gemmini.{GemminiExternalSpmKey, GemminiExternalSpmParams,
 import chipyard.socgen.link.{AccelSpec, RoCCGroup}
 import chipyard.socgen.pool.{PoolAccelerator, PoolLinkKey}
 import freechips.rocketchip.tile.{BuildRoCC, LazyRoCC, OpcodeSet}
+import gemmini.CapacityInKilobytes
 import org.chipsalliance.cde.config.Parameters
 import org.chipsalliance.diplomacy.lazymodule.LazyModule
 import org.chipsalliance.cde.config.{Config}
@@ -32,6 +33,7 @@ object MultiAccelRocketConfig {
   private def gemmini(spec: AccelSpec, p: Parameters): LazyRoCC = {
     val config = CGRAMinimalGemminiRocketConfig.minimalGemminiConfig.copy(
       has_loop_conv = true,
+      sp_capacity = CapacityInKilobytes(spec.spmBytes / 1024),
       tl_ext_mem_base = spec.spmBase)
     val link = GemminiLinkParams(
       auto = AutoLinkGenerated.params,
@@ -65,7 +67,7 @@ object MultiAccelRocketConfig {
     implicit val q: Parameters = p.alterPartial {
       case PoolLinkKey => Some(PoolLinkAttachParams(PoolLinkParams(AutoLinkGenerated.params), spec.name))
     }
-    LazyModule(new PoolAccelerator(OpcodeSet.custom2, PoolParams(elementBits = 32)))
+    LazyModule(new PoolAccelerator(OpcodeSet.custom2, PoolParams(elementBits = spec.elementBits)))
   }
 
   private val builders: Map[String, (AccelSpec, Parameters) => LazyRoCC] = Map(
