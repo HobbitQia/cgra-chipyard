@@ -64,10 +64,15 @@ object MultiAccelRocketConfig {
   }
 
   private def pool(spec: AccelSpec, p: Parameters): LazyRoCC = {
-    implicit val q: Parameters = p.alterPartial {
-      case PoolLinkKey => Some(PoolLinkAttachParams(PoolLinkParams(AutoLinkGenerated.params), spec.name))
+    val auto = AutoLinkGenerated.params
+    val attach = auto.endpoints.find(_.name == spec.name).map { _ =>
+      PoolLinkAttachParams(PoolLinkParams(auto), spec.name)
     }
-    LazyModule(new PoolAccelerator(OpcodeSet.custom2, PoolParams(elementBits = spec.elementBits)))
+    implicit val q: Parameters = p.alterPartial {
+      case PoolLinkKey => attach
+    }
+    LazyModule(new PoolAccelerator(OpcodeSet.custom2,
+      PoolParams(elementBits = spec.elementBits, lineBufferEntries = spec.lineBufferEntries)))
   }
 
   private val builders: Map[String, (AccelSpec, Parameters) => LazyRoCC] = Map(
