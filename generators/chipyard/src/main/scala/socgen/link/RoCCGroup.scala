@@ -5,7 +5,7 @@ import chisel3.util._
 import freechips.rocketchip.tile.{LazyRoCC, LazyRoCCModuleImp, OpcodeSet, RoCCResponse}
 import org.chipsalliance.cde.config.Parameters
 
-case class AccelSpec(name: String, kind: String, id: Int, spmBase: BigInt, spmBytes: Int, controlAddress: BigInt, elementBits: Int = 32, lineBufferEntries: Int = 8)
+case class AccelSpec(name: String, kind: String, id: Int, spmBase: BigInt, spmBytes: Int, controlAddress: BigInt)
 
 object RoCCGroup {
   val Select = 127

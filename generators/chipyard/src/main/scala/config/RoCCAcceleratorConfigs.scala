@@ -71,8 +71,7 @@ object MultiAccelRocketConfig {
     implicit val q: Parameters = p.alterPartial {
       case PoolLinkKey => attach
     }
-    LazyModule(new PoolAccelerator(OpcodeSet.custom2,
-      PoolParams(elementBits = spec.elementBits, lineBufferEntries = spec.lineBufferEntries)))
+    LazyModule(new PoolAccelerator(OpcodeSet.custom2, AccelGenerated.pools(spec.name)))
   }
 
   private val builders: Map[String, (AccelSpec, Parameters) => LazyRoCC] = Map(
