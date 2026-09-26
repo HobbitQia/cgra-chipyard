@@ -14,56 +14,21 @@ case object AutoLinkKey extends Field[Option[AutoLinkParams]](None)
 
 class WithAutoLink(params: AutoLinkParams) extends Config((_, _, _) => { case AutoLinkKey => Some(params) })
 
-class AutoBroadcast(params: AutoLinkParams, outputCount: Int) extends Module {
-  require(outputCount > 0)
-
-  val io = IO(new Bundle {
-    val in = Flipped(Decoupled(new AutoTileEvent(params)))
-    val out = Vec(outputCount, Decoupled(new AutoTileEvent(params)))
-    val busy = Output(Bool())
-  })
-
-  val event = Reg(new AutoTileEvent(params))
-  val pending = RegInit(VecInit(Seq.fill(outputCount)(false.B)))
-  val idle = !pending.reduce(_ || _)
-  io.busy := !idle
-
-  io.in.ready := idle
-  io.out.zipWithIndex.foreach { case (output, index) =>
-    output.valid := pending(index)
-    output.bits := event
-    when(output.fire) {
-      pending(index) := false.B
-    }
-  }
-  when(io.in.fire) {
-    event := io.in.bits
-    pending.foreach(_ := true.B)
-  }
-}
-
 class AutoStage(params: AutoLinkParams, index: Int) extends Module {
-  private val spec = params.stage(index)
-  private val incoming = params.dependencies.indices.filter(params.dependencies(_).destination == index)
-  private val outgoing = params.dependencies.indices.filter(params.dependencies(_).source.contains(index))
-  private val incomingCopies = incoming.filter(params.dependencies(_).copy.nonEmpty)
-  private val dataOutputs = outgoing.filter(params.dependencies(_).copy.nonEmpty)
-  private val controlOutputs = outgoing.filter(params.dependencies(_).copy.isEmpty)
-  private val publication = dataOutputs.headOption.map(params.dependencies(_).copy.get)
-  private val external = incoming.isEmpty
-  private val endpoint = params.endpoint(spec.endpoint)
-  private val buffered = endpoint.bufferedInput && !external
+  private val tasks = 0 until params.dependencyCount
 
   val io = IO(new Bundle {
-    val transfers = Input(Vec(params.dependencies.size, new AutoTransfer(params)))
-    val regions = Input(Vec(params.stages.size, new AutoRegion(params.lengthWidth)))
-    val jobs = Input(Vec(params.stages.size, UInt(params.jobWidth.W)))
-    val dependency = Flipped(Vec(incoming.size, Decoupled(new AutoTileEvent(params))))
-    val output = Vec(outgoing.size, Decoupled(new AutoTileEvent(params)))
-    val claim = Decoupled(UInt(params.jobWidth.W))
-    val execute = Decoupled(UInt(params.jobWidth.W))
+    val transfers = Input(Vec(params.dependencyCount, new AutoTransfer(params)))
+    val regions = Input(Vec(params.stageCount, new AutoRegion(params.lengthWidth)))
+    val jobs = Input(Vec(params.stageCount, UInt(params.jobWidth.W)))
+    val stages = Input(Vec(params.stageCount, new AutoGraphStage(params)))
+    val edges = Input(Vec(params.dependencyCount, new AutoGraphEdge(params)))
+    val dependency = Flipped(Vec(params.dependencyCount, Decoupled(new AutoTileEvent(params))))
+    val output = Vec(params.dependencyCount, Decoupled(new AutoTileEvent(params)))
+    val claim = Decoupled(UInt(params.stageWidth.W))
+    val execute = Decoupled(UInt(params.stageWidth.W))
     val slot = Input(UInt(params.slotWidth.W))
-    val consumed = Vec(incomingCopies.size, Valid(UInt(params.slotWidth.W)))
+    val consumed = Vec(params.dependencyCount, Valid(UInt(params.slotWidth.W)))
     val release = Output(Bool())
     val releaseTile = Output(new AutoTile(params.lengthWidth))
     val releaseSlot = Output(UInt(params.slotWidth.W))
@@ -86,30 +51,46 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
     val waitDependencies :: claim :: armWatch :: requestCopy :: waitCopy :: requestCompute :: waitCompute :: waitExternal :: release :: waitRearm :: Nil = Enum(10)
   }
 
-  val state = RegInit(if (external) State.claim else State.waitDependencies)
+  val spec = io.stages(index)
+  val incoming = VecInit(io.edges.map(edge => edge.enabled && edge.destination === index.U))
+  val outgoing = VecInit(io.edges.map(edge => edge.enabled && !edge.root && edge.source === index.U))
+  val incomingCopies = VecInit(tasks.map(task => incoming(task) && io.edges(task).copy))
+  val dataOutputs = VecInit(tasks.map(task => outgoing(task) && io.edges(task).copy))
+  val controlOutputs = VecInit(tasks.map(task => outgoing(task) && !io.edges(task).copy))
+  val publication = dataOutputs.asUInt.orR || spec.output.writeback
+  val external = !incoming.asUInt.orR
+  val buffered = VecInit(params.endpoints.map(_.bufferedInput.B))(spec.endpoint) && !external
+  val releaseOnCopy = VecInit(params.endpoints.map(_.releaseOnCopy.B))(spec.endpoint)
+  val state = RegInit(State.waitDependencies)
   // Buffered input can advance after compute acceptance while execution keeps its output context.
-  val inputState = if (buffered) RegInit(State.waitDependencies) else state
-  val dependency = Reg(Vec(math.max(1, incoming.size), new AutoEvent(params)))
+  val preparation = RegInit(State.waitDependencies)
+  val inputState = Mux(buffered, preparation, state)
+  def setInput(next: UInt): Unit = {
+    when(buffered) { preparation := next }.otherwise { state := next }
+  }
+  val dependency = Reg(Vec(params.dependencyCount, new AutoEvent(params)))
   val singleTile = WireDefault(0.U.asTypeOf(new AutoTile(params.lengthWidth)))
   singleTile.rows := 1.U
   singleTile.columns := 1.U
   singleTile.last := true.B
   val tile = RegInit(singleTile)
   val slot = RegInit(0.U(params.slotWidth.W))
-  val sourceSlots = Reg(Vec(math.max(1, incoming.size), UInt(params.slotWidth.W)))
-  val consumed = RegInit(VecInit(Seq.fill(math.max(1, incomingCopies.size))(false.B)))
-  val dependencyValid = RegInit(VecInit(Seq.fill(math.max(1, incoming.size))(false.B)))
-  val output = Reg(Vec(math.max(1, outgoing.size), new AutoEvent(params)))
-  val outputValid = RegInit(VecInit(Seq.fill(math.max(1, outgoing.size))(false.B)))
-  val copyIndex = RegInit(0.U(math.max(1, log2Ceil(math.max(1, incomingCopies.size))).W))
+  val sourceSlots = Reg(Vec(params.dependencyCount, UInt(params.slotWidth.W)))
+  val consumed = RegInit(VecInit(Seq.fill(params.dependencyCount)(false.B)))
+  val dependencyValid = RegInit(VecInit(Seq.fill(params.dependencyCount)(false.B)))
+  val output = Reg(Vec(params.dependencyCount, new AutoEvent(params)))
+  val outputValid = RegInit(VecInit(Seq.fill(params.dependencyCount)(false.B)))
+  val copyIndex = RegInit(0.U(params.dependencyWidth.W))
   val failed = RegInit(false.B)
   val failure = Reg(new AutoEvent(params))
-  val activeTile = if (buffered) RegInit(singleTile) else tile
-  val activeSlot = if (buffered) RegInit(0.U(params.slotWidth.W)) else slot
-  val activeSources = if (buffered && !endpoint.releaseOnCopy) Reg(chiselTypeOf(sourceSlots)) else sourceSlots
-  val activeConsumed = if (buffered && !endpoint.releaseOnCopy) {
-    RegInit(VecInit(Seq.fill(math.max(1, incomingCopies.size))(false.B)))
-  } else consumed
+  val executionTile = RegInit(singleTile)
+  val executionSlot = RegInit(0.U(params.slotWidth.W))
+  val activeTile = Mux(buffered, executionTile, tile)
+  val activeSlot = Mux(buffered, executionSlot, slot)
+  val executionSources = Reg(chiselTypeOf(sourceSlots))
+  val executionConsumed = RegInit(VecInit(Seq.fill(params.dependencyCount)(false.B)))
+  val activeSources = Mux(buffered, executionSources, sourceSlots)
+  val activeConsumed = Mux(buffered, executionConsumed, consumed)
   val publicationSeen = RegInit(false.B)
   val computeSeen = RegInit(false.B)
   val resultValid = RegInit(false.B)
@@ -118,65 +99,50 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
   val runFailed = RegInit(false.B)
   val runFailure = Reg(new AutoEvent(params))
 
-  val allDependencies = if (incoming.nonEmpty) dependencyValid.reduce(_ && _) else true.B
-  val dependencyFailures = incoming.indices.map { input =>
-    dependencyValid(input) && dependency(input).status =/= AutoLinkStatus.Success
+  val allDependencies = tasks.map(task => !incoming(task) || dependencyValid(task)).reduce(_ && _)
+  val dependencyFailures = tasks.map { input =>
+    incoming(input) && dependencyValid(input) && dependency(input).status =/= AutoLinkStatus.Success
   }
-  val hasDependencyFailure = if (dependencyFailures.nonEmpty) dependencyFailures.reduce(_ || _) else false.B
-  val firstFailure = if (dependencyFailures.nonEmpty) {
-    PriorityMux(dependencyFailures.zip(dependency))
-  } else {
-    0.U.asTypeOf(new AutoEvent(params))
-  }
-  val outputsPending = if (outgoing.nonEmpty) outputValid.reduce(_ || _) else false.B
-  val currentCopy = if (incomingCopies.nonEmpty) {
-    VecInit(incomingCopies.map(_.U(params.dependencyWidth.W)))(copyIndex)
-  } else {
-    0.U(params.dependencyWidth.W)
-  }
+  val hasDependencyFailure = dependencyFailures.reduce(_ || _)
+  val firstFailure = PriorityMux(dependencyFailures.zip(dependency))
+  val outputsPending = outputValid.reduce(_ || _)
+  val currentCopy = copyIndex
+  val nextCopies = VecInit(tasks.map(task => incomingCopies(task) && task.U > copyIndex))
 
   val region = AutoTileBinding.region(activeTile, io.regions(index))
   val currentSlot = Mux(inputState === State.claim, io.slot, slot)
-  val copies = (incomingCopies ++ dataOutputs).distinct.map { task =>
-    val dependency = params.dependencies(task)
-    val copy = dependency.copy.get
-    val source = params.endpoint(params.stage(dependency.source.get).endpoint).buffer.get
-    val destination = params.endpoint(params.stage(dependency.destination).endpoint)
+  val copies = VecInit(tasks.map { task =>
+    val edge = io.edges(task)
     val transfer = io.transfers(task)
-    val copyTile = if (dependency.destination == index) tile else activeTile
-    val sourceTile = AutoTileBinding.region(copyTile, io.regions(dependency.source.get))
-    val bytes = Mux(transfer.bytesPerPixel === 0.U, copy.bytes.U,
+    val copyTile = Mux(incoming(task), tile, activeTile)
+    val sourceTile = Mux(edge.root, copyTile, AutoTileBinding.region(copyTile, io.regions(edge.source)))
+    val bytes = Mux(transfer.bytesPerPixel === 0.U, edge.bytes,
       sourceTile.rows * sourceTile.columns * transfer.bytesPerPixel)
-    val destinationBytes = bytes * copy.expansion.U
-    val sourceSlot = if (dependency.destination == index) sourceSlots(incoming.indexOf(task)) else activeSlot
-    val destinationSlot = if (dependency.destination == index) currentSlot else 0.U
+    val destinationBytes = bytes << edge.expansion
+    val sourceSlot = Mux(incoming(task), sourceSlots(task), activeSlot)
+    val destinationSlot = Mux(incoming(task), currentSlot, 0.U)
     val sourceOffset = transfer.sourceOffset +& sourceSlot * transfer.sourceStride
-    val destinationOffset = if (destination.bufferedInput) {
-      transfer.destinationOffset +& destinationSlot * transfer.destinationStride
-    } else transfer.destinationOffset
+    val destinationBuffered = VecInit(params.endpoints.map(_.bufferedInput.B))(io.stages(edge.destination).endpoint)
+    val destinationOffset = transfer.destinationOffset + Mux(destinationBuffered, destinationSlot * transfer.destinationStride, 0.U)
     val request = WireDefault(0.U.asTypeOf(new AutoCopyRequest(params)))
     request.task := task.U
-    request.job := io.jobs(dependency.destination)
-    request.tile := AutoTileBinding.region(copyTile, io.regions(dependency.destination))
+    request.job := io.jobs(edge.destination)
+    request.tile := AutoTileBinding.region(copyTile, io.regions(edge.destination))
     request.sourceTile := sourceTile
     request.sourceSlot := sourceSlot
     request.destinationSlot := destinationSlot
-    request.sourceAddress := source.baseAddress.U + sourceOffset
+    request.sourceAddress := transfer.sourceBase + sourceOffset
     request.destinationOffset := destinationOffset
     request.bytes := bytes
     request.destinationBytes := destinationBytes
-    task -> request
-  }.toMap
+    request
+  })
 
   val haveDependency = dependencyValid.reduce(_ || _)
-  val firstIncoming = if (incoming.nonEmpty) {
-    PriorityMux(io.dependency.map(input => input.valid -> input.bits.tile))
-  } else {
-    singleTile
-  }
+  val firstIncoming = PriorityMux(io.dependency.map(input => input.valid -> input.bits.tile))
   val joinTile = Mux(haveDependency, tile, firstIncoming)
   io.dependency.zipWithIndex.foreach { case (input, inputIndex) =>
-    input.ready := !dependencyValid(inputIndex) && inputState === State.waitDependencies &&
+    input.ready := spec.enabled && incoming(inputIndex) && !dependencyValid(inputIndex) && inputState === State.waitDependencies &&
       input.bits.tile.asUInt === joinTile.asUInt
     when(input.fire) {
       dependency(inputIndex) := input.bits.event
@@ -196,9 +162,9 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
   }
 
   io.claim.valid := inputState === State.claim
-  io.claim.bits := spec.job.U
-  io.execute.valid := buffered.B && inputState === State.requestCompute && state === State.waitDependencies
-  io.execute.bits := spec.job.U
+  io.claim.bits := index.U
+  io.execute.valid := buffered && inputState === State.requestCompute && state === State.waitDependencies
+  io.execute.bits := index.U
   io.release := state === State.release
   io.releaseTile := activeTile
   io.releaseSlot := activeSlot
@@ -207,24 +173,29 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
   io.computing := (state === State.requestCompute && !failed) || (state === State.waitCompute && !computeSeen)
   io.working := io.computing || (!failed && (inputState === State.waitCopy || inputState === State.requestCompute))
   io.workingTile := Mux(io.computing, activeTile.id, tile.id)
-  io.finished := state === State.waitRearm && inputState === State.waitRearm
+  io.finished := !spec.enabled || (state === State.waitRearm && inputState === State.waitRearm)
 
   io.watchOutput.valid := state === State.armWatch
   io.watchOutput.bits.job := io.jobs(index)
   io.watchOutput.bits.slot := activeSlot
   io.watchOutput.bits.tile := region
-  io.watchOutput.bits.address := dataOutputs.headOption.map(task => copies(task).sourceAddress).getOrElse(0.U)
-  io.watchOutput.bits.bytes := dataOutputs.headOption.map(task => copies(task).bytes).getOrElse(0.U)
+  io.watchOutput.bits.address := copies(PriorityEncoder(dataOutputs)).sourceAddress
+  io.watchOutput.bits.bytes := copies(PriorityEncoder(dataOutputs)).bytes
+  io.watchOutput.bits.writeback := spec.output.writeback
+  io.watchOutput.bits.packed := spec.output.packed
+  io.watchOutput.bits.sourceOffset := spec.output.sourceOffset + activeSlot * spec.output.sourceStride
+  when(spec.output.writeback) {
+    io.watchOutput.bits.address := spec.output.address + activeSlot * spec.output.stride
+    io.watchOutput.bits.bytes := Mux(spec.output.bytesPerPixel === 0.U, spec.output.bytes,
+      region.rows * region.columns * spec.output.bytesPerPixel)
+  }
 
   io.reportOutput.ready := (state === State.requestCopy || state === State.waitCopy ||
     state === State.requestCompute || state === State.waitCompute || state === State.waitExternal) &&
-    publication.nonEmpty.B && !publicationSeen && io.reportOutput.bits.job === io.jobs(index)
+    publication && !publicationSeen && io.reportOutput.bits.job === io.jobs(index)
 
   io.requestCopy.valid := inputState === State.requestCopy
-  io.requestCopy.bits := 0.U.asTypeOf(new AutoCopyRequest(params))
-  if (incomingCopies.nonEmpty) {
-    io.requestCopy.bits := VecInit(incomingCopies.map(task => copies(task)))(copyIndex)
-  }
+  io.requestCopy.bits := copies(copyIndex)
   io.reportCopy.ready := inputState === State.waitCopy && io.reportCopy.bits.task === currentCopy
 
   io.requestCompute.valid := state === State.requestCompute
@@ -232,20 +203,21 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
   io.requestCompute.bits.slot := activeSlot
   io.requestCompute.bits.tile := region
   io.requestCompute.bits.start := !failed
+  io.requestCompute.bits.hasInput := incomingCopies.asUInt.orR
   io.reportCompute.ready := state === State.waitCompute && !computeSeen &&
     io.reportCompute.bits.job === io.jobs(index)
 
-  incomingCopies.zipWithIndex.foreach { case (task, input) =>
-    val copied = endpoint.releaseOnCopy.B && io.reportCopy.fire && io.reportCopy.bits.task === task.U
-    val complete = (!endpoint.releaseOnCopy.B && io.reportCompute.fire) ||
-      (io.requestCompute.fire && !io.requestCompute.bits.start)
+  tasks.foreach { input =>
+    val copied = incomingCopies(input) && releaseOnCopy && io.reportCopy.fire && io.reportCopy.bits.task === input.U
+    val complete = incomingCopies(input) && ((!releaseOnCopy && io.reportCompute.fire) ||
+      (io.requestCompute.fire && !io.requestCompute.bits.start))
     io.consumed(input).valid := (!consumed(input) && copied) || (!activeConsumed(input) && complete)
-    io.consumed(input).bits := Mux(copied, sourceSlots(incoming.indexOf(task)), activeSources(incoming.indexOf(task)))
+    io.consumed(input).bits := Mux(copied, sourceSlots(input), activeSources(input))
     when(copied) {
       consumed(input) := true.B
     }
     when(complete) {
-      activeConsumed(input) := true.B
+      when(buffered) { executionConsumed(input) := true.B }.otherwise { consumed(input) := true.B }
     }
   }
 
@@ -255,51 +227,49 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
     resultValid := false.B
   }
 
-  when(inputState === State.waitDependencies && allDependencies) {
+  when(spec.enabled && inputState === State.waitDependencies && allDependencies) {
     failed := hasDependencyFailure
     when(hasDependencyFailure) {
       failure := firstFailure
       failure.stage := index.U
       failure.job := io.jobs(index)
     }
-    inputState := State.claim
+    setInput(State.claim)
   }
   when(io.claim.fire) {
     slot := io.slot
     when(failed) {
-      inputState := State.requestCompute
-    }.elsewhen((publication.nonEmpty && !buffered).B) {
-      inputState := State.armWatch
-    }.elsewhen(incomingCopies.nonEmpty.B) {
-      copyIndex := 0.U
-      inputState := State.requestCopy
+      setInput(State.requestCompute)
+    }.elsewhen(publication && !buffered) {
+      setInput(State.armWatch)
+    }.elsewhen(incomingCopies.asUInt.orR) {
+      copyIndex := PriorityEncoder(incomingCopies)
+      setInput(State.requestCopy)
     }.otherwise {
-      inputState := State.requestCompute
+      setInput(State.requestCompute)
     }
   }
-  if (buffered) {
+  when(buffered) {
     when(io.execute.fire) {
-      activeTile := tile
-      activeSlot := slot
-      if (!endpoint.releaseOnCopy) {
-        activeSources := sourceSlots
-        activeConsumed := consumed
-      }
-      state := Mux(!failed && publication.nonEmpty.B, State.armWatch, State.requestCompute)
+      executionTile := tile
+      executionSlot := slot
+      executionSources := sourceSlots
+      executionConsumed := consumed
+      state := Mux(!failed && publication, State.armWatch, State.requestCompute)
     }
   }
   when(io.watchOutput.fire) {
-    when(external.B) {
+    when(external) {
       state := State.waitExternal
-    }.elsewhen((incomingCopies.nonEmpty && !buffered).B) {
-      copyIndex := 0.U
+    }.elsewhen(incomingCopies.asUInt.orR && !buffered) {
+      copyIndex := PriorityEncoder(incomingCopies)
       state := State.requestCopy
     }.otherwise {
       state := State.requestCompute
     }
   }
   when(io.requestCopy.fire) {
-    inputState := State.waitCopy
+    setInput(State.waitCopy)
   }
   when(io.reportCopy.fire) {
     when(io.reportCopy.bits.status =/= AutoLinkStatus.Success) {
@@ -309,12 +279,12 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
       failure.status := io.reportCopy.bits.status
       failure.detail := io.reportCopy.bits.detail
       failure.data := 0.U
-      inputState := State.requestCompute
-    }.elsewhen(copyIndex +& 1.U === incomingCopies.size.U) {
-      inputState := State.requestCompute
+      setInput(State.requestCompute)
+    }.elsewhen(!nextCopies.asUInt.orR) {
+      setInput(State.requestCompute)
     }.otherwise {
-      copyIndex := copyIndex + 1.U
-      inputState := State.requestCopy
+      copyIndex := PriorityEncoder(nextCopies)
+      setInput(State.requestCopy)
     }
   }
   when(io.requestCompute.fire) {
@@ -324,36 +294,38 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
       result := failure
       computeSeen := true.B
       publicationSeen := true.B
-      outgoing.indices.foreach { outputIndex =>
+      tasks.foreach { outputIndex =>
         output(outputIndex) := failure
-        outputValid(outputIndex) := true.B
+        outputValid(outputIndex) := outgoing(outputIndex)
       }
       state := State.waitCompute
     }
   }
   when(io.reportOutput.fire) {
     publicationSeen := true.B
-    dataOutputs.foreach { dependencyIndex =>
-      val outputIndex = outgoing.indexOf(dependencyIndex)
-      output(outputIndex) := io.reportOutput.bits
-      output(outputIndex).stage := index.U
-      outputValid(outputIndex) := true.B
+    tasks.foreach { outputIndex =>
+      when(dataOutputs(outputIndex)) {
+        output(outputIndex) := io.reportOutput.bits
+        output(outputIndex).stage := index.U
+        outputValid(outputIndex) := true.B
+      }
     }
   }
   when(io.reportCompute.fire) {
     computeSeen := true.B
     result := io.reportCompute.bits
     result.stage := index.U
-    controlOutputs.foreach { dependencyIndex =>
-      val outputIndex = outgoing.indexOf(dependencyIndex)
-      output(outputIndex) := io.reportCompute.bits
-      output(outputIndex).stage := index.U
-      outputValid(outputIndex) := true.B
+    tasks.foreach { outputIndex =>
+      when(controlOutputs(outputIndex)) {
+        output(outputIndex) := io.reportCompute.bits
+        output(outputIndex).stage := index.U
+        outputValid(outputIndex) := true.B
+      }
     }
   }
 
   val errors = Seq(
-    (!buffered.B && inputState === State.waitDependencies && allDependencies && hasDependencyFailure) -> firstFailure,
+    (!buffered && inputState === State.waitDependencies && allDependencies && hasDependencyFailure) -> firstFailure,
     (io.requestCompute.fire && !io.requestCompute.bits.start) -> failure,
     (io.reportOutput.fire && io.reportOutput.bits.status =/= AutoLinkStatus.Success) -> io.reportOutput.bits,
     (io.reportCompute.fire && io.reportCompute.bits.status =/= AutoLinkStatus.Success) -> io.reportCompute.bits)
@@ -364,7 +336,7 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
     runFailure.job := io.jobs(index)
   }
 
-  val outputComplete = (!publication.nonEmpty.B || publicationSeen) && computeSeen
+  val outputComplete = (!publication || publicationSeen) && computeSeen
   when(state === State.waitCompute && outputComplete && !outputsPending) {
     when(!activeTile.last || (resultSent && !resultValid)) {
       state := State.release
@@ -382,9 +354,7 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
   when(state === State.release) {
     output.foreach(_ := 0.U.asTypeOf(new AutoEvent(params)))
     outputValid.foreach(_ := false.B)
-    if (buffered && !endpoint.releaseOnCopy) {
-      activeConsumed.foreach(_ := false.B)
-    }
+    executionConsumed.foreach(_ := false.B)
     publicationSeen := false.B
     computeSeen := false.B
     resultValid := false.B
@@ -396,9 +366,9 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
     state := State.waitRearm
   }
   when(state === State.waitRearm && io.rearm) {
-    state := (if (external) State.claim else State.waitDependencies)
+    state := State.waitDependencies
   }
-  when(if (buffered) io.requestCompute.fire else io.release) {
+  when(Mux(buffered, io.requestCompute.fire, io.release)) {
     // Keep the prepared job's elements stable until the adapter accepts compute.
     dependency.foreach(_ := 0.U.asTypeOf(new AutoEvent(params)))
     dependencyValid.foreach(_ := false.B)
@@ -406,11 +376,11 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
     copyIndex := 0.U
     failed := false.B
     failure := 0.U.asTypeOf(new AutoEvent(params))
-    inputState := State.waitRearm
+    setInput(State.waitRearm)
   }
-  if (buffered) {
+  when(buffered) {
     when(inputState === State.waitRearm && io.rearm && (!tile.last || state === State.waitRearm)) {
-      inputState := State.waitDependencies
+      preparation := State.waitDependencies
     }
   }
 }
@@ -418,27 +388,53 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
 /** Synchronous graph scheduling shared by the fabric and its protocol tests. */
 class AutoScheduler(params: AutoLinkParams) extends Module {
   val io = IO(new Bundle {
-    val transfers = Input(Vec(params.dependencies.size, new AutoTransfer(params)))
-    val regions = Input(Vec(params.stages.size, new AutoRegion(params.lengthWidth)))
-    val jobs = Input(Vec(params.stages.size, UInt(params.jobWidth.W)))
+    val transfers = Input(Vec(params.dependencyCount, new AutoTransfer(params)))
+    val regions = Input(Vec(params.stageCount, new AutoRegion(params.lengthWidth)))
+    val jobs = Input(Vec(params.stageCount, UInt(params.jobWidth.W)))
+    val stages = Input(Vec(params.stageCount, new AutoGraphStage(params)))
+    val edges = Input(Vec(params.dependencyCount, new AutoGraphEdge(params)))
     val root = Flipped(Decoupled(new AutoTileEvent(params)))
     val endpoint = Vec(params.endpoints.size, Flipped(new AutoEndpointIO(params)))
-    val result = Vec(params.stages.size, Decoupled(new AutoEvent(params)))
+    val result = Vec(params.stageCount, Decoupled(new AutoEvent(params)))
     val busy = Output(Bool())
     val overlap = Output(Bool())
     val activeCount = Output(UInt(math.max(1, log2Ceil(params.endpoints.size + 1)).W))
   })
-  private val rooted = params.stages.indices.forall(stage =>
-    params.dependencies.exists(_.destination == stage))
-  val ports = params.endpoints.zipWithIndex.map { case (endpoint, index) =>
-    endpoint.name -> io.endpoint(index)
-  }.toMap
-  val stages = params.stages.indices.map(stage => Module(new AutoStage(params, stage)))
-  val working = params.endpoints.map { endpoint =>
-    val local = params.stages.indices.filter(params.stage(_).endpoint == endpoint.name).map(stages(_))
-    val candidates = local.map(stage => stage.io.computing -> stage.io.workingTile) ++
-      local.map(stage => stage.io.working -> stage.io.workingTile)
-    (local.map(_.io.working).reduce(_ || _), PriorityMux(candidates))
+  private val stageIds = 0 until params.stageCount
+  private val taskIds = 0 until params.dependencyCount
+  val stages = stageIds.map(stage => Module(new AutoStage(params, stage)))
+  val external = VecInit(stageIds.map(stage =>
+    !io.edges.map(edge => edge.enabled && edge.destination === stage.U).reduce(_ || _)))
+  val rooted = stageIds.map(stage => !io.stages(stage).enabled || !external(stage)).reduce(_ && _)
+  val rearm = stages.map(_.io.finished).reduce(_ && _)
+  val pending = scala.collection.mutable.ArrayBuffer.empty[Bool]
+  pending ++= stages.map(_.io.busy)
+  stages.foreach { stage =>
+    stage.io.transfers := io.transfers
+    stage.io.regions := io.regions
+    stage.io.jobs := io.jobs
+    stage.io.stages := io.stages
+    stage.io.edges := io.edges
+    stage.io.rearm := rooted || rearm
+    stage.io.claim.ready := false.B
+    stage.io.execute.ready := false.B
+    stage.io.slot := 0.U
+    stage.io.watchOutput.ready := false.B
+    stage.io.requestCopy.ready := false.B
+    stage.io.requestCompute.ready := false.B
+    stage.io.reportOutput.valid := false.B
+    stage.io.reportOutput.bits := 0.U.asTypeOf(new AutoEvent(params))
+    stage.io.reportCopy.valid := false.B
+    stage.io.reportCopy.bits := 0.U.asTypeOf(new AutoCopyResult(params))
+    stage.io.reportCompute.valid := false.B
+    stage.io.reportCompute.bits := 0.U.asTypeOf(new AutoEvent(params))
+  }
+
+  val working = params.endpoints.indices.map { endpoint =>
+    val local = stageIds.map(stage => io.stages(stage).enabled && io.stages(stage).endpoint === endpoint.U)
+    val candidates = stageIds.map(stage => (local(stage) && stages(stage).io.computing) -> stages(stage).io.workingTile) ++
+      stageIds.map(stage => (local(stage) && stages(stage).io.working) -> stages(stage).io.workingTile)
+    (stageIds.map(stage => local(stage) && stages(stage).io.working).reduce(_ || _), PriorityMux(candidates))
   }
   io.activeCount := PopCount(working.indices.map { index =>
     val (active, tile) = working(index)
@@ -448,119 +444,93 @@ class AutoScheduler(params: AutoLinkParams) extends Module {
     active && !duplicate
   })
   io.overlap := io.activeCount >= 2.U
-  stages.foreach { stage =>
-    stage.io.transfers := io.transfers
-    stage.io.regions := io.regions
-    stage.io.jobs := io.jobs
+
+  val rootEvent = Reg(new AutoTileEvent(params))
+  val rootPending = RegInit(VecInit(Seq.fill(params.dependencyCount)(false.B)))
+  io.root.ready := !rootPending.asUInt.orR
+  when(io.root.fire) {
+    rootEvent := io.root.bits
+    taskIds.foreach(task => rootPending(task) := io.edges(task).enabled && io.edges(task).root)
   }
-  val rearm = stages.map(_.io.finished).reduce(_ && _)
-  stages.foreach(_.io.rearm := (if (rooted) true.B else rearm))
-
-  val pending = scala.collection.mutable.ArrayBuffer.empty[Bool]
-  pending ++= stages.map(_.io.busy)
-
-  params.dependencies.indices.foreach { dependency =>
-    val spec = params.dependencies(dependency)
-    val destinationInputs = params.dependencies.indices
-      .filter(params.dependencies(_).destination == spec.destination)
-    val input = destinationInputs.indexOf(dependency)
-    spec.source.foreach { source =>
-      val sourceOutputs = params.dependencies.indices
-        .filter(params.dependencies(_).source.contains(source))
-      val output = sourceOutputs.indexOf(dependency)
-      val depth = params.endpoint(params.stage(source).endpoint).bufferSlots
-      val queue = Module(new Queue(new AutoTileEvent(params), depth))
-      queue.io.enq <> stages(source).io.output(output)
-      stages(spec.destination).io.dependency(input) <> queue.io.deq
-      pending += queue.io.deq.valid
+  pending += rootPending.asUInt.orR
+  val queueDepth = params.endpoints.map(_.bufferSlots).max
+  taskIds.foreach { task =>
+    val edge = io.edges(task)
+    val queue = Module(new Queue(new AutoTileEvent(params), queueDepth))
+    val source = VecInit(stages.map(_.io.output(task).bits))(edge.source)
+    val sourceValid = VecInit(stages.map(_.io.output(task).valid))(edge.source)
+    queue.io.enq.valid := edge.enabled && Mux(edge.root, rootPending(task), sourceValid)
+    queue.io.enq.bits := Mux(edge.root, rootEvent, source)
+    when(queue.io.enq.fire && edge.root) {
+      rootPending(task) := false.B
     }
-  }
-
-  val root = io.root
-  val rootDependencies = params.dependencies.indices.filter(params.dependencies(_).source.isEmpty)
-  if (rootDependencies.nonEmpty) {
-    val broadcast = Module(new AutoBroadcast(params, rootDependencies.size))
-    broadcast.io.in <> root
-    pending += broadcast.io.busy
-    rootDependencies.zipWithIndex.foreach { case (dependency, output) =>
-      val destination = params.dependencies(dependency).destination
-      val destinationInputs = params.dependencies.indices
-        .filter(params.dependencies(_).destination == destination)
-      val input = destinationInputs.indexOf(dependency)
-      val depth = params.endpoint(params.stage(destination).endpoint).bufferSlots
-      val queue = Module(new Queue(new AutoTileEvent(params), depth))
-      queue.io.enq <> broadcast.io.out(output)
-      stages(destination).io.dependency(input) <> queue.io.deq
-      pending += queue.io.deq.valid
+    stageIds.foreach { stage =>
+      stages(stage).io.output(task).ready := edge.enabled && !edge.root && edge.source === stage.U && queue.io.enq.ready
+      stages(stage).io.dependency(task).valid := edge.enabled && edge.destination === stage.U && queue.io.deq.valid
+      stages(stage).io.dependency(task).bits := queue.io.deq.bits
     }
-  } else {
-    root.ready := true.B
+    queue.io.deq.ready := VecInit(stages.map(_.io.dependency(task).ready))(edge.destination)
+    pending += queue.io.deq.valid
   }
 
-  params.endpoints.foreach { endpoint =>
-    val port = ports(endpoint.name)
-    val endpointStages = params.stages.indices.filter(params.stage(_).endpoint == endpoint.name)
-    val arbiter = Module(new RRArbiter(UInt(params.jobWidth.W), endpointStages.size))
-    val owner = RegInit(0.U(params.jobWidth.W))
+  params.endpoints.zipWithIndex.foreach { case (endpoint, endpointIndex) =>
+    val port = io.endpoint(endpointIndex)
+    val arbiter = Module(new RRArbiter(UInt(params.stageWidth.W), params.stageCount))
+    val owner = RegInit(0.U(params.stageWidth.W))
     val ownerValid = RegInit(false.B)
-    val copyOwner = if (endpoint.bufferedInput) RegInit(0.U(params.jobWidth.W)) else owner
+    val copyOwner = if (endpoint.bufferedInput) RegInit(0.U(params.stageWidth.W)) else owner
     val copyOwnerValid = if (endpoint.bufferedInput) RegInit(false.B) else ownerValid
     val available = WireDefault(true.B)
     val selectedSlot = WireDefault(0.U(params.slotWidth.W))
+    val local = VecInit(io.stages.map(stage => stage.enabled && stage.endpoint === endpointIndex.U))
 
-    if (endpoint.hasStorage) {
-      val occupied = RegInit(VecInit(Seq.fill(endpoint.bufferSlots)(false.B)))
-      val produced = RegInit(VecInit(Seq.fill(endpoint.bufferSlots)(false.B)))
-      val consumers = RegInit(VecInit(Seq.fill(endpoint.bufferSlots)(
-        VecInit(Seq.fill(params.dependencies.size)(false.B)))))
-      available := !occupied.reduce(_ && _)
-      selectedSlot := PriorityEncoder(occupied.map(!_))
-      pending += occupied.reduce(_ || _)
-
-      for (slot <- 0 until endpoint.bufferSlots) {
-        when(occupied(slot) && produced(slot) && !consumers(slot).reduce(_ || _)) {
-          occupied(slot) := false.B
+    val occupied = RegInit(VecInit(Seq.fill(endpoint.bufferSlots)(false.B)))
+    val produced = RegInit(VecInit(Seq.fill(endpoint.bufferSlots)(false.B)))
+    val consumers = RegInit(VecInit(Seq.fill(endpoint.bufferSlots)(
+      VecInit(Seq.fill(params.dependencyCount)(false.B)))))
+    val readers = VecInit(io.edges.map(edge => edge.enabled && !edge.root && edge.copy && edge.source === arbiter.io.out.bits))
+    available := !occupied.reduce(_ && _)
+    selectedSlot := PriorityEncoder(occupied.map(!_))
+    pending += occupied.asUInt.orR
+    for (slot <- 0 until endpoint.bufferSlots) {
+      when(occupied(slot) && produced(slot) && !consumers(slot).asUInt.orR) {
+        occupied(slot) := false.B
+      }
+      when(arbiter.io.out.fire && selectedSlot === slot.U) {
+        // Streaming producers retain output ownership; streaming terminals need no slot.
+        occupied(slot) := endpoint.hasStorage.B || readers.asUInt.orR
+        produced(slot) := false.B
+        consumers(slot) := readers
+      }
+      stageIds.foreach { stage =>
+        when(local(stage) && stages(stage).io.release && stages(stage).io.releaseSlot === slot.U) {
+          produced(slot) := true.B
         }
-        when(arbiter.io.out.fire && selectedSlot === slot.U) {
-          occupied(slot) := true.B
-          produced(slot) := false.B
-          params.dependencies.zipWithIndex.foreach { case (dependency, task) =>
-            consumers(slot)(task) := dependency.source.filter(source =>
-              dependency.copy.nonEmpty && params.stage(source).endpoint == endpoint.name)
-              .map(source => arbiter.io.out.bits === params.stage(source).job.U).getOrElse(false.B)
-          }
-        }
-        endpointStages.foreach { stage =>
-          when(stages(stage).io.release && stages(stage).io.releaseSlot === slot.U) {
-            produced(slot) := true.B
-          }
-        }
-        params.dependencies.zipWithIndex.foreach { case (dependency, task) =>
-          dependency.source.filter(source => dependency.copy.nonEmpty &&
-            params.stage(source).endpoint == endpoint.name).foreach { _ =>
-            val copies = params.dependencies.indices.filter(index =>
-              params.dependencies(index).destination == dependency.destination && params.dependencies(index).copy.nonEmpty)
-            val consumed = stages(dependency.destination).io.consumed(copies.indexOf(task))
-            when(consumed.valid && consumed.bits === slot.U) {
-              consumers(slot)(task) := false.B
-            }
-          }
+      }
+      taskIds.foreach { task =>
+        val edge = io.edges(task)
+        val consumed = VecInit(stages.map(_.io.consumed(task)))(edge.destination)
+        when(edge.enabled && !edge.root && edge.copy && local(edge.source) &&
+          consumed.valid && consumed.bits === slot.U) {
+          consumers(slot)(task) := false.B
         }
       }
     }
 
-    endpointStages.zipWithIndex.foreach { case (stage, input) =>
-      arbiter.io.in(input) <> stages(stage).io.claim
-      val external = !params.dependencies.exists(_.destination == stage)
-      if (endpoint.bufferedInput && external) {
-        arbiter.io.in(input).valid := stages(stage).io.claim.valid && !ownerValid
-        stages(stage).io.claim.ready := arbiter.io.in(input).ready && !ownerValid
-        when(stages(stage).io.claim.fire) {
-          owner := params.stage(stage).job.U
+    stageIds.foreach { stage =>
+      val access = local(stage) && (if (endpoint.bufferedInput) !external(stage) || !ownerValid else true.B)
+      arbiter.io.in(stage).valid := access && stages(stage).io.claim.valid
+      arbiter.io.in(stage).bits := stage.U
+      when(local(stage)) {
+        stages(stage).io.claim.ready := access && arbiter.io.in(stage).ready
+        stages(stage).io.slot := selectedSlot
+      }
+      if (endpoint.bufferedInput) {
+        when(arbiter.io.in(stage).fire && external(stage)) {
+          owner := stage.U
           ownerValid := true.B
         }
       }
-      stages(stage).io.slot := selectedSlot
     }
     arbiter.io.out.ready := !copyOwnerValid && available
     when(arbiter.io.out.fire) {
@@ -568,17 +538,19 @@ class AutoScheduler(params: AutoLinkParams) extends Module {
       copyOwnerValid := true.B
     }
     if (endpoint.bufferedInput) {
-      val execution = Module(new RRArbiter(UInt(params.jobWidth.W), endpointStages.size))
-      endpointStages.zipWithIndex.foreach { case (stage, input) =>
-        execution.io.in(input) <> stages(stage).io.execute
+      val execution = Module(new RRArbiter(UInt(params.stageWidth.W), params.stageCount))
+      stageIds.foreach { stage =>
+        execution.io.in(stage).valid := local(stage) && stages(stage).io.execute.valid
+        execution.io.in(stage).bits := stage.U
+        when(local(stage)) {
+          stages(stage).io.execute.ready := execution.io.in(stage).ready
+        }
       }
       execution.io.out.ready := !ownerValid
       when(execution.io.out.fire) {
         owner := execution.io.out.bits
         ownerValid := true.B
       }
-    } else {
-      endpointStages.foreach(stage => stages(stage).io.execute.ready := false.B)
     }
 
     port.watchOutput.valid := false.B
@@ -590,22 +562,21 @@ class AutoScheduler(params: AutoLinkParams) extends Module {
     port.reportOutput.ready := false.B
     port.reportCopy.ready := false.B
     port.reportCompute.ready := false.B
-
-    endpointStages.foreach { stageIndex =>
+    stageIds.foreach { stageIndex =>
       val stage = stages(stageIndex)
-      val selected = ownerValid && owner === params.stage(stageIndex).job.U
-      val copying = copyOwnerValid && copyOwner === params.stage(stageIndex).job.U
-
-      stage.io.watchOutput.ready := selected && port.watchOutput.ready
-      stage.io.requestCopy.ready := copying && port.requestCopy.ready
-      stage.io.requestCompute.ready := selected && port.requestCompute.ready
-      stage.io.reportOutput.valid := selected && port.reportOutput.valid
-      stage.io.reportOutput.bits := port.reportOutput.bits
-      stage.io.reportCopy.valid := copying && port.reportCopy.valid
-      stage.io.reportCopy.bits := port.reportCopy.bits
-      stage.io.reportCompute.valid := selected && port.reportCompute.valid
-      stage.io.reportCompute.bits := port.reportCompute.bits
-
+      val selected = ownerValid && owner === stageIndex.U
+      val copying = copyOwnerValid && copyOwner === stageIndex.U
+      when(local(stageIndex)) {
+        stage.io.watchOutput.ready := selected && port.watchOutput.ready
+        stage.io.requestCopy.ready := copying && port.requestCopy.ready
+        stage.io.requestCompute.ready := selected && port.requestCompute.ready
+        stage.io.reportOutput.valid := selected && port.reportOutput.valid
+        stage.io.reportOutput.bits := port.reportOutput.bits
+        stage.io.reportCopy.valid := copying && port.reportCopy.valid
+        stage.io.reportCopy.bits := port.reportCopy.bits
+        stage.io.reportCompute.valid := selected && port.reportCompute.valid
+        stage.io.reportCompute.bits := port.reportCompute.bits
+      }
       when(selected) {
         port.watchOutput.valid := stage.io.watchOutput.valid
         port.watchOutput.bits := stage.io.watchOutput.bits
@@ -613,25 +584,19 @@ class AutoScheduler(params: AutoLinkParams) extends Module {
         port.requestCompute.bits := stage.io.requestCompute.bits
         port.reportOutput.ready := stage.io.reportOutput.ready
         port.reportCompute.ready := stage.io.reportCompute.ready
-        when(stage.io.release) {
-          ownerValid := false.B
-        }
+        when(stage.io.release) { ownerValid := false.B }
       }
       when(copying) {
         port.requestCopy.valid := stage.io.requestCopy.valid
         port.requestCopy.bits := stage.io.requestCopy.bits
         port.reportCopy.ready := stage.io.reportCopy.ready
-        val external = !params.dependencies.exists(_.destination == stageIndex)
-        when(if (endpoint.bufferedInput && !external) stage.io.requestCompute.fire else stage.io.release) {
+        when(Mux(endpoint.bufferedInput.B && !external(stageIndex), stage.io.requestCompute.fire, stage.io.release)) {
           copyOwnerValid := false.B
         }
       }
     }
   }
-
-  stages.zipWithIndex.foreach { case (stage, index) =>
-    io.result(index) <> stage.io.result
-  }
+  stages.zipWithIndex.foreach { case (stage, index) => io.result(index) <> stage.io.result }
   io.busy := pending.reduce(_ || _)
 }
 
@@ -655,8 +620,10 @@ class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters) extends Clo
       val scheduler = Module(new AutoScheduler(params))
       val run = rootNode.in.head._1
       val transfers = RegInit(AutoTileBinding.defaults(params))
-      val regions = RegInit(0.U.asTypeOf(Vec(params.stages.size, new AutoRegion(params.lengthWidth))))
-      val jobs = RegInit(VecInit(params.stages.map(_.job.U(params.jobWidth.W))))
+      val regions = RegInit(0.U.asTypeOf(Vec(params.stageCount, new AutoRegion(params.lengthWidth))))
+      val jobs = RegInit(AutoTileBinding.jobs(params))
+      val stages = RegInit(AutoTileBinding.stages(params))
+      val edges = RegInit(AutoTileBinding.edges(params))
       val cursor = Module(new AutoTileCursor(params.lengthWidth))
       val active = RegInit(false.B)
       val failed = RegInit(false.B)
@@ -673,6 +640,8 @@ class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters) extends Clo
         transfers := run.bits.transfers
         regions := run.bits.regions
         jobs := run.bits.jobs
+        stages := run.bits.stages
+        edges := run.bits.edges
         active := true.B
         failed := false.B
         cycles := 0.U
@@ -695,6 +664,8 @@ class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters) extends Clo
       scheduler.io.transfers := transfers
       scheduler.io.regions := regions
       scheduler.io.jobs := jobs
+      scheduler.io.stages := stages
+      scheduler.io.edges := edges
       scheduler.io.root.valid := cursor.io.out.valid
       scheduler.io.root.bits.event := 0.U.asTypeOf(new AutoEvent(params))
       scheduler.io.root.bits.tile := cursor.io.out.bits
@@ -717,12 +688,8 @@ class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters) extends Clo
         port.reportCopy <> FromAsyncBundle(async.reportCopy)
         port.reportCompute <> FromAsyncBundle(async.reportCompute)
       }
-      params.stages.zipWithIndex.foreach { case (stage, index) =>
-        if (params.resultNames.contains(stage.name)) {
-          resultNodes(stage.name).out.head._1 <> scheduler.io.result(index)
-        } else {
-          scheduler.io.result(index).ready := true.B
-        }
+      params.resultNames.zipWithIndex.foreach { case (name, index) =>
+        resultNodes(name).out.head._1 <> scheduler.io.result(index)
       }
     }
   }

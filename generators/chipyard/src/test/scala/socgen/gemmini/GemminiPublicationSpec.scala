@@ -68,13 +68,15 @@ class GemminiPublicationSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.stallReply.poke(false.B)
     for (index <- 0 until 2) {
       dut.io.writes(index).valid.poke(false.B)
+      dut.io.writes(index).bits.first.poke(true.B)
+      dut.io.writes(index).bits.last.poke(true.B)
       dut.io.acks(index).valid.poke(false.B)
       dut.io.acks(index).bits.denied.poke(false.B)
       dut.io.acks(index).bits.corrupt.poke(false.B)
     }
     dut.io.result.ready.poke(false.B)
 
-    def watch(address: Int, bytes: Int): Unit = {
+    def watch(address: BigInt, bytes: Int): Unit = {
       dut.io.watch.bits.address.poke(address.U)
       dut.io.watch.bits.bytes.poke(bytes.U)
       dut.io.watch.valid.poke(true.B)
@@ -90,6 +92,7 @@ class GemminiPublicationSpec extends AnyFlatSpec with ChiselScalatestTester {
       request.bits.source.poke(source.U)
       request.bits.address.poke(address.U)
       request.bits.size.poke(size.U)
+      request.bits.beatSize.poke(math.min(size, log2Ceil(params.beatBytes)).U)
       request.bits.mask.poke(mask.U)
       request.bits.opcode.poke(if (partial) TLMessages.PutPartialData else TLMessages.PutFullData)
       request.valid.poke(true.B)
@@ -260,6 +263,7 @@ class GemminiPublicationSpec extends AnyFlatSpec with ChiselScalatestTester {
           request.bits.address.poke((0x2000 + offset).U)
           request.bits.source.poke(7.U)
           request.bits.size.poke(4.U)
+          request.bits.beatSize.poke(4.U)
           request.bits.opcode.poke(TLMessages.PutFullData)
           request.bits.mask.poke((BigInt(0xffff) << (index * 16)).U)
           response.valid.poke((cycle != 0).B)
@@ -273,6 +277,67 @@ class GemminiPublicationSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.clock.step()
       dut.io.acks.foreach(_.valid.poke(false.B))
       dut.clock.step()
+      driver.result()
+    }
+  }
+
+  it should "wait for both the final DMA beat and its acknowledgement" in {
+    test(new GemminiPublicationHarness(params)) { dut =>
+      val driver = new Driver(dut)
+      val request = dut.io.writes(1)
+      for (early <- Seq(false, true)) {
+        driver.watch(BigInt("80002000", 16), 64)
+        request.bits.source.poke(7.U)
+        request.bits.size.poke(6.U)
+        request.bits.beatSize.poke(5.U)
+        request.bits.opcode.poke(TLMessages.PutFullData)
+        request.bits.mask.poke(BigInt("ffffffff", 16).U)
+        request.bits.first.poke(true.B)
+        request.bits.last.poke(false.B)
+        request.bits.address.poke("h80002000".U)
+        request.valid.poke(true.B)
+        dut.clock.step()
+        request.valid.poke(false.B)
+        if (early) {
+          driver.ack(6, local = true)
+        }
+        dut.io.result.valid.expect(false.B)
+        request.bits.first.poke(false.B)
+        request.bits.last.poke(true.B)
+        request.bits.address.poke("h80002020".U)
+        request.valid.poke(true.B)
+        dut.clock.step()
+        request.valid.poke(false.B)
+        if (!early) {
+          dut.io.result.valid.expect(false.B)
+          driver.ack(6, local = true)
+        }
+        dut.clock.step(2)
+        driver.result()
+      }
+    }
+  }
+
+  it should "accept a zero-latency acknowledgement on the first DMA beat" in {
+    test(new GemminiPublicationHarness(params)) { dut =>
+      val driver = new Driver(dut)
+      driver.watch(0x2000, 32)
+      val request = dut.io.writes(1)
+      val response = dut.io.acks(1)
+      request.bits.address.poke(0x2000.U)
+      request.bits.source.poke(7.U)
+      request.bits.size.poke(5.U)
+      request.bits.beatSize.poke(5.U)
+      request.bits.opcode.poke(TLMessages.PutFullData)
+      request.bits.mask.poke(BigInt("ffffffff", 16).U)
+      response.bits.source.poke(7.U)
+      response.bits.size.poke(5.U)
+      request.valid.poke(true.B)
+      response.valid.poke(true.B)
+      dut.clock.step()
+      request.valid.poke(false.B)
+      response.valid.poke(false.B)
+      dut.clock.step(2)
       driver.result()
     }
   }

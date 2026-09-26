@@ -122,6 +122,7 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.start.poke(false.B)
     dut.io.request.job.poke(0.U)
     dut.io.request.start.poke(true.B)
+    dut.io.request.hasInput.poke(false.B)
     dut.io.watch.job.poke(0.U)
     dut.io.job.poke(0.U)
     dut.io.index.poke(0.U)
@@ -188,6 +189,7 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   private def copy(dut: GemminiPatch, tile: Tile, view: Tile, bytes: Int,
       address: BigInt = 0x60000, job: Int = 0): Unit = {
+    dut.io.request.hasInput.poke(true.B)
     dut.io.copy.bits.task.poke(0.U)
     dut.io.copy.bits.job.poke(job.U)
     pokeTile(dut.io.copy.bits.tile, tile)

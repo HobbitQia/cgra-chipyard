@@ -68,6 +68,7 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
   it should "select cached jobs across runs while retaining joins, slot lifetime and errors across shared endpoints" in {
     val cached = params.copy(stages = params.stages.map(stage => stage.copy(job = stage.job * 2, jobs = 2)))
     test(new AutoScheduler(cached)) { dut =>
+      AutoGraphTest.configure(dut.io.stages, dut.io.edges, dut.io.transfers, cached)
       bindings(dut.io.transfers, dut.io.regions)
       case class Completion(due: Int, stage: Int, id: Int, status: Int)
       case class Copy(due: Int, task: Int)
@@ -196,6 +197,8 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   it should "hold a partial join without replacing its tile with an unmatched dependency" in {
     test(new AutoStage(params, 3)) { dut =>
+      AutoGraphTest.configure(dut.io.stages, dut.io.edges, dut.io.transfers, params)
+      dut.io.dependency.foreach(_.valid.poke(false.B))
       bindings(dut.io.transfers, dut.io.regions)
       dut.io.jobs.zip(params.stages).foreach { case (port, stage) => port.poke(stage.job.U) }
       dut.io.claim.ready.poke(false.B)
@@ -208,8 +211,8 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.reportCopy.valid.poke(false.B)
       dut.io.reportCompute.valid.poke(false.B)
       dut.io.result.ready.poke(true.B)
-      val skip = dut.io.dependency(0)
-      val computed = dut.io.dependency(1)
+      val skip = dut.io.dependency(1)
+      val computed = dut.io.dependency(4)
       event(skip.bits.event, 0)
       event(computed.bits.event, 1)
       skip.bits.slot.poke(0.U)

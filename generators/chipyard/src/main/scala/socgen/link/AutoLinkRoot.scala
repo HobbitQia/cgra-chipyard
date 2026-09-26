@@ -27,8 +27,8 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
   class RootImpl extends Impl {
     withClockAndReset(clock, reset) {
       import CgraLinkControlGenerated._
-      require(AUTO_LINK_TRANSFER_BASE + params.dependencies.size * AUTO_LINK_TRANSFER_STRIDE <= AUTO_LINK_REGION_BASE)
-      require(AUTO_LINK_REGION_BASE + params.stages.size * AUTO_LINK_REGION_STRIDE <= params.controlBytes)
+      require(AUTO_LINK_TRANSFER_BASE + params.dependencyCount * AUTO_LINK_TRANSFER_STRIDE <= AUTO_LINK_REGION_BASE)
+      require(AUTO_LINK_REGION_BASE + params.stageCount * AUTO_LINK_REGION_STRIDE <= params.controlBytes)
       val run = Wire(Decoupled(new AutoRun(params)))
       val inputReady = Wire(Decoupled(UInt(1.W)))
       val rows = RegInit(1.U(params.lengthWidth.W))
@@ -36,9 +36,12 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
       val tileRows = RegInit(1.U(params.lengthWidth.W))
       val tileColumns = RegInit(1.U(params.lengthWidth.W))
       val transfers = RegInit(AutoTileBinding.defaults(params))
-      val regions = RegInit(0.U.asTypeOf(Vec(params.stages.size, new AutoRegion(params.lengthWidth))))
-      val jobs = RegInit(VecInit(params.stages.map(_.job.U(params.jobWidth.W))))
+      val regions = RegInit(0.U.asTypeOf(Vec(params.stageCount, new AutoRegion(params.lengthWidth))))
+      val jobs = RegInit(AutoTileBinding.jobs(params))
+      val stages = RegInit(AutoTileBinding.stages(params))
+      val edges = RegInit(AutoTileBinding.edges(params))
       val stage = RegInit(0.U(params.stageWidth.W))
+      val edge = RegInit(0.U(params.dependencyWidth.W))
       val jobWrite = Wire(Decoupled(UInt(params.jobWidth.W)))
       jobWrite.ready := true.B
       when(jobWrite.fire) {
@@ -52,6 +55,8 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
       staging.transfers := transfers
       staging.regions := regions
       staging.jobs := jobs
+      staging.stages := stages
+      staging.edges := edges
       run.valid := inputReady.valid && inputReady.bits.asBool
       run.bits := staging
       inputReady.ready := !inputReady.bits.asBool || run.ready
@@ -130,6 +135,36 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
             Seq(RegField(field.getWidth, field))
         }
       }
+      def stageField(offset: Int, width: Int)(update: UInt => Unit): (Int, Seq[RegField]) = {
+        val value = Wire(Decoupled(UInt(width.W)))
+        value.ready := true.B
+        when(value.fire) { update(value.bits) }
+        offset -> Seq(RegField.w(width, value))
+      }
+      val graphFields = Seq(
+        AUTO_LINK_EDGE -> Seq(RegField(params.dependencyWidth, edge)),
+        stageField(AUTO_LINK_ENDPOINT, params.endpointWidth)(value => stages(stage).endpoint := value),
+        stageField(AUTO_LINK_ENABLE, 1)(value => stages(stage).enabled := value.asBool),
+        stageField(AUTO_LINK_EDGE_SOURCE, params.stageWidth)(value => edges(edge).source := value),
+        stageField(AUTO_LINK_EDGE_DESTINATION, params.stageWidth)(value => edges(edge).destination := value),
+        stageField(AUTO_LINK_EDGE_FLAGS, 3) { value =>
+          edges(edge).enabled := value(0)
+          edges(edge).root := value(1)
+          edges(edge).copy := value(2)
+        },
+        stageField(AUTO_LINK_EDGE_BYTES, params.lengthWidth)(value => edges(edge).bytes := value),
+        stageField(AUTO_LINK_EDGE_EXPANSION, 3)(value => edges(edge).expansion := value),
+        stageField(AUTO_LINK_EDGE_SOURCE_BASE, params.addressWidth)(value => transfers(edge).sourceBase := value),
+        stageField(AUTO_LINK_OUTPUT_FLAGS, 2) { value =>
+          stages(stage).output.writeback := value(0)
+          stages(stage).output.packed := value(1)
+        },
+        stageField(AUTO_LINK_OUTPUT_PIXEL_BYTES, params.lengthWidth)(value => stages(stage).output.bytesPerPixel := value),
+        stageField(AUTO_LINK_OUTPUT_SOURCE_OFFSET, params.addressWidth)(value => stages(stage).output.sourceOffset := value),
+        stageField(AUTO_LINK_OUTPUT_SOURCE_STRIDE, params.addressWidth)(value => stages(stage).output.sourceStride := value),
+        stageField(AUTO_LINK_OUTPUT_ADDRESS, params.addressWidth)(value => stages(stage).output.address := value),
+        stageField(AUTO_LINK_OUTPUT_STRIDE, params.addressWidth)(value => stages(stage).output.stride := value),
+        stageField(AUTO_LINK_OUTPUT_BYTES, params.lengthWidth)(value => stages(stage).output.bytes := value))
       controlNode.regmap((Seq(
         AUTO_LINK_INPUT_READY -> Seq(RegField.w(1, inputReady)),
         AUTO_LINK_ROWS -> Seq(RegField(params.lengthWidth, rows)),
@@ -142,7 +177,7 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
         AUTO_LINK_OVERLAP -> Seq(RegField.r(64, state.overlap)),
         AUTO_LINK_PEAK_ACTIVE -> Seq(RegField.r(64, state.peakActive)),
         AUTO_LINK_STAGE -> Seq(RegField(params.stageWidth, stage)),
-        AUTO_LINK_JOB -> Seq(RegField.w(params.jobWidth, jobWrite))) ++ runFields ++ transferFields ++ regionFields): _*)
+        AUTO_LINK_JOB -> Seq(RegField.w(params.jobWidth, jobWrite))) ++ runFields ++ transferFields ++ regionFields ++ graphFields): _*)
     }
   }
 }

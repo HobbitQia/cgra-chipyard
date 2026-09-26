@@ -126,14 +126,17 @@ class AesLinkAdapter(params: AesLinkParams) extends Module {
     }
   }
   when(io.jobDone.fire) {
-    when(role === Role.root) {
+    when(watchArmed) {
       outputValid := true.B
-    }.otherwise {
+    }
+    when(role === Role.downstream) {
       done := true.B
     }
   }
   when(io.autoLink.reportOutput.fire) {
-    role := Role.idle
+    when(role === Role.root) {
+      role := Role.idle
+    }
     watchArmed := false.B
     outputValid := false.B
   }

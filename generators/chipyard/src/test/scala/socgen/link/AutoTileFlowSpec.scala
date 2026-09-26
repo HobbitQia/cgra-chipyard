@@ -19,6 +19,7 @@ class AutoTileFlowSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   it should "retain each dependency context through copy, compute and rearm" in {
     test(new AutoStage(params, 1)) { dut =>
+      AutoGraphTest.configure(dut.io.stages, dut.io.edges, dut.io.transfers, params)
       dut.io.jobs.zip(params.stages).foreach { case (port, stage) => port.poke(stage.job.U) }
       dut.io.transfers.foreach { transfer =>
         transfer.sourceOffset.poke(0.U)
@@ -126,6 +127,8 @@ class AutoTileFlowSpec extends AnyFlatSpec with ChiselScalatestTester {
           bufferedInput = true, bufferSlots = 2, releaseOnCopy = true),
         AutoEndpointSpec("stream", None, 512)))
     test(new AutoStage(buffered, 1)) { dut =>
+      AutoGraphTest.configure(dut.io.stages, dut.io.edges, dut.io.transfers, buffered)
+      dut.io.dependency.foreach(_.valid.poke(false.B))
       dut.io.jobs.zip(buffered.stages).foreach { case (port, stage) => port.poke(stage.job.U) }
       dut.io.transfers.foreach { transfer =>
         transfer.sourceOffset.poke(0.U)
@@ -177,7 +180,7 @@ class AutoTileFlowSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.reportCopy.bits.detail.poke(0.U)
       dut.io.reportCompute.valid.poke(false.B)
       dut.io.reportOutput.valid.poke(false.B)
-      dut.io.output.head.ready.poke(false.B)
+      dut.io.output(1).ready.poke(false.B)
       dut.io.result.ready.poke(false.B)
 
       def prepare(id: Int, fail: Boolean): Unit = {
@@ -247,14 +250,14 @@ class AutoTileFlowSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.clock.step()
       dut.io.reportOutput.valid.poke(false.B)
       for (_ <- 0 until 3) {
-        dut.io.output.head.valid.expect(true.B)
-        dut.io.output.head.bits.tile.id.expect(0.U)
-        dut.io.output.head.bits.slot.expect(0.U)
-        dut.io.output.head.bits.event.status.expect(AutoLinkStatus.Success)
+        dut.io.output(1).valid.expect(true.B)
+        dut.io.output(1).bits.tile.id.expect(0.U)
+        dut.io.output(1).bits.slot.expect(0.U)
+        dut.io.output(1).bits.event.status.expect(AutoLinkStatus.Success)
         dut.io.execute.valid.expect(false.B)
         dut.clock.step()
       }
-      dut.io.output.head.ready.poke(true.B)
+      dut.io.output(1).ready.poke(true.B)
       waitFor(dut.io.release)
       dut.io.releaseTile.id.expect(0.U)
       dut.io.releaseSlot.expect(0.U)
@@ -268,10 +271,10 @@ class AutoTileFlowSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.requestCompute.ready.poke(true.B)
       dut.clock.step()
       dut.io.requestCompute.ready.poke(false.B)
-      dut.io.output.head.valid.expect(true.B)
-      dut.io.output.head.bits.tile.id.expect(1.U)
-      dut.io.output.head.bits.slot.expect(1.U)
-      dut.io.output.head.bits.event.status.expect(AutoLinkStatus.SinkFailure)
+      dut.io.output(1).valid.expect(true.B)
+      dut.io.output(1).bits.tile.id.expect(1.U)
+      dut.io.output(1).bits.slot.expect(1.U)
+      dut.io.output(1).bits.event.status.expect(AutoLinkStatus.SinkFailure)
       waitFor(dut.io.result.valid)
       dut.io.result.bits.status.expect(AutoLinkStatus.SinkFailure)
       dut.io.result.bits.detail.expect(19.U)

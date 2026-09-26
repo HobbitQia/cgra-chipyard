@@ -28,8 +28,14 @@ class GemminiRoCC(
   private val dma = TLXbar()
   private val outward = TLIdentityNode()
   val localNode = TLIdentityNode()
+  val dmaSourceNode = TLIdentityNode()
+  val dmaNode = TLIdentityNode()
 
-  dma := accelerator.node
+  dmaSourceNode := accelerator.node
+  dma := dmaNode
+  if (linkParams.isEmpty) {
+    dmaNode := dmaSourceNode
+  }
   localNode := TLFragmenter(config.dma_buswidth / 8, config.dma_maxbytes, alwaysMin = true) := dma
   outward := TLFilter(TLFilter.mSubtract(localRange)) := dma
 

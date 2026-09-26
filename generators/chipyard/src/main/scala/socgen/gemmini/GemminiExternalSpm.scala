@@ -259,9 +259,7 @@ class GemminiExternalSpmAttach(val gemminiRoCC: GemminiRoCC, params: GemminiExte
     gemminiAccelerator.spad_write_nodes
   writePorts := writerNode
   systemPorts := TLFIFOFixer() := TLWidthWidget(systemMaxBytes) := localNode
-  if (gemminiRoCC.linkParams.isEmpty) {
-    localNode := gemminiRoCC.localNode
-  }
+  localNode := gemminiRoCC.localNode
 
   override lazy val module = new AttachImpl
   class AttachImpl extends Impl

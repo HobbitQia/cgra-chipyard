@@ -20,11 +20,39 @@ class AutoTile(width: Int = 32) extends Bundle {
 }
 
 class AutoTransfer(params: AutoLinkParams) extends Bundle {
+  val sourceBase = UInt(params.addressWidth.W)
   val sourceOffset = UInt(params.addressWidth.W)
   val destinationOffset = UInt(params.addressWidth.W)
   val sourceStride = UInt(params.addressWidth.W)
   val destinationStride = UInt(params.addressWidth.W)
   val bytesPerPixel = UInt(params.lengthWidth.W)
+}
+
+class AutoOutput(params: AutoLinkParams) extends Bundle {
+  val writeback = Bool()
+  val packed = Bool()
+  val sourceOffset = UInt(params.addressWidth.W)
+  val sourceStride = UInt(params.addressWidth.W)
+  val address = UInt(params.addressWidth.W)
+  val stride = UInt(params.addressWidth.W)
+  val bytes = UInt(params.lengthWidth.W)
+  val bytesPerPixel = UInt(params.lengthWidth.W)
+}
+
+class AutoGraphStage(params: AutoLinkParams) extends Bundle {
+  val enabled = Bool()
+  val endpoint = UInt(params.endpointWidth.W)
+  val output = new AutoOutput(params)
+}
+
+class AutoGraphEdge(params: AutoLinkParams) extends Bundle {
+  val enabled = Bool()
+  val root = Bool()
+  val source = UInt(params.stageWidth.W)
+  val destination = UInt(params.stageWidth.W)
+  val copy = Bool()
+  val bytes = UInt(params.lengthWidth.W)
+  val expansion = UInt(3.W)
 }
 
 class AutoRegion(width: Int) extends Bundle {
@@ -40,9 +68,11 @@ class AutoRegion(width: Int) extends Bundle {
 
 class AutoRun(params: AutoLinkParams) extends Bundle {
   val plan = new AutoTilePlan(params.lengthWidth)
-  val transfers = Vec(params.dependencies.size, new AutoTransfer(params))
-  val regions = Vec(params.stages.size, new AutoRegion(params.lengthWidth))
-  val jobs = Vec(params.stages.size, UInt(params.jobWidth.W))
+  val transfers = Vec(params.dependencyCount, new AutoTransfer(params))
+  val regions = Vec(params.stageCount, new AutoRegion(params.lengthWidth))
+  val jobs = Vec(params.stageCount, UInt(params.jobWidth.W))
+  val stages = Vec(params.stageCount, new AutoGraphStage(params))
+  val edges = Vec(params.dependencyCount, new AutoGraphEdge(params))
 }
 
 class AutoProgress extends Bundle {
@@ -76,15 +106,45 @@ object AutoTileBinding {
   }
 
   def defaults(params: AutoLinkParams): Vec[AutoTransfer] = {
-    val values = WireDefault(0.U.asTypeOf(Vec(params.dependencies.size, new AutoTransfer(params))))
+    val values = WireDefault(0.U.asTypeOf(Vec(params.dependencyCount, new AutoTransfer(params))))
     params.dependencies.zipWithIndex.foreach { case (dependency, index) =>
       dependency.copy.foreach { copy =>
+        values(index).sourceBase := copy.sourceAddress.getOrElse(dependency.source.map(source =>
+          params.endpoint(params.stage(source).endpoint).buffer.get.baseAddress).getOrElse(BigInt(0))).U
         values(index).sourceOffset := copy.sourceOffset.U
         values(index).destinationOffset := copy.destinationOffset.U
       }
     }
     values
   }
+
+  def stages(params: AutoLinkParams): Vec[AutoGraphStage] = {
+    val values = WireDefault(0.U.asTypeOf(Vec(params.stageCount, new AutoGraphStage(params))))
+    params.stages.zipWithIndex.foreach { case (stage, index) =>
+      values(index).enabled := true.B
+      values(index).endpoint := params.endpoints.indexWhere(_.name == stage.endpoint).U
+    }
+    values
+  }
+
+  def edges(params: AutoLinkParams): Vec[AutoGraphEdge] = {
+    val values = WireDefault(0.U.asTypeOf(Vec(params.dependencyCount, new AutoGraphEdge(params))))
+    params.dependencies.zipWithIndex.foreach { case (edge, index) =>
+      values(index).enabled := true.B
+      values(index).root := edge.source.isEmpty.B
+      values(index).source := edge.source.getOrElse(0).U
+      values(index).destination := edge.destination.U
+      values(index).copy := edge.copy.nonEmpty.B
+      edge.copy.foreach { copy =>
+        values(index).bytes := copy.bytes.U
+        values(index).expansion := log2Ceil(copy.expansion).U
+      }
+    }
+    values
+  }
+
+  def jobs(params: AutoLinkParams): Vec[UInt] = VecInit(
+    (0 until params.stageCount).map(index => params.stages.lift(index).map(_.job).getOrElse(0).U(params.jobWidth.W)))
 }
 
 class AutoTileCursor(width: Int = 32) extends Module {

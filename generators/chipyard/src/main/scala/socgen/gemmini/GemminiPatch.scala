@@ -84,13 +84,7 @@ class GemminiPatch(params: GemminiLinkParams)(implicit p: Parameters) extends Mo
   when(io.copy.valid) {
     view := io.copy.bits
   }
-  val needsView = VecInit((0 until params.jobCount).map { job =>
-    params.auto.dependencies.exists { dependency =>
-      val stage = params.auto.stage(dependency.destination)
-      stage.endpoint == params.endpoint && job >= stage.job && job < stage.job + stage.jobs && dependency.copy.nonEmpty
-    }.B
-  })
-  val inputView = selected(needsView, io.request.job)
+  val inputView = io.request.hasInput
   val config = selected(windows, io.request.job)
   val tile = io.request.tile
   val footprint = AutoTileBinding.region(tile, config.region)

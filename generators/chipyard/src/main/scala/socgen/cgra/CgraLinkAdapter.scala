@@ -71,10 +71,11 @@ class CgraLinkConfigAck extends Bundle {
 }
 
 class CgraLinkDmaRequest(params: CgraLinkParams) extends Bundle {
-  val sourceAddress = UInt(params.cgra.dma.dramAddrWidth.W)
+  val address = UInt(params.cgra.dma.dramAddrWidth.W)
   val spmWordAddress = UInt(params.cgra.dma.spmAddrWidth.W)
   val bytes = UInt(params.auto.lengthWidth.W)
   val packed = Bool()
+  val write = Bool()
   val dmaTag = UInt(params.cgra.dma.tagWidth.W)
 }
 
@@ -116,10 +117,17 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   object ExecState {
     val idle :: readPacket :: loadPacket :: sendPacket :: waitCompute :: reportCompute :: Nil = Enum(6)
   }
+  object OutputState {
+    val idle :: issueDma :: waitDma :: Nil = Enum(3)
+  }
 
   val configState = RegInit(ConfigState.idle)
   val copyState = RegInit(CopyState.idle)
   val execState = RegInit(ExecState.idle)
+  val outputState = RegInit(OutputState.idle)
+  val output = Reg(new AutoWatch(params.auto))
+  val outputDetail = RegInit(0.U(params.auto.detailWidth.W))
+  val dmaWrite = RegInit(false.B)
   val config = Reg(new CgraLinkConfig(params))
   val copy = Reg(new AutoCopyRequest(params.auto))
   // Static controls remain in CGRA; each captured job contains only runtime packets.
@@ -182,8 +190,9 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   io.autoLink.reportOutput.valid := publicationValid
   io.autoLink.reportOutput.bits.stage := 0.U
   io.autoLink.reportOutput.bits.job := publicationJob
-  io.autoLink.reportOutput.bits.status := AutoLinkStatus.Success
-  io.autoLink.reportOutput.bits.detail := 0.U
+  io.autoLink.reportOutput.bits.status := Mux(outputDetail === 0.U,
+    AutoLinkStatus.Success, AutoLinkStatus.SourceFailure)
+  io.autoLink.reportOutput.bits.detail := outputDetail
   io.autoLink.reportOutput.bits.data := publicationData
   io.autoLink.requestCopy.ready := copyState === CopyState.idle &&
     configState === ConfigState.idle && !io.configIn.valid
@@ -203,14 +212,17 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   io.autoLink.reportCompute.bits.detail := 0.U
   io.autoLink.reportCompute.bits.data := resultData
 
-  io.dmaRequest.valid := copyState === CopyState.issueDma
-  io.dmaRequest.bits.sourceAddress := copy.sourceAddress
-  io.dmaRequest.bits.spmWordAddress :=
-    copy.destinationOffset >> log2Ceil(params.wordBytes)
-  io.dmaRequest.bits.bytes := copy.destinationBytes
-  io.dmaRequest.bits.packed := copy.destinationBytes =/= copy.bytes
+  val writeRequest = outputState === OutputState.issueDma
+  io.dmaRequest.valid := writeRequest || copyState === CopyState.issueDma
+  io.dmaRequest.bits.address := Mux(writeRequest, output.address, copy.sourceAddress)
+  io.dmaRequest.bits.spmWordAddress := Mux(writeRequest,
+    output.sourceOffset, copy.destinationOffset) >> log2Ceil(params.wordBytes)
+  io.dmaRequest.bits.bytes := Mux(writeRequest,
+    Mux(output.packed, output.bytes << log2Ceil(params.wordBytes), output.bytes), copy.destinationBytes)
+  io.dmaRequest.bits.packed := Mux(writeRequest, output.packed, copy.destinationBytes =/= copy.bytes)
+  io.dmaRequest.bits.write := writeRequest
   io.dmaRequest.bits.dmaTag := autoDmaTag
-  io.dmaCompletion.ready := copyState === CopyState.waitDma
+  io.dmaCompletion.ready := copyState === CopyState.waitDma || outputState === OutputState.waitDma
 
   io.jobPacket.valid := execState === ExecState.sendPacket
   io.jobPacket.bits := replayPacket
@@ -220,6 +232,8 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   io.computeActive := io.computeResult.ready
 
   when(io.autoLink.watchOutput.fire) {
+    output := io.autoLink.watchOutput.bits
+    outputDetail := 0.U
     publicationJob := io.autoLink.watchOutput.bits.job
     publicationArmed := true.B
   }
@@ -279,15 +293,28 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
     copyState := CopyState.issueDma
   }
   when(io.dmaRequest.fire) {
-    copyState := CopyState.waitDma
+    dmaWrite := writeRequest
+    when(writeRequest) {
+      outputState := OutputState.waitDma
+    }.otherwise {
+      copyState := CopyState.waitDma
+    }
   }
   when(io.dmaCompletion.fire) {
-    when(io.dmaCompletion.bits.dmaTag =/= autoDmaTag) {
-      copyDetail := CgraLinkStatus.DmaMismatch.U
+    when(dmaWrite) {
+      outputDetail := Mux(io.dmaCompletion.bits.dmaTag === autoDmaTag,
+        0.U, CgraLinkStatus.DmaMismatch.U)
+      outputState := OutputState.idle
+      publicationArmed := false.B
+      publicationValid := true.B
     }.otherwise {
-      selected(elements, copy.job) := copy.destinationBytes >> log2Ceil(params.wordBytes)
+      when(io.dmaCompletion.bits.dmaTag =/= autoDmaTag) {
+        copyDetail := CgraLinkStatus.DmaMismatch.U
+      }.otherwise {
+        selected(elements, copy.job) := copy.destinationBytes >> log2Ceil(params.wordBytes)
+      }
+      copyState := CopyState.reportCopy
     }
-    copyState := CopyState.reportCopy
   }
   when(io.autoLink.reportCopy.fire) {
     copyState := CopyState.idle
@@ -296,9 +323,13 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   def finishCompute(data: UInt): Unit = {
     resultData := data
     when(publicationArmed) {
-      publicationArmed := false.B
-      publicationValid := true.B
       publicationData := data
+      when(output.writeback) {
+        outputState := OutputState.issueDma
+      }.otherwise {
+        publicationArmed := false.B
+        publicationValid := true.B
+      }
     }
     execState := ExecState.reportCompute
   }

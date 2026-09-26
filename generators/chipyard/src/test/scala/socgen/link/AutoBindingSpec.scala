@@ -4,6 +4,38 @@ import chisel3._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 
+object AutoGraphTest {
+  def configure(stages: Vec[AutoGraphStage], edges: Vec[AutoGraphEdge], transfers: Vec[AutoTransfer], params: AutoLinkParams): Unit = {
+    stages.zipWithIndex.foreach { case (port, index) =>
+      val stage = params.stages.lift(index)
+      port.enabled.poke(stage.nonEmpty.B)
+      port.endpoint.poke(stage.map(value => params.endpoints.indexWhere(_.name == value.endpoint)).getOrElse(0).U)
+      port.output.writeback.poke(false.B)
+      port.output.packed.poke(false.B)
+      port.output.sourceOffset.poke(0.U)
+      port.output.sourceStride.poke(0.U)
+      port.output.address.poke(0.U)
+      port.output.stride.poke(0.U)
+      port.output.bytes.poke(0.U)
+      port.output.bytesPerPixel.poke(0.U)
+    }
+    edges.zipWithIndex.foreach { case (port, index) =>
+      val edge = params.dependencies.lift(index)
+      val copy = edge.flatMap(_.copy)
+      port.enabled.poke(edge.nonEmpty.B)
+      port.root.poke(edge.forall(_.source.isEmpty).B)
+      port.source.poke(edge.flatMap(_.source).getOrElse(0).U)
+      port.destination.poke(edge.map(_.destination).getOrElse(0).U)
+      port.copy.poke(copy.nonEmpty.B)
+      port.bytes.poke(copy.map(_.bytes).getOrElse(0).U)
+      port.expansion.poke(chisel3.util.log2Ceil(copy.map(_.expansion).getOrElse(1)).U)
+      val base = copy.map(value => value.sourceAddress.getOrElse(
+        params.endpoint(params.stage(edge.get.source.get).endpoint).buffer.get.baseAddress)).getOrElse(BigInt(0))
+      transfers(index).sourceBase.poke(base.U)
+    }
+  }
+}
+
 class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
   private val params = AutoLinkParams(
     stages = Seq(AutoStageSpec("producer", "gemmini", 0), AutoStageSpec("join", "cgra", 0)),
@@ -51,6 +83,7 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   it should "bind clipped regions and slot transfers without changing join identity" in {
     test(new AutoScheduler(params)) { dut =>
+      AutoGraphTest.configure(dut.io.stages, dut.io.edges, dut.io.transfers, params)
       dut.io.jobs.zip(params.stages).foreach { case (port, stage) => port.poke(stage.job.U) }
       dut.io.transfers.foreach { transfer =>
         transfer.sourceOffset.poke(0.U)
@@ -178,6 +211,126 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
       run(4)
       run(2)
       run(4)
+    }
+  }
+
+  it should "replace stage bindings and edges after draining a graph" in {
+    val flexible = params.copy(stageCapacity = 3, dependencyCapacity = 4,
+      endpoints = params.endpoints.map(_.copy(jobs = 2)))
+    test(new AutoScheduler(flexible)) { dut =>
+      AutoGraphTest.configure(dut.io.stages, dut.io.edges, dut.io.transfers, flexible)
+      dut.io.transfers.foreach { transfer =>
+        transfer.sourceOffset.poke(0.U)
+        transfer.destinationOffset.poke(0.U)
+        transfer.sourceStride.poke(0.U)
+        transfer.destinationStride.poke(0.U)
+        transfer.bytesPerPixel.poke(0.U)
+      }
+      dut.io.regions.foreach { region =>
+        region.rows.poke(0.U)
+        region.columns.poke(0.U)
+        region.rowStep.poke(0.U)
+        region.columnStep.poke(0.U)
+        region.top.poke(0.U)
+        region.bottom.poke(0.U)
+        region.left.poke(0.U)
+        region.right.poke(0.U)
+      }
+      dut.io.jobs.foreach(_.poke(0.U))
+      dut.io.result.foreach(_.ready.poke(true.B))
+      event(dut.io.root.bits.event)
+      dut.io.root.bits.slot.poke(0.U)
+      dut.io.root.bits.tile.id.poke(0.U)
+      dut.io.root.bits.tile.row.poke(0.U)
+      dut.io.root.bits.tile.column.poke(0.U)
+      dut.io.root.bits.tile.rows.poke(1.U)
+      dut.io.root.bits.tile.columns.poke(1.U)
+      dut.io.root.bits.tile.last.poke(true.B)
+      for (replacement <- Seq(false, true)) {
+        val sink = if (replacement) 2 else 1
+        val sourceEndpoint = if (replacement) 1 else 0
+        val sinkEndpoint = 1 - sourceEndpoint
+        val job = if (replacement) 1 else 0
+        val sourceAddress = if (replacement) 0x80001000L else 0x60000000L
+        dut.io.stages(0).endpoint.poke(sourceEndpoint.U)
+        dut.io.stages(1).enabled.poke((!replacement).B)
+        dut.io.stages(2).enabled.poke(replacement.B)
+        dut.io.stages(sink).endpoint.poke(sinkEndpoint.U)
+        dut.io.jobs(0).poke(job.U)
+        dut.io.jobs(sink).poke(job.U)
+        dut.io.edges(1).enabled.poke(false.B)
+        dut.io.edges(2).destination.poke(sink.U)
+        dut.io.transfers(2).sourceBase.poke(sourceAddress.U)
+        val output = dut.io.stages(sink).output
+        output.writeback.poke(replacement.B)
+        output.packed.poke(replacement.B)
+        output.sourceOffset.poke(64.U)
+        output.address.poke(0x80002000L.U)
+        output.bytes.poke(32.U)
+        val compute = Array.fill(2)(false)
+        val publication = Array.fill(2)(false)
+        val copy = Array.fill(2)(false)
+        val watched = Array.fill(2)(false)
+        val launched = scala.collection.mutable.ArrayBuffer.empty[Int]
+        val results = scala.collection.mutable.Set.empty[Int]
+        var submitted = false
+        var cycle = 0
+        while ((!submitted || results.size < 2 || dut.io.busy.peek().litToBoolean) && cycle < 200) {
+          dut.io.root.valid.poke((!submitted).B)
+          dut.io.endpoint.zipWithIndex.foreach { case (port, index) =>
+            port.watchOutput.ready.poke(true.B)
+            port.requestCopy.ready.poke(true.B)
+            port.requestCompute.ready.poke(true.B)
+            port.reportCopy.valid.poke(copy(index).B)
+            port.reportCopy.bits.task.poke(2.U)
+            port.reportCopy.bits.status.poke(0.U)
+            port.reportCopy.bits.detail.poke(0.U)
+            port.reportCompute.valid.poke(compute(index).B)
+            event(port.reportCompute.bits)
+            port.reportCompute.bits.job.poke(job.U)
+            port.reportOutput.valid.poke(publication(index).B)
+            event(port.reportOutput.bits)
+            port.reportOutput.bits.job.poke(job.U)
+          }
+          if (dut.io.root.valid.peek().litToBoolean && dut.io.root.ready.peek().litToBoolean) submitted = true
+          dut.io.endpoint.zipWithIndex.foreach { case (port, index) =>
+            if (port.reportCopy.valid.peek().litToBoolean && port.reportCopy.ready.peek().litToBoolean) copy(index) = false
+            if (port.reportCompute.valid.peek().litToBoolean && port.reportCompute.ready.peek().litToBoolean) compute(index) = false
+            if (port.reportOutput.valid.peek().litToBoolean && port.reportOutput.ready.peek().litToBoolean) publication(index) = false
+            if (port.watchOutput.valid.peek().litToBoolean) {
+              watched(index) = true
+              port.watchOutput.bits.writeback.expect((replacement && index == sinkEndpoint).B)
+              port.watchOutput.bits.address.expect((if (index == sourceEndpoint) sourceAddress else 0x80002000L).U)
+              if (index == sinkEndpoint) {
+                port.watchOutput.bits.sourceOffset.expect(64.U)
+                port.watchOutput.bits.bytes.expect(32.U)
+              }
+            }
+            if (port.requestCopy.valid.peek().litToBoolean) {
+              assert(index == sinkEndpoint)
+              port.requestCopy.bits.sourceAddress.expect(sourceAddress.U)
+              copy(index) = true
+            }
+            if (port.requestCompute.valid.peek().litToBoolean) {
+              port.requestCompute.bits.job.expect(job.U)
+              port.requestCompute.bits.hasInput.expect((index == sinkEndpoint).B)
+              launched += index
+              compute(index) = true
+              publication(index) = watched(index)
+            }
+          }
+          dut.io.result.foreach { port =>
+            if (port.valid.peek().litToBoolean) results += port.bits.stage.peek().litValue.toInt
+          }
+          dut.clock.step()
+          cycle += 1
+        }
+        assert(cycle < 200)
+        assert(launched.toSeq == Seq(sourceEndpoint, sinkEndpoint))
+        assert(results.toSet == Set(0, sink))
+        dut.io.root.valid.poke(false.B)
+        dut.clock.step(2)
+      }
     }
   }
 }

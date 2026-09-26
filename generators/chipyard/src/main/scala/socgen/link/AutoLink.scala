@@ -16,7 +16,8 @@ case class AutoBuffer(baseAddress: BigInt, sizeBytes: Int)
 
 case class AutoEndpointSpec(name: String, buffer: Option[AutoBuffer], localBytes: Int,
     bufferedInput: Boolean = false, inputAlignment: Int = 1,
-    bufferSlots: Int = 1, releaseOnCopy: Boolean = false) {
+    bufferSlots: Int = 1, releaseOnCopy: Boolean = false, jobs: Int = 0,
+    publicationBytes: Int = 0) {
   require(isPow2(inputAlignment))
   require(bufferSlots > 0)
   val hasStorage: Boolean = buffer.nonEmpty || bufferedInput
@@ -24,7 +25,8 @@ case class AutoEndpointSpec(name: String, buffer: Option[AutoBuffer], localBytes
 
 case class AutoStageSpec(name: String, endpoint: String, job: Int, jobs: Int = 1)
 
-case class AutoCopySpec(sourceOffset: Int, destinationOffset: Int, bytes: Int, expansion: Int = 1) {
+case class AutoCopySpec(sourceOffset: Int, destinationOffset: Int, bytes: Int, expansion: Int = 1,
+    sourceAddress: Option[BigInt] = None) {
   require(isPow2(expansion))
   val destinationBytes: BigInt = BigInt(bytes) * expansion
 }
@@ -42,7 +44,9 @@ case class AutoLinkParams(
   lengthWidth: Int = 32,
   detailWidth: Int = 8,
   resultWidth: Int = 32,
-  runCapacity: Int = 0) {
+  runCapacity: Int = 0,
+  stageCapacity: Int = 0,
+  dependencyCapacity: Int = 0) {
   require(stages.nonEmpty)
   require(dependencies.nonEmpty)
   require(endpoints.map(_.name).distinct.size == endpoints.size)
@@ -65,16 +69,19 @@ case class AutoLinkParams(
 
   dependencies.foreach { dependency =>
     dependency.copy.foreach { copy =>
-      require(dependency.source.nonEmpty)
-      val source = endpointMap(stages(dependency.source.get).endpoint)
       val destination = endpointMap(stages(dependency.destination).endpoint)
-      require(source.name != destination.name,
-        "Data dependencies between stages on the same physical endpoint are unsupported")
-      require(source.buffer.nonEmpty)
+      dependency.source.foreach { index =>
+        val source = endpointMap(stages(index).endpoint)
+        require(source.name != destination.name,
+          "Data dependencies between stages on the same physical endpoint are unsupported")
+        if (copy.sourceAddress.isEmpty) {
+          require(source.buffer.nonEmpty)
+          require(copy.sourceOffset + copy.bytes <= source.buffer.get.sizeBytes)
+        }
+      }
       require(copy.sourceOffset >= 0)
       require(copy.destinationOffset >= 0)
       require(copy.bytes > 0)
-      require(copy.sourceOffset + copy.bytes <= source.buffer.get.sizeBytes)
       require(copy.destinationOffset + copy.destinationBytes <= destination.localBytes)
       require(copy.destinationBytes < (BigInt(1) << lengthWidth))
       val alignment = if (copy.expansion == 1) beatBytes else copy.expansion
@@ -98,19 +105,23 @@ case class AutoLinkParams(
     }
   }
 
-  val dependencyWidth: Int = math.max(1, log2Ceil(dependencies.size))
-  val jobWidth: Int = math.max(1, log2Ceil(stages.map(stage => stage.job + stage.jobs).max))
-  val stageWidth: Int = math.max(1, log2Ceil(stages.size))
+  val stageCount: Int = math.max(stageCapacity, stages.size)
+  val dependencyCount: Int = math.max(dependencyCapacity, dependencies.size)
+  val endpointWidth: Int = math.max(1, log2Ceil(endpoints.size))
+  val dependencyWidth: Int = math.max(1, log2Ceil(dependencyCount))
+  val jobWidth: Int = math.max(1, log2Ceil(endpoints.map(endpoint => jobCount(endpoint.name)).max))
+  val stageWidth: Int = math.max(1, log2Ceil(stageCount))
   val slotWidth: Int = math.max(1, log2Ceil(endpoints.map(_.bufferSlots).max))
-  val resultNames: Seq[String] = dependencies.map(_.destination).distinct.map(stages(_).name)
+  val resultNames: Seq[String] = stages.map(_.name) ++ (stages.size until stageCount).map(index => s"stage$index")
 
   def endpoint(name: String): AutoEndpointSpec = endpointMap(name)
-  def jobCount(name: String): Int = stages.filter(_.endpoint == name).map(_.jobs).sum
+  def jobCount(name: String): Int = math.max(endpoint(name).jobs, stages.filter(_.endpoint == name).map(stage => stage.job + stage.jobs).foldLeft(0)(math.max))
   def stage(index: Int): AutoStageSpec = stages(index)
   def sourceAddress(dependency: Int): BigInt = {
     val spec = dependencies(dependency)
-    val source = stage(spec.source.get)
-    endpoint(source.endpoint).buffer.get.baseAddress + spec.copy.get.sourceOffset
+    val copy = spec.copy.get
+    val base = copy.sourceAddress.getOrElse(endpoint(stage(spec.source.get).endpoint).buffer.get.baseAddress)
+    base + copy.sourceOffset
   }
 }
 
@@ -120,6 +131,9 @@ class AutoWatch(params: AutoLinkParams) extends Bundle {
   val tile = new AutoTile(params.lengthWidth)
   val address = UInt(params.addressWidth.W)
   val bytes = UInt(params.lengthWidth.W)
+  val writeback = Bool()
+  val packed = Bool()
+  val sourceOffset = UInt(params.addressWidth.W)
 }
 
 class AutoEvent(params: AutoLinkParams) extends Bundle {
@@ -160,6 +174,7 @@ class AutoComputeRequest(params: AutoLinkParams) extends Bundle {
   val slot = UInt(params.slotWidth.W)
   val tile = new AutoTile(params.lengthWidth)
   val start = Bool()
+  val hasInput = Bool()
 }
 
 /** TileLink remains the data interface. These channels add automatic control. */

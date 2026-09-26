@@ -30,13 +30,16 @@ case class GemminiLinkParams(auto: AutoLinkParams, beatBytes: Int, commandCapaci
   val publicationBytes: Int = auto.dependencies.flatMap { dependency =>
     dependency.source.filter(index => auto.stage(index).endpoint == endpoint)
       .flatMap(_ => dependency.copy.map(_.bytes))
-  }.foldLeft(1)(math.max)
+  }.foldLeft(math.max(1, auto.endpoint(endpoint).publicationBytes))(math.max)
 }
 
 class GemminiLinkWrite(params: GemminiLinkParams) extends Bundle {
   val address = UInt(64.W)
   val source = UInt(16.W)
   val size = UInt(8.W)
+  val beatSize = UInt(8.W)
+  val first = Bool()
+  val last = Bool()
   val opcode = UInt(3.W)
   val mask = UInt(params.beatBytes.W)
 }

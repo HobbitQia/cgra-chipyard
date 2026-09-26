@@ -23,6 +23,7 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   private def bindings(dut: AutoScheduler, params: AutoLinkParams): Unit = {
+    AutoGraphTest.configure(dut.io.stages, dut.io.edges, dut.io.transfers, params)
     dut.io.jobs.zip(params.stages).foreach { case (port, stage) => port.poke(stage.job.U) }
     dut.io.transfers.zipWithIndex.foreach { case (transfer, index) =>
       transfer.sourceOffset.poke(0.U)
@@ -58,7 +59,7 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
     assert(error.getMessage.contains("same physical endpoint"))
   }
 
-  private def exercise(params: AutoLinkParams, triple: Boolean): Unit = {
+  private def exercise(params: AutoLinkParams, triple: Boolean, join: Boolean = false): Unit = {
     test(new AutoScheduler(params)) { dut =>
       bindings(dut, params)
       val count = 6
@@ -157,7 +158,7 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
             val slot = port.requestCopy.bits.sourceSlot.peek().litValue.toInt
             val source = params.dependencies(task).source.get
             assert(held((source, slot))._1 == id)
-            port.requestCopy.bits.sourceAddress.expect((params.endpoints(source).buffer.get.baseAddress + slot * 32).U)
+            port.requestCopy.bits.sourceAddress.expect((params.sourceAddress(task) + slot * 32).U)
             val destinationSlot = port.requestCopy.bits.destinationSlot.peek().litValue.toInt
             if (params.endpoints(endpoint).bufferedInput) {
               val offset = params.dependencies(task).copy.get.destinationOffset
@@ -204,7 +205,7 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
         assert(tripleSeen)
         assert(advanced)
         assert(bufferedOverlap)
-      } else {
+      } else if (join) {
         assert(joinSlots.values.exists(_.size > 1))
       }
     }
@@ -240,6 +241,19 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
         256, bufferedInput = index > 0, bufferSlots = if (index == 1) 1 else 2,
         releaseOnCopy = index != 2)),
       beatBytes = 16, controlAddress = 0x60040000L, controlBytes = 4096)
+    exercise(params, triple = false, join = true)
+  }
+
+  it should "retain a streaming output while its downstream reader is stalled" in {
+    val params = AutoLinkParams(
+      stages = Seq(AutoStageSpec("stream", "stream", 0), AutoStageSpec("sink", "sink", 0)),
+      dependencies = Seq(
+        AutoDependencySpec(None, 0, None),
+        AutoDependencySpec(Some(0), 1, Some(AutoCopySpec(0, 0, 32, sourceAddress = Some(BigInt(0x80002000L)))))),
+      endpoints = Seq(
+        AutoEndpointSpec("stream", None, 256, releaseOnCopy = true),
+        AutoEndpointSpec("sink", None, 256, releaseOnCopy = true)),
+      beatBytes = 16, controlAddress = 0x60020000L, controlBytes = 4096)
     exercise(params, triple = false)
   }
 }

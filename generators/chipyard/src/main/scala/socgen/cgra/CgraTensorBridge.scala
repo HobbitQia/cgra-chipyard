@@ -42,6 +42,79 @@ class CgraReadRequest(addressWidth: Int, beatBits: Int) extends Bundle {
   val lgSize = UInt(log2Ceil(log2Ceil(beatBits / 8) + 1).W)
 }
 
+class CgraWriteRequest(addressWidth: Int, beatBits: Int) extends Bundle {
+  val address = UInt(addressWidth.W)
+  val data = UInt(beatBits.W)
+  val mask = UInt((beatBits / 8).W)
+}
+
+class CgraPackedWriter(beatBits: Int, addressWidth: Int, scale: CgraRequantParams) extends Module {
+  require(beatBits >= 32 && isPow2(beatBits))
+
+  private val beatBytes = beatBits / 8
+  private val lanes = beatBits / 32
+  private val lgBeatBytes = log2Ceil(beatBytes)
+  private val countWidth = log2Ceil(beatBytes + 1)
+
+  val io = IO(new Bundle {
+    val packed = Input(Bool())
+    val start = Flipped(Valid(UInt(addressWidth.W)))
+    val nativeReq = Flipped(Decoupled(new CgraWriteRequest(addressWidth, beatBits)))
+    val nativeResp = Decoupled(Bool())
+    val memoryReq = Decoupled(new CgraWriteRequest(addressWidth, beatBits))
+    val memoryResp = Flipped(Decoupled(Bool()))
+    val busy = Output(Bool())
+  })
+
+  val idle :: send :: waitAck :: respond :: Nil = Enum(4)
+  val state = RegInit(idle)
+  val address = Reg(UInt(addressWidth.W))
+  val data = Reg(UInt((lanes * 8).W))
+  val remaining = Reg(UInt(countWidth.W))
+  val failed = RegInit(false.B)
+  val offset = address(lgBeatBytes - 1, 0)
+  val room = beatBytes.U - offset
+  val count = Mux(remaining < room, remaining, room)
+  val mask = ((1.U((beatBytes + 1).W) << count) - 1.U)(beatBytes - 1, 0)
+  val converted = VecInit((0 until lanes).map { lane =>
+    CgraRequant.byte(io.nativeReq.bits.data(32 * lane + 31, 32 * lane).asSInt, scale)
+  }).asUInt
+  val validLanes = VecInit((0 until lanes).map(lane => io.nativeReq.bits.mask(4 * lane)))
+
+  io.memoryReq <> io.nativeReq
+  io.nativeResp <> io.memoryResp
+  io.busy := state =/= idle
+
+  when(io.packed) {
+    io.nativeReq.ready := state === idle
+    io.nativeResp.valid := state === respond
+    io.nativeResp.bits := failed
+    io.memoryReq.valid := state === send
+    io.memoryReq.bits.address := (address >> lgBeatBytes) << lgBeatBytes
+    io.memoryReq.bits.data := data << (offset << 3)
+    io.memoryReq.bits.mask := mask << offset
+    io.memoryResp.ready := state === waitAck
+
+    when(io.nativeReq.fire) {
+      data := converted
+      remaining := PopCount(validLanes)
+      failed := false.B
+      state := send
+    }
+    when(io.memoryReq.fire) { state := waitAck }
+    when(io.memoryResp.fire) {
+      address := address + count
+      data := data >> (count << 3)
+      remaining := remaining - count
+      failed := failed || io.memoryResp.bits
+      state := Mux(remaining === count, respond, send)
+    }
+    // The native DMA waits for every beat: acknowledge only after all packed writes complete.
+    when(io.nativeResp.fire) { state := idle }
+  }
+  when(io.start.valid) { address := io.start.bits }
+}
+
 class CgraPackedReader(beatBits: Int, addressWidth: Int, lengthWidth: Int) extends Module {
   require(beatBits >= 32 && isPow2(beatBits))
 
