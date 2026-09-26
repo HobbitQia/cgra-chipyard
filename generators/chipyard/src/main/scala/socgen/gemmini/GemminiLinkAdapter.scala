@@ -2,23 +2,19 @@ package chipyard.socgen.gemmini
 
 import chisel3._
 import chisel3.util._
+import chipyard.socgen.generated.CgraLinkControlGenerated
 import chipyard.socgen.link._
 import freechips.rocketchip.tile.RoCCCommand
 import freechips.rocketchip.util.{AsyncBundle, AsyncQueueParams}
 import org.chipsalliance.cde.config.Parameters
 
 object GemminiLinkStatus {
-  val BadAddress = 1
-  val BadBeat = 2
-  val BadOrder = 3
   val Denied = 4
   val Corrupt = 5
 }
 
-case class GemminiLinkParams(auto: AutoLinkParams, beatBytes: Int, commandCapacity: Int, maxInflight: Int = 1, patchCapacity: Int = 32, endpoint: String = "gemmini") {
-  require(isPow2(beatBytes))
+case class GemminiLinkParams(auto: AutoLinkParams, commandCapacity: Int, patchCapacity: Int = 32, endpoint: String = "gemmini") {
   require(commandCapacity > 0)
-  require(maxInflight > 0)
   require(isPow2(patchCapacity) && patchCapacity > 1)
 
   val jobCount: Int = auto.jobCount(endpoint)
@@ -27,37 +23,18 @@ case class GemminiLinkParams(auto: AutoLinkParams, beatBytes: Int, commandCapaci
   val commandCountWidth: Int = log2Ceil(commandCapacity + 1)
   val commandAddressWidth: Int = math.max(1, log2Ceil(jobCount * commandCapacity))
   val jobIndexWidth: Int = math.max(1, log2Ceil(jobCount))
-  val publicationBytes: Int = auto.dependencies.flatMap { dependency =>
-    dependency.source.filter(index => auto.stage(index).endpoint == endpoint)
-      .flatMap(_ => dependency.copy.map(_.bytes))
-  }.foldLeft(math.max(1, auto.endpoint(endpoint).publicationBytes))(math.max)
-}
-
-class GemminiLinkWrite(params: GemminiLinkParams) extends Bundle {
-  val address = UInt(64.W)
-  val source = UInt(16.W)
-  val size = UInt(8.W)
-  val beatSize = UInt(8.W)
-  val first = Bool()
-  val last = Bool()
-  val opcode = UInt(3.W)
-  val mask = UInt(params.beatBytes.W)
 }
 
 class GemminiLinkAck extends Bundle {
-  val source = UInt(16.W)
-  val size = UInt(8.W)
   val denied = Bool()
   val corrupt = Bool()
 }
 
 class GemminiPublicationControl(params: GemminiLinkParams) extends Bundle {
   val enable = Bool()
-  val watch = new AutoWatch(params.auto)
 }
 
 class GemminiPublicationReply(params: GemminiLinkParams) extends Bundle {
-  val result = Bool()
   val detail = UInt(params.auto.detailWidth.W)
 }
 
@@ -108,6 +85,9 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   object ExecState {
     val idle :: reportCopy :: waitCompute :: bind :: issue :: waitComplete :: reportCompute :: Nil = Enum(7)
   }
+  object PublicationState {
+    val idle :: begin :: waitBegin :: active :: finish :: waitFinish :: Nil = Enum(6)
+  }
 
   val configState = RegInit(ConfigState.idle)
   val execState = RegInit(ExecState.idle)
@@ -126,12 +106,10 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   val computeJob = RegInit(0.U(params.auto.jobWidth.W))
   val watch = Reg(new AutoWatch(params.auto))
   val armed = RegInit(false.B)
-  val publicationSend = RegInit(false.B)
-  val publicationPending = RegInit(false.B)
-  val publicationEnable = RegInit(false.B)
+  val publicationState = RegInit(PublicationState.idle)
+  val submitted = RegInit(false.B)
   val producedValid = RegInit(false.B)
   val producedDetail = RegInit(0.U(params.auto.detailWidth.W))
-  val outputPending = RegInit(false.B)
 
   val capture = configState === ConfigState.collect
   val replay = execState === ExecState.issue
@@ -165,23 +143,28 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   io.configAck.bits.status := AutoLinkStatus.Success
   io.configAck.bits.detail := 0.U
 
-  // CPU commands outside capture may execute before the automatic job completes.
-  val armWait = publicationPending || io.autoLink.watchOutput.valid
-  val configWait = (configState =/= ConfigState.idle && !capture) || execState === ExecState.bind
-  io.cpuCommand.ready := Mux(capture, true.B, !replay && !armWait && !configWait && io.command.ready)
-  io.command.valid := Mux(replay, true.B, io.cpuCommand.valid && !capture && !armWait && !configWait)
+  val publicationReady = publicationState === PublicationState.idle || publicationState === PublicationState.active
+  val executing = execState === ExecState.bind || replay || execState === ExecState.waitComplete ||
+    execState === ExecState.reportCompute
+  val marker = io.cpuCommand.bits.inst.funct === CgraLinkControlGenerated.GEMMINI_COMMAND_END.U
+  val cpuReady = !executing && !submitted && !producedValid && publicationReady &&
+    !io.autoLink.watchOutput.valid && !io.autoLink.requestCompute.valid && configState === ConfigState.idle
+  io.cpuCommand.ready := capture || (cpuReady && Mux(marker, armed, io.command.ready))
+  io.command.valid := (replay && publicationState === PublicationState.active) ||
+    (io.cpuCommand.valid && cpuReady && !marker)
   io.command.bits := Mux(
     replay,
     binding.io.patched,
     io.cpuCommand.bits)
-  io.publication.valid := publicationSend
-  io.publication.bits.enable := publicationEnable
-  io.publication.bits.watch := watch
-  io.publicationReply.ready := !producedValid || !publicationEnable || !io.publicationReply.bits.result
-  io.autoBusy := publicationPending || execState === ExecState.bind || replay || execState === ExecState.waitComplete ||
-    execState === ExecState.reportCompute
+  io.publication.valid := publicationState === PublicationState.begin ||
+    (publicationState === PublicationState.finish && !io.nativeBusy)
+  io.publication.bits.enable := publicationState === PublicationState.begin
+  io.publicationReply.ready := publicationState === PublicationState.waitBegin ||
+    publicationState === PublicationState.waitFinish
+  io.autoBusy := !publicationReady || executing || submitted
 
-  io.autoLink.watchOutput.ready := !armed && !producedValid && !publicationPending
+  io.autoLink.watchOutput.ready := !armed && !producedValid && !submitted && !executing &&
+    publicationState === PublicationState.idle
   io.autoLink.reportOutput.valid := producedValid
   io.autoLink.reportOutput.bits.stage := 0.U
   io.autoLink.reportOutput.bits.job := watch.job
@@ -201,16 +184,15 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   io.autoLink.requestCompute.ready :=
     (execState === ExecState.idle || execState === ExecState.waitCompute) &&
       configState === ConfigState.idle && !io.configIn.valid && !io.autoLink.watchOutput.fire &&
-      !io.autoLink.requestCopy.fire && !publicationPending
+      !io.autoLink.requestCopy.fire && publicationReady && !submitted && !producedValid && !io.nativeBusy
   io.autoLink.reportCompute.valid := execState === ExecState.reportCompute
   io.autoLink.reportCompute.bits := computeResult
 
   def finish(detail: UInt): Unit = {
-    producedValid := true.B
+    producedValid := armed
     producedDetail := detail
-    outputPending := false.B
     computeResult := 0.U.asTypeOf(new AutoEvent(params.auto))
-    computeResult.job := watch.job
+    computeResult.job := computeJob
     computeResult.status := Mux(
       detail === 0.U,
       AutoLinkStatus.Success,
@@ -258,14 +240,16 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
     when(io.autoLink.requestCompute.bits.start) {
       commandIndex := 0.U
       execState := ExecState.bind
+      when(!armed) {
+        publicationState := PublicationState.begin
+      }
     }.otherwise {
       execState := ExecState.idle
       armed := false.B
       producedValid := false.B
-      outputPending := false.B
-      publicationSend := true.B
-      publicationPending := true.B
-      publicationEnable := false.B
+      when(armed) {
+        publicationState := PublicationState.finish
+      }
     }
   }
   when(execState === ExecState.bind && binding.io.ready) {
@@ -274,12 +258,13 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   when(replay && io.command.fire) {
     when(commandIndex + 1.U === selected(jobCommandCount, computeJob)) {
       execState := ExecState.waitComplete
+      submitted := true.B
     }.otherwise {
       commandIndex := commandIndex + 1.U
     }
   }
-  when(execState === ExecState.waitComplete && !io.nativeBusy && !outputPending) {
-    execState := ExecState.reportCompute
+  when(io.cpuCommand.fire && !capture && marker) {
+    submitted := true.B
   }
   when(io.autoLink.reportCompute.fire) {
     execState := ExecState.idle
@@ -287,23 +272,27 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
 
   when(io.autoLink.watchOutput.fire) {
     watch := io.autoLink.watchOutput.bits
-    outputPending := true.B
     armed := true.B
-    publicationSend := true.B
-    publicationPending := true.B
-    publicationEnable := true.B
+    publicationState := PublicationState.begin
   }
   when(io.publication.fire) {
-    publicationSend := false.B
+    publicationState := Mux(io.publication.bits.enable, PublicationState.waitBegin, PublicationState.waitFinish)
+  }
+  when(publicationState === PublicationState.active && submitted && !io.nativeBusy) {
+    publicationState := PublicationState.finish
   }
   when(io.publicationReply.fire) {
-    when(io.publicationReply.bits.result) {
-      val abort = io.autoLink.requestCompute.fire && !io.autoLink.requestCompute.bits.start
-      when(publicationEnable && !abort) {
+    when(publicationState === PublicationState.waitFinish) {
+      publicationState := PublicationState.idle
+      submitted := false.B
+      when(submitted) {
         finish(io.publicationReply.bits.detail)
+        when(execState === ExecState.waitComplete) {
+          execState := ExecState.reportCompute
+        }
       }
     }.otherwise {
-      publicationPending := false.B
+      publicationState := PublicationState.active
     }
   }
 

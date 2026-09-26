@@ -8,6 +8,7 @@ object CgraLinkControlGenerated {
   val autoLinkAddress: BigInt = BigInt("60014000", 16)
   val pageSizeBytes: Int = 4096
   val pageCount: Int = 4
+  val GEMMINI_COMMAND_END: Int = 125
   val PACKET_COUNT: Int = 0x000
   val CONFIG_SUBMIT: Int = 0x008
   val RESULT_VALID: Int = 0x010

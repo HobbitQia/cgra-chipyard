@@ -16,8 +16,7 @@ case class AutoBuffer(baseAddress: BigInt, sizeBytes: Int)
 
 case class AutoEndpointSpec(name: String, buffer: Option[AutoBuffer], localBytes: Int,
     bufferedInput: Boolean = false, inputAlignment: Int = 1,
-    bufferSlots: Int = 1, releaseOnCopy: Boolean = false, jobs: Int = 0,
-    publicationBytes: Int = 0) {
+    bufferSlots: Int = 1, releaseOnCopy: Boolean = false, jobs: Int = 0) {
   require(isPow2(inputAlignment))
   require(bufferSlots > 0)
   val hasStorage: Boolean = buffer.nonEmpty || bufferedInput
