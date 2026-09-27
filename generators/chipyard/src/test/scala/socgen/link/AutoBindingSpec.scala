@@ -20,9 +20,6 @@ object AutoGraphTest {
       port.enabled.poke(stage.nonEmpty.B)
       port.endpoint.poke(stage.map(value => params.endpoints.indexWhere(_.name == value.endpoint)).getOrElse(0).U)
       port.output.writeback.poke(false.B)
-      port.output.packed.poke(false.B)
-      port.output.sourceOffset.poke(0.U)
-      port.output.sourceStride.poke(0.U)
       port.output.address.poke(0.U)
       port.output.stride.poke(0.U)
       port.output.bytes.poke(0.U)
@@ -92,8 +89,7 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   it should "initialize static output bindings in the existing stage and transfer records" in {
     val address = BigInt(0x80002000L)
-    val output = AutoOutputSpec(address, 128, sourceOffset = 64, sourceStride = 256,
-      stride = 128, bytesPerPixel = 8, packed = true)
+    val output = AutoOutputSpec(address, 128, stride = 128, bytesPerPixel = 8)
     val copy = AutoCopySpec(16, 64, 64, expansion = 4, sourceAddress = Some(address),
       sourceStride = 128, bytesPerPixel = 8)
     val configured = params.copy(
@@ -106,9 +102,6 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
       stage.enabled.expect(true.B)
       stage.endpoint.expect(0.U)
       stage.output.writeback.expect(true.B)
-      stage.output.packed.expect(true.B)
-      stage.output.sourceOffset.expect(64.U)
-      stage.output.sourceStride.expect(256.U)
       stage.output.address.expect(address.U)
       stage.output.stride.expect(128.U)
       stage.output.bytes.expect(128.U)
@@ -308,8 +301,6 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
         dut.io.transfers(2).sourceBase.poke(sourceAddress.U)
         val output = dut.io.stages(sink).output
         output.writeback.poke(replacement.B)
-        output.packed.poke(replacement.B)
-        output.sourceOffset.poke(64.U)
         output.address.poke(0x80002000L.U)
         output.bytes.poke(32.U)
         val compute = Array.fill(2)(false)
@@ -347,7 +338,6 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
               port.watchOutput.bits.writeback.expect((replacement && index == sinkEndpoint).B)
               port.watchOutput.bits.address.expect((if (index == sourceEndpoint) sourceAddress else 0x80002000L).U)
               if (index == sinkEndpoint) {
-                port.watchOutput.bits.sourceOffset.expect(64.U)
                 port.watchOutput.bits.bytes.expect(32.U)
               }
             }

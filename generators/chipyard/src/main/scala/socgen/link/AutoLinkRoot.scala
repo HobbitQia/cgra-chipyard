@@ -155,13 +155,8 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
         stageField(AUTO_LINK_EDGE_BYTES, params.lengthWidth)(value => edges(edge).bytes := value),
         stageField(AUTO_LINK_EDGE_EXPANSION, 3)(value => edges(edge).expansion := value),
         stageField(AUTO_LINK_EDGE_SOURCE_BASE, params.addressWidth)(value => transfers(edge).sourceBase := value),
-        stageField(AUTO_LINK_OUTPUT_FLAGS, 2) { value =>
-          stages(stage).output.writeback := value(0)
-          stages(stage).output.packed := value(1)
-        },
+        stageField(AUTO_LINK_OUTPUT_FLAGS, 1)(value => stages(stage).output.writeback := value.asBool),
         stageField(AUTO_LINK_OUTPUT_PIXEL_BYTES, params.lengthWidth)(value => stages(stage).output.bytesPerPixel := value),
-        stageField(AUTO_LINK_OUTPUT_SOURCE_OFFSET, params.addressWidth)(value => stages(stage).output.sourceOffset := value),
-        stageField(AUTO_LINK_OUTPUT_SOURCE_STRIDE, params.addressWidth)(value => stages(stage).output.sourceStride := value),
         stageField(AUTO_LINK_OUTPUT_ADDRESS, params.addressWidth)(value => stages(stage).output.address := value),
         stageField(AUTO_LINK_OUTPUT_STRIDE, params.addressWidth)(value => stages(stage).output.stride := value),
         stageField(AUTO_LINK_OUTPUT_BYTES, params.lengthWidth)(value => stages(stage).output.bytes := value))

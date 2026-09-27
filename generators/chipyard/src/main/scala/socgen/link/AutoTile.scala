@@ -30,9 +30,6 @@ class AutoTransfer(params: AutoLinkParams) extends Bundle {
 
 class AutoOutput(params: AutoLinkParams) extends Bundle {
   val writeback = Bool()
-  val packed = Bool()
-  val sourceOffset = UInt(params.addressWidth.W)
-  val sourceStride = UInt(params.addressWidth.W)
   val address = UInt(params.addressWidth.W)
   val stride = UInt(params.addressWidth.W)
   val bytes = UInt(params.lengthWidth.W)
@@ -127,9 +124,6 @@ object AutoTileBinding {
       values(index).endpoint := params.endpoints.indexWhere(_.name == stage.endpoint).U
       stage.output.foreach { output =>
         values(index).output.writeback := true.B
-        values(index).output.packed := output.packed.B
-        values(index).output.sourceOffset := output.sourceOffset.U
-        values(index).output.sourceStride := output.sourceStride.U
         values(index).output.address := output.address.U
         values(index).output.stride := output.stride.U
         values(index).output.bytes := output.bytes.U

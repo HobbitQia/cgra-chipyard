@@ -22,8 +22,7 @@ case class AutoEndpointSpec(name: String, buffer: Option[AutoBuffer], localBytes
   val hasStorage: Boolean = buffer.nonEmpty || bufferedInput
 }
 
-case class AutoOutputSpec(address: BigInt, bytes: Int, sourceOffset: Int = 0,
-    sourceStride: Int = 0, stride: Int = 0, bytesPerPixel: Int = 0, packed: Boolean = false)
+case class AutoOutputSpec(address: BigInt, bytes: Int, stride: Int = 0, bytesPerPixel: Int = 0)
 
 case class AutoStageSpec(name: String, endpoint: String, job: Int, jobs: Int = 1,
     output: Option[AutoOutputSpec] = None)
@@ -135,8 +134,6 @@ class AutoWatch(params: AutoLinkParams) extends Bundle {
   val address = UInt(params.addressWidth.W)
   val bytes = UInt(params.lengthWidth.W)
   val writeback = Bool()
-  val packed = Bool()
-  val sourceOffset = UInt(params.addressWidth.W)
 }
 
 class AutoEvent(params: AutoLinkParams) extends Bundle {

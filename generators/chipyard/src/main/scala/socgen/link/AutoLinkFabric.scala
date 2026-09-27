@@ -182,8 +182,6 @@ class AutoStage(params: AutoLinkParams, index: Int) extends Module {
   io.watchOutput.bits.address := copies(PriorityEncoder(dataOutputs)).sourceAddress
   io.watchOutput.bits.bytes := copies(PriorityEncoder(dataOutputs)).bytes
   io.watchOutput.bits.writeback := spec.output.writeback
-  io.watchOutput.bits.packed := spec.output.packed
-  io.watchOutput.bits.sourceOffset := spec.output.sourceOffset + activeSlot * spec.output.sourceStride
   when(spec.output.writeback) {
     io.watchOutput.bits.address := spec.output.address + activeSlot * spec.output.stride
     io.watchOutput.bits.bytes := Mux(spec.output.bytesPerPixel === 0.U, spec.output.bytes,

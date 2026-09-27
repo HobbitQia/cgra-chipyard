@@ -1016,20 +1016,16 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         (request.bits.bytes << params.dma.descriptorNbytesLsb) |
         (request.bits.dmaTag << params.dma.descriptorTagLsb)
       when(request.fire) {
-        dmaPacked := request.bits.packed && !request.bits.write
-        dmaPackedWrite := request.bits.packed && request.bits.write
-        packedWriter.foreach { writer =>
-          writer.io.start.valid := request.bits.write
-          writer.io.start.bits := request.bits.address
-        }
+        dmaPacked := request.bits.packed
+        dmaPackedWrite := false.B
         packedReader.foreach { reader =>
-          reader.io.start.valid := request.bits.packed && !request.bits.write
+          reader.io.start.valid := request.bits.packed
           reader.io.start.bits.address := request.bits.address
           reader.io.start.bits.bytes := request.bits.bytes >> cgraWordByteShift
         }
         dmaSeqDramAddr := request.bits.address
         dmaSeqDescriptor := descriptor
-        dmaSeqIsMvin := !request.bits.write
+        dmaSeqIsMvin := true.B
         dmaSeqPhase := 0.U
         dmaSeqActive := true.B
         dmaInFlight := true.B
@@ -1037,7 +1033,7 @@ class CGRAAcceleratorImp(outer: CGRAAccelerator, params: CGRAParams)(implicit p:
         linkDmaTag := request.bits.dmaTag
         inboundBridge.foreach { bridge =>
           dmaRequant.get :=
-            !request.bits.write && !request.bits.packed && request.bits.spmWordAddress === bridge.inboundSpmWord.U &&
+            !request.bits.packed && request.bits.spmWordAddress === bridge.inboundSpmWord.U &&
             (request.bits.bytes >> cgraWordByteShift) === bridge.inboundWords.U
         }
       }
