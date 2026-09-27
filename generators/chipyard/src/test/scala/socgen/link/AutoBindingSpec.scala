@@ -4,6 +4,15 @@ import chisel3._
 import chiseltest._
 import org.scalatest.flatspec.AnyFlatSpec
 
+class AutoDefaultsHarness(params: AutoLinkParams) extends Module {
+  val io = IO(new Bundle {
+    val stages = Output(Vec(params.stageCount, new AutoGraphStage(params)))
+    val transfers = Output(Vec(params.dependencyCount, new AutoTransfer(params)))
+  })
+  io.stages := AutoTileBinding.stages(params)
+  io.transfers := AutoTileBinding.defaults(params)
+}
+
 object AutoGraphTest {
   def configure(stages: Vec[AutoGraphStage], edges: Vec[AutoGraphEdge], transfers: Vec[AutoTransfer], params: AutoLinkParams): Unit = {
     stages.zipWithIndex.foreach { case (port, index) =>
@@ -80,6 +89,42 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   behavior of "AutoScheduler runtime bindings"
+
+  it should "initialize static output bindings in the existing stage and transfer records" in {
+    val address = BigInt(0x80002000L)
+    val output = AutoOutputSpec(address, 128, sourceOffset = 64, sourceStride = 256,
+      stride = 128, bytesPerPixel = 8, packed = true)
+    val copy = AutoCopySpec(16, 64, 64, expansion = 4, sourceAddress = Some(address),
+      sourceStride = 128, bytesPerPixel = 8)
+    val configured = params.copy(
+      stages = params.stages.updated(0, params.stages.head.copy(output = Some(output))),
+      dependencies = params.dependencies.updated(2, AutoDependencySpec(Some(0), 1, Some(copy))),
+      stageCapacity = 3,
+      dependencyCapacity = 4)
+    test(new AutoDefaultsHarness(configured)) { dut =>
+      val stage = dut.io.stages(0)
+      stage.enabled.expect(true.B)
+      stage.endpoint.expect(0.U)
+      stage.output.writeback.expect(true.B)
+      stage.output.packed.expect(true.B)
+      stage.output.sourceOffset.expect(64.U)
+      stage.output.sourceStride.expect(256.U)
+      stage.output.address.expect(address.U)
+      stage.output.stride.expect(128.U)
+      stage.output.bytes.expect(128.U)
+      stage.output.bytesPerPixel.expect(8.U)
+      dut.io.stages(1).output.writeback.expect(false.B)
+      dut.io.stages(2).enabled.expect(false.B)
+      val transfer = dut.io.transfers(2)
+      transfer.sourceBase.expect(address.U)
+      transfer.sourceOffset.expect(16.U)
+      transfer.destinationOffset.expect(64.U)
+      transfer.sourceStride.expect(128.U)
+      transfer.destinationStride.expect(0.U)
+      transfer.bytesPerPixel.expect(8.U)
+      dut.io.transfers(3).sourceBase.expect(0.U)
+    }
+  }
 
   it should "bind clipped regions and slot transfers without changing join identity" in {
     test(new AutoScheduler(params)) { dut =>

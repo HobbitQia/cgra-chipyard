@@ -75,6 +75,9 @@ class AesLinkAdapter(params: AesLinkParams) extends Module {
 
   io.job.valid := rootPending || downstreamLaunch
   io.job.bits := Mux(rootPending, selected(jobs, rootJob), downstreamJob)
+  when(watchArmed && watch.writeback) {
+    io.job.bits.destination.op := watch.address
+  }
   io.autoLink.requestCopy.ready := idle && io.job.ready
 
   io.inputReadDone.ready := role === Role.root || (role === Role.downstream && !readDone)

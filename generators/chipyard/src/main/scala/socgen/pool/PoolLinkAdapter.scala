@@ -82,6 +82,10 @@ class PoolLinkAdapter(params: PoolParams, link: Option[PoolLinkParams]) extends 
     val autoJob = Wire(new PoolJob(params))
     autoJob := Mux(io.configuredJob.tiled, binding.io.job, io.configuredJob)
     autoJob.source := port.requestCopy.bits.sourceAddress
+    when(publicationArmed && watch.get.writeback) {
+      autoJob.destination := watch.get.address
+      autoJob.outputStride := 0.U
+    }
 
     port.watchOutput.ready := !publicationArmed && !publicationValid
     port.reportOutput.valid := publicationValid

@@ -22,10 +22,14 @@ case class AutoEndpointSpec(name: String, buffer: Option[AutoBuffer], localBytes
   val hasStorage: Boolean = buffer.nonEmpty || bufferedInput
 }
 
-case class AutoStageSpec(name: String, endpoint: String, job: Int, jobs: Int = 1)
+case class AutoOutputSpec(address: BigInt, bytes: Int, sourceOffset: Int = 0,
+    sourceStride: Int = 0, stride: Int = 0, bytesPerPixel: Int = 0, packed: Boolean = false)
+
+case class AutoStageSpec(name: String, endpoint: String, job: Int, jobs: Int = 1,
+    output: Option[AutoOutputSpec] = None)
 
 case class AutoCopySpec(sourceOffset: Int, destinationOffset: Int, bytes: Int, expansion: Int = 1,
-    sourceAddress: Option[BigInt] = None) {
+    sourceAddress: Option[BigInt] = None, sourceStride: Int = 0, bytesPerPixel: Int = 0) {
   require(isPow2(expansion))
   val destinationBytes: BigInt = BigInt(bytes) * expansion
 }
@@ -98,7 +102,7 @@ case class AutoLinkParams(
       .flatMap(_.copy)
       .map(copy => (copy.sourceOffset, copy.bytes))
       .distinct
-    require(publications.size <= 1)
+    require(stages(index).output.nonEmpty || publications.size <= 1)
     if (!dependencies.exists(_.destination == index)) {
       require(publications.nonEmpty)
     }

@@ -113,6 +113,8 @@ object AutoTileBinding {
           params.endpoint(params.stage(source).endpoint).buffer.get.baseAddress).getOrElse(BigInt(0))).U
         values(index).sourceOffset := copy.sourceOffset.U
         values(index).destinationOffset := copy.destinationOffset.U
+        values(index).sourceStride := copy.sourceStride.U
+        values(index).bytesPerPixel := copy.bytesPerPixel.U
       }
     }
     values
@@ -123,6 +125,16 @@ object AutoTileBinding {
     params.stages.zipWithIndex.foreach { case (stage, index) =>
       values(index).enabled := true.B
       values(index).endpoint := params.endpoints.indexWhere(_.name == stage.endpoint).U
+      stage.output.foreach { output =>
+        values(index).output.writeback := true.B
+        values(index).output.packed := output.packed.B
+        values(index).output.sourceOffset := output.sourceOffset.U
+        values(index).output.sourceStride := output.sourceStride.U
+        values(index).output.address := output.address.U
+        values(index).output.stride := output.stride.U
+        values(index).output.bytes := output.bytes.U
+        values(index).output.bytesPerPixel := output.bytesPerPixel.U
+      }
     }
     values
   }

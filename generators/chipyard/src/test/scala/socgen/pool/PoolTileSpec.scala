@@ -74,7 +74,7 @@ class PoolTileSpec extends AnyFlatSpec with ChiselScalatestTester {
     }
   }
 
-  it should "hold a bound job under backpressure and propagate input errors" in {
+  it should "bind graph output under backpressure without changing the configured destination" in {
     test(new PoolLinkAdapter(PoolParams(elementBits = 8), Some(PoolLinkParams(auto)))) { dut =>
       configure(dut.io.configuredJob)
       dut.io.job.ready.poke(false.B)
@@ -86,6 +86,13 @@ class PoolTileSpec extends AnyFlatSpec with ChiselScalatestTester {
       port.requestCompute.valid.poke(false.B)
       port.reportCompute.ready.poke(true.B)
       port.reportCopy.ready.poke(false.B)
+      port.requestCopy.valid.poke(false.B)
+      port.watchOutput.bits.job.poke(0.U)
+      port.watchOutput.bits.writeback.poke(true.B)
+      port.watchOutput.bits.address.poke(0x2800.U)
+      port.watchOutput.valid.poke(true.B)
+      dut.clock.step()
+      port.watchOutput.valid.poke(false.B)
       tile(port.requestCopy.bits.tile, 0, 0, 2, 2)
       tile(port.requestCopy.bits.sourceTile, 0, 0, 4, 4)
       port.requestCopy.bits.bytes.poke(48.U)
@@ -96,8 +103,10 @@ class PoolTileSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.job.valid.expect(true.B)
       dut.io.job.bits.padHeight.expect(1.U)
       dut.io.job.bits.padBottom.expect(0.U)
-      dut.io.job.bits.outputStride.expect(18.U)
+      dut.io.job.bits.destination.expect(0x2800.U)
+      dut.io.job.bits.outputStride.expect(0.U)
       dut.clock.step(3)
+      dut.io.job.bits.destination.expect(0x2800.U)
       port.reportCopy.valid.expect(false.B)
       dut.io.job.ready.poke(true.B)
       dut.clock.step()
@@ -126,6 +135,7 @@ class PoolTileSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.job.valid.expect(true.B)
       dut.io.job.bits.padHeight.expect(1.U)
       dut.io.job.bits.padBottom.expect(0.U)
+      dut.io.job.bits.destination.expect(0x2000.U)
       dut.io.job.bits.outputStride.expect(18.U)
     }
   }

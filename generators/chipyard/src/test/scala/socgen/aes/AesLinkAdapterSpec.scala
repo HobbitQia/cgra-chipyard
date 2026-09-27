@@ -50,7 +50,9 @@ class AesLinkAdapterSpec extends AnyFlatSpec with ChiselScalatestTester {
       port.requestCompute.bits.start.poke(true.B)
       port.reportCompute.ready.poke(false.B)
 
-      def arm(): Unit = {
+      def arm(writeback: Boolean): Unit = {
+        port.watchOutput.bits.writeback.poke(writeback.B)
+        port.watchOutput.bits.address.poke(0x2800.U)
         port.watchOutput.valid.poke(true.B)
         port.watchOutput.ready.expect(true.B)
         dut.clock.step()
@@ -76,9 +78,11 @@ class AesLinkAdapterSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.configIn.valid.poke(false.B)
 
       for (outputFirst <- Seq(true, false)) {
-        arm()
+        arm(outputFirst)
         port.requestCopy.valid.poke(true.B)
         port.requestCopy.ready.expect(true.B)
+        dut.io.job.bits.destination.op.expect((if (outputFirst) 0x2800 else 0x2000).U)
+        dut.io.job.bits.destination.cmpflag.expect(0x4000.U)
         dut.clock.step()
         port.requestCopy.valid.poke(false.B)
         complete()
@@ -108,20 +112,25 @@ class AesLinkAdapterSpec extends AnyFlatSpec with ChiselScalatestTester {
         dut.io.configIn.ready.expect(true.B)
       }
 
-      arm()
-      dut.io.configIn.bits.start.poke(true.B)
-      dut.io.configIn.valid.poke(true.B)
-      dut.io.configIn.ready.expect(true.B)
-      dut.clock.step()
-      dut.io.configIn.valid.poke(false.B)
-      dut.io.job.valid.expect(true.B)
-      dut.clock.step()
-      complete()
-      port.reportCompute.valid.expect(false.B)
-      port.reportOutput.ready.poke(true.B)
-      dut.clock.step()
-      dut.io.configIn.bits.start.poke(false.B)
-      dut.io.configIn.ready.expect(true.B)
+      for (writeback <- Seq(true, false)) {
+        arm(writeback)
+        dut.io.configIn.bits.start.poke(true.B)
+        dut.io.configIn.valid.poke(true.B)
+        dut.io.configIn.ready.expect(true.B)
+        dut.clock.step()
+        dut.io.configIn.valid.poke(false.B)
+        dut.io.job.valid.expect(true.B)
+        dut.io.job.bits.destination.op.expect((if (writeback) 0x2800 else 0x2000).U)
+        dut.io.job.bits.destination.cmpflag.expect(0x4000.U)
+        dut.clock.step()
+        complete()
+        port.reportCompute.valid.expect(false.B)
+        port.reportOutput.ready.poke(true.B)
+        dut.clock.step()
+        port.reportOutput.ready.poke(false.B)
+        dut.io.configIn.bits.start.poke(false.B)
+        dut.io.configIn.ready.expect(true.B)
+      }
     }
   }
 }
