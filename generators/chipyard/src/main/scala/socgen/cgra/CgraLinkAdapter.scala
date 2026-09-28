@@ -12,10 +12,12 @@ object CgraLinkStatus {
 }
 
 object CgraSymbolSource {
-  val Width = 2
+  val Width = 3
   val Slot = 0
   val Elements = 1
   val TileId = 2
+  val Row = 3
+  val Rows = 4
 }
 
 case class CgraLinkParams(auto: AutoLinkParams, cgra: CGRAParams, packetCapacity: Int, endpoint: String = "cgra") {
@@ -28,6 +30,7 @@ case class CgraLinkParams(auto: AutoLinkParams, cgra: CGRAParams, packetCapacity
   val packetIndexWidth: Int = math.max(1, log2Ceil(packetCapacity))
   val packetAddressWidth: Int = math.max(1, log2Ceil(jobCount * packetCapacity))
   val jobIndexWidth: Int = math.max(1, log2Ceil(jobCount))
+  val nextJobWidth: Int = log2Ceil(jobCount + 1)
   val wordBytes: Int = cgra.dataPayloadWidth / 8
 }
 
@@ -54,6 +57,7 @@ class CgraLinkConfig(params: CgraLinkParams) extends Bundle {
   val patchCount = UInt(params.packetCountWidth.W)
   val rearmCount = UInt(params.packetCountWidth.W)
   val setupCount = UInt(params.packetCountWidth.W)
+  val nextJob = UInt(params.nextJobWidth.W)
 }
 
 class CgraPatch extends Bundle {
@@ -114,7 +118,7 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
     val idle :: issueDma :: waitDma :: reportCopy :: Nil = Enum(4)
   }
   object ExecState {
-    val idle :: readPacket :: loadPacket :: sendPacket :: waitCompute :: reportCompute :: Nil = Enum(6)
+    val idle :: startPhase :: readPacket :: loadPacket :: sendPacket :: waitCompute :: reportCompute :: Nil = Enum(7)
   }
 
   val configState = RegInit(ConfigState.idle)
@@ -133,6 +137,7 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   val jobExpectedCompletions = Reg(Vec(params.jobCount, UInt(params.packetCountWidth.W)))
   val jobRearmCount = Reg(Vec(params.jobCount, UInt(params.packetCountWidth.W)))
   val jobSetupCount = Reg(Vec(params.jobCount, UInt(params.packetCountWidth.W)))
+  val jobNext = Reg(Vec(params.jobCount, UInt(params.nextJobWidth.W)))
   val setupJob = Reg(UInt(params.jobIndexWidth.W))
   val setupValid = RegInit(false.B)
   val skipSetup = Reg(Bool())
@@ -150,14 +155,17 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   val publicationData = RegInit(0.U(params.auto.resultWidth.W))
   val publicationJob = RegInit(0.U(params.auto.jobWidth.W))
   val computeJob = RegInit(0.U(params.auto.jobWidth.W))
+  val phaseJob = Reg(UInt(params.jobIndexWidth.W))
   val computeElements = Reg(UInt(params.auto.lengthWidth.W))
   val tileId = Reg(UInt((2 * params.auto.lengthWidth).W))
+  val row = Reg(UInt(params.auto.lengthWidth.W))
+  val rows = Reg(UInt(params.auto.lengthWidth.W))
   val slot = RegInit(0.U(params.auto.slotWidth.W))
 
   val captureAddress = (config.job * params.packetCapacity.U + configIndex)(
     params.packetAddressWidth - 1,
     0)
-  val replayAddress = (computeJob * params.packetCapacity.U + replayIndex)(
+  val replayAddress = (phaseJob * params.packetCapacity.U + replayIndex)(
     params.packetAddressWidth - 1,
     0)
   val packetRead = packets.read(replayAddress, execState === ExecState.readPacket)
@@ -259,6 +267,7 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
       selected(jobExpectedCompletions, config.job) := config.expectedCompletions
       selected(jobRearmCount, config.job) := config.rearmCount
       selected(jobSetupCount, config.job) := config.setupCount
+      selected(jobNext, config.job) := config.nextJob
       configDone := true.B
       configState := ConfigState.reportConfig
     }.otherwise {
@@ -292,39 +301,55 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
     copyState := CopyState.idle
   }
 
+  def startPhase(job: UInt): Unit = {
+    val rearmCount = selected(jobRearmCount, job)
+    val reuseSetup = io.hasRun && setupValid && setupJob === job && !io.nativeConfig
+    replayIndex := Mux(!io.hasRun, rearmCount,
+      Mux(reuseSetup && rearmCount === 0.U, selected(jobSetupCount, job), 0.U))
+    skipSetup := reuseSetup
+    setupJob := job
+    setupValid := true.B
+    expectedCompletions := selected(jobExpectedCompletions, job)
+    completed := 0.U
+    resultData := 0.U
+    execState := ExecState.readPacket
+  }
+
   def finishCompute(data: UInt): Unit = {
     resultData := data
-    when(publicationArmed) {
-      publicationData := data
-      publicationArmed := false.B
-      publicationValid := true.B
+    val nextJob = selected(jobNext, phaseJob)
+    when(nextJob =/= 0.U) {
+      phaseJob := nextJob - 1.U
+      execState := ExecState.startPhase
+    }.otherwise {
+      when(publicationArmed) {
+        publicationData := data
+        publicationArmed := false.B
+        publicationValid := true.B
+      }
+      execState := ExecState.reportCompute
     }
-    execState := ExecState.reportCompute
   }
 
   when(io.autoLink.requestCompute.fire) {
     computeJob := io.autoLink.requestCompute.bits.job
     tileId := io.autoLink.requestCompute.bits.tile.id
+    row := io.autoLink.requestCompute.bits.tile.row
+    rows := io.autoLink.requestCompute.bits.tile.rows
     slot := io.autoLink.requestCompute.bits.slot
     when(io.autoLink.requestCompute.bits.start) {
       val job = io.autoLink.requestCompute.bits.job
-      val rearmCount = selected(jobRearmCount, job)
-      val reuseSetup = io.hasRun && setupValid && setupJob === job && !io.nativeConfig
       // A following copy may update this job while its current packets replay.
       computeElements := selected(elements, job)
-      replayIndex := Mux(!io.hasRun, rearmCount,
-        Mux(reuseSetup && rearmCount === 0.U, selected(jobSetupCount, job), 0.U))
-      skipSetup := reuseSetup
-      setupJob := job
-      setupValid := true.B
-      expectedCompletions := selected(jobExpectedCompletions, job)
-      completed := 0.U
-      resultData := 0.U
-      execState := ExecState.readPacket
+      phaseJob := job
+      startPhase(job)
     }.otherwise {
       publicationArmed := false.B
       publicationValid := false.B
     }
+  }
+  when(execState === ExecState.startPhase) {
+    startPhase(phaseJob)
   }
   when(execState === ExecState.readPacket) {
     execState := ExecState.loadPacket
@@ -332,17 +357,19 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
   when(execState === ExecState.loadPacket) {
     val value = MuxLookup(patchRead.source, slot)(Seq(
       CgraSymbolSource.Elements.U -> computeElements,
-      CgraSymbolSource.TileId.U -> tileId))
+      CgraSymbolSource.TileId.U -> tileId,
+      CgraSymbolSource.Row.U -> row,
+      CgraSymbolSource.Rows.U -> rows))
     val payload = Wire(UInt(params.cgra.dataPayloadWidth.W))
     payload := value * patchRead.coefficient + patchRead.bias
     val lsb = params.cgra.packetLayout.dataPayloadLsb
     val mask = (((BigInt(1) << params.cgra.dataPayloadWidth) - 1) << lsb).U(params.cgra.intraPktWidth.W)
-    replayPacket := Mux(selected(patchValid, computeJob)(replayIndex(params.packetIndexWidth - 1, 0)),
+    replayPacket := Mux(selected(patchValid, phaseJob)(replayIndex(params.packetIndexWidth - 1, 0)),
       (packetRead & ~mask) | (payload << lsb), packetRead)
     execState := ExecState.sendPacket
   }
   when(execState === ExecState.sendPacket && io.jobPacket.fire) {
-    when(replayIndex + 1.U === selected(jobPacketCount, computeJob)) {
+    when(replayIndex + 1.U === selected(jobPacketCount, phaseJob)) {
       when(completedNext === expectedCompletions) {
         finishCompute(finalResultData)
       }.otherwise {
@@ -350,8 +377,8 @@ class CgraLinkAdapter(params: CgraLinkParams) extends Module {
       }
     }.otherwise {
       val next = replayIndex + 1.U
-      replayIndex := Mux(skipSetup && next === selected(jobRearmCount, computeJob),
-        next + selected(jobSetupCount, computeJob), next)
+      replayIndex := Mux(skipSetup && next === selected(jobRearmCount, phaseJob),
+        next + selected(jobSetupCount, phaseJob), next)
       execState := ExecState.readPacket
     }
   }

@@ -47,6 +47,7 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       val patchCount = RegInit(0.U(32.W))
       val rearmCount = RegInit(0.U(32.W))
       val setupCount = RegInit(0.U(32.W))
+      val nextJob = RegInit(0.U(32.W))
       val patch = RegInit(0.U.asTypeOf(new CgraPatchConfig))
       val patchPush = Wire(Decoupled(UInt(1.W)))
       val configSubmit = Wire(Decoupled(UInt(1.W)))
@@ -60,6 +61,7 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       configOut.bits.patchCount := patchCount
       configOut.bits.rearmCount := rearmCount
       configOut.bits.setupCount := setupCount
+      configOut.bits.nextJob := nextJob
       configSubmit.ready := Mux(configSubmit.bits.asBool, configOut.ready && !configPending, true.B)
       configAck.ready := true.B
       patchOut.valid := patchPush.valid && patchPush.bits.asBool
@@ -120,7 +122,8 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
         PATCH_BIAS -> Seq(RegField(32, patch.bias)),
         PATCH_PUSH -> Seq(RegField.w(1, patchPush)),
         REARM_COUNT -> Seq(RegField(32, rearmCount)),
-        SETUP_COUNT -> Seq(RegField(32, setupCount)))
+        SETUP_COUNT -> Seq(RegField(32, setupCount)),
+        NEXT_JOB -> Seq(RegField(32, nextJob)))
     }
   }
 }

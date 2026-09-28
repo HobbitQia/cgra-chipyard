@@ -63,13 +63,14 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.configAck.ready.poke(false.B)
   }
 
-  private def begin(dut: CgraLinkAdapter, packetCount: Int, patchCount: Int, job: Int, rearmCount: Int, setupCount: Int): Unit = {
+  private def begin(dut: CgraLinkAdapter, packetCount: Int, patchCount: Int, job: Int, rearmCount: Int, setupCount: Int, nextJob: Int, completions: Int): Unit = {
     dut.io.configIn.bits.job.poke(job.U)
     dut.io.configIn.bits.packetCount.poke(packetCount.U)
-    dut.io.configIn.bits.expectedCompletions.poke(1.U)
+    dut.io.configIn.bits.expectedCompletions.poke(completions.U)
     dut.io.configIn.bits.patchCount.poke(patchCount.U)
     dut.io.configIn.bits.rearmCount.poke(rearmCount.U)
     dut.io.configIn.bits.setupCount.poke(setupCount.U)
+    dut.io.configIn.bits.nextJob.poke(nextJob.U)
     dut.io.configIn.valid.poke(true.B)
     dut.io.configIn.ready.expect(true.B)
     dut.clock.step()
@@ -84,8 +85,10 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     packets: Seq[BigInt] = template,
     job: Int = 0,
     rearmCount: Int = 2,
-    setupCount: Int = 1): Unit = {
-    begin(dut, packets.size, patches.size, job, rearmCount, setupCount)
+    setupCount: Int = 1,
+    nextJob: Int = 0,
+    completions: Int = 1): Unit = {
+    begin(dut, packets.size, patches.size, job, rearmCount, setupCount, nextJob, completions)
     ack(dut, done = false)
     for ((index, source, coefficient, bias) <- patches) {
       dut.io.packetIn.ready.expect(false.B)
@@ -151,7 +154,7 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.autoLink.requestCompute.valid.poke(false.B)
   }
 
-  private def packets(dut: CgraLinkAdapter, expected: Seq[BigInt]): Unit = {
+  private def packets(dut: CgraLinkAdapter, expected: Seq[BigInt], complete: Boolean = true): Unit = {
     for (value <- expected) {
       var cycles = 0
       while (!dut.io.jobPacket.valid.peek().litToBoolean && cycles < 8) {
@@ -171,6 +174,10 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
         dut.io.hasRun.poke(true.B)
       }
     }
+    if (complete) completion(dut)
+  }
+
+  private def completion(dut: CgraLinkAdapter): Unit = {
     dut.io.computeResult.bits.poke(7.U)
     dut.io.computeResult.valid.poke(true.B)
     dut.io.computeResult.ready.expect(true.B)
@@ -200,6 +207,84 @@ class CgraTemplateSpec extends AnyFlatSpec with ChiselScalatestTester {
   }
 
   behavior of "Cgra cached templates"
+
+  it should "run ordered phases with completion barriers and retain the outer tile through overlapping copies" in {
+    val multiJob = auto.copy(
+      stages = auto.stages :+ AutoStageSpec("next", "cgra", 1) :+ AutoStageSpec("last", "cgra", 2),
+      dependencies = auto.dependencies :+ AutoDependencySpec(Some(0), 2, None) :+ AutoDependencySpec(Some(0), 3, None))
+    test(new CgraLinkAdapter(params.copy(auto = multiJob))) { dut =>
+      init(dut)
+      val phases = (0 until 3).map { job =>
+        Seq(
+          packet(CGRACmdGenerated.CMD_REARM, job),
+          packet(CGRACmdGenerated.CMD_CONFIG_CTRL_LOWER_BOUND, job * 8),
+          packet(CGRACmdGenerated.CMD_CONST, 11),
+          packet(CGRACmdGenerated.CMD_CONST, 12),
+          packet(CGRACmdGenerated.CMD_CONST, 13),
+          packet(CGRACmdGenerated.CMD_CONST, 14),
+          packet(CGRACmdGenerated.CMD_LAUNCH, job))
+      }
+      val updates = Seq(
+        (2, CgraSymbolSource.Slot, 32, 4),
+        (3, CgraSymbolSource.Elements, 1, 0),
+        (4, CgraSymbolSource.Row, 1, 0),
+        (5, CgraSymbolSource.Rows, 5, 2))
+      capture(dut, updates, phases(0), rearmCount = 1, nextJob = 3, completions = 2)
+      capture(dut, updates, phases(2), job = 2, rearmCount = 1, nextJob = 2)
+      capture(dut, updates, phases(1), job = 1, rearmCount = 1)
+      copy(dut, 19, slot = 2)
+      dut.io.autoLink.watchOutput.bits.job.poke(0.U)
+      dut.io.autoLink.watchOutput.valid.poke(true.B)
+      dut.io.autoLink.reportOutput.ready.poke(false.B)
+      dut.clock.step()
+      dut.io.autoLink.watchOutput.valid.poke(false.B)
+      start(dut, id = 9, slot = 2, job = 0)
+      copy(dut, 3, slot = 1)
+      dut.io.autoLink.requestCompute.bits.tile.row.poke(99.U)
+      dut.io.autoLink.requestCompute.bits.tile.rows.poke(99.U)
+      dut.io.autoLink.requestCompute.bits.slot.poke(0.U)
+
+      def expected(job: Int, count: Int = 19, slot: Int = 2): Seq[BigInt] = {
+        val values = Map(2 -> (slot * 32 + 4), 3 -> count, 4 -> 1, 5 -> 12)
+        phases(job).zipWithIndex.map { case (value, index) =>
+          values.get(index).map(payload => (value & ~payloadMask) | (BigInt(payload) << payloadLsb)).getOrElse(value)
+        }
+      }
+      def barrier(): Unit = {
+        for (_ <- 0 until 4) {
+          dut.io.jobPacket.valid.expect(false.B)
+          dut.io.autoLink.reportCompute.valid.expect(false.B)
+          dut.io.autoLink.reportOutput.valid.expect(false.B)
+          dut.io.autoLink.requestCompute.ready.expect(false.B)
+          dut.clock.step()
+        }
+      }
+      packets(dut, expected(0).drop(1), complete = false)
+      barrier()
+      completion(dut)
+      barrier()
+      completion(dut)
+      packets(dut, expected(2), complete = false)
+      barrier()
+      completion(dut)
+      packets(dut, expected(1), complete = false)
+      barrier()
+      completion(dut)
+      dut.io.autoLink.reportOutput.valid.expect(true.B)
+      dut.io.autoLink.reportOutput.bits.job.expect(0.U)
+      report(dut, job = 0)
+      dut.io.autoLink.reportOutput.valid.expect(true.B)
+      dut.io.autoLink.reportOutput.ready.poke(true.B)
+      dut.clock.step()
+      // The last executed phase owns retained setup; a standalone repeat skips it.
+      val repeated = expected(1, count = 0, slot = 1)
+      compute(dut, 10, repeated.take(1) ++ repeated.drop(2), slot = 1, job = 1)
+      // Recapturing the outer job as a single phase clears its previous next link.
+      capture(dut, updates, phases(0), rearmCount = 1)
+      copy(dut, 3, slot = 1)
+      compute(dut, 11, expected(0, count = 3, slot = 1), slot = 1)
+    }
+  }
 
   it should "copy the next tile during replay without changing the active element count" in {
     test(new CgraLinkAdapter(params)) { dut =>
