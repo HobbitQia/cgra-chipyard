@@ -17,6 +17,7 @@ class AutoTileSpec extends AnyFlatSpec with ChiselScalatestTester {
   private def tile(dut: AutoTileCursor, id: Int, row: Int, column: Int, rows: Int, columns: Int, last: Boolean): Unit = {
     dut.io.out.valid.expect(true.B)
     dut.io.out.bits.id.expect(id.U)
+    dut.io.out.bits.iteration.expect(0.U)
     dut.io.out.bits.row.expect(row.U)
     dut.io.out.bits.column.expect(column.U)
     dut.io.out.bits.rows.expect(rows.U)

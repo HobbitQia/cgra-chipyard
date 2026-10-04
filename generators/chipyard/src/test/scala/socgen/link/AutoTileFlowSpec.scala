@@ -60,6 +60,7 @@ class AutoTileFlowSpec extends AnyFlatSpec with ChiselScalatestTester {
       for (id <- 0 until 2) {
         val tileId = (BigInt(1) << params.lengthWidth) + id
         input.bits.tile.id.poke(tileId.U)
+        input.bits.tile.iteration.poke((19 + id).U)
         input.bits.tile.row.poke((id * 2).U)
         input.bits.tile.column.poke(0.U)
         input.bits.tile.rows.poke((2 - id).U)
@@ -69,10 +70,13 @@ class AutoTileFlowSpec extends AnyFlatSpec with ChiselScalatestTester {
         input.ready.expect(true.B)
         dut.clock.step()
         input.valid.poke(false.B)
+        input.bits.tile.iteration.poke(0.U)
         dut.clock.step(2)
         for (_ <- 0 until 3) {
           dut.io.requestCopy.valid.expect(true.B)
           dut.io.requestCopy.bits.tile.id.expect(tileId.U)
+          dut.io.requestCopy.bits.tile.iteration.expect((19 + id).U)
+          dut.io.requestCopy.bits.sourceTile.iteration.expect((19 + id).U)
           dut.io.workingTile.expect(tileId.U)
           dut.io.requestCopy.bits.tile.rows.expect((2 - id).U)
           dut.clock.step()
@@ -90,6 +94,7 @@ class AutoTileFlowSpec extends AnyFlatSpec with ChiselScalatestTester {
         for (_ <- 0 until 3) {
           dut.io.requestCompute.valid.expect(true.B)
           dut.io.requestCompute.bits.tile.id.expect(tileId.U)
+          dut.io.requestCompute.bits.tile.iteration.expect((19 + id).U)
           dut.io.workingTile.expect(tileId.U)
           dut.io.requestCompute.bits.tile.row.expect((id * 2).U)
           dut.io.requestCompute.bits.tile.columns.expect(3.U)
@@ -187,6 +192,7 @@ class AutoTileFlowSpec extends AnyFlatSpec with ChiselScalatestTester {
         dut.io.slot.poke(id.U)
         input.bits.slot.poke(id.U)
         input.bits.tile.id.poke(id.U)
+        input.bits.tile.iteration.poke(0.U)
         input.bits.tile.row.poke(id.U)
         input.bits.tile.column.poke(0.U)
         input.bits.tile.rows.poke((2 - id).U)

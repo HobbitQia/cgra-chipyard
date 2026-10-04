@@ -12,6 +12,7 @@ class AutoTilePlan(width: Int = 32) extends Bundle {
 
 class AutoTile(width: Int = 32) extends Bundle {
   val id = UInt((2 * width).W)
+  val iteration = UInt(32.W)
   val row = UInt(width.W)
   val column = UInt(width.W)
   val rows = UInt(width.W)
@@ -64,6 +65,7 @@ class AutoRegion(width: Int) extends Bundle {
 }
 
 class AutoRun(params: AutoLinkParams) extends Bundle {
+  val iteration = UInt(32.W)
   val plan = new AutoTilePlan(params.lengthWidth)
   val transfers = Vec(params.dependencyCount, new AutoTransfer(params))
   val regions = Vec(params.stageCount, new AutoRegion(params.lengthWidth))
@@ -176,6 +178,7 @@ class AutoTileCursor(width: Int = 32) extends Module {
   io.start.ready := !active
   io.out.valid := active
   io.out.bits.id := id
+  io.out.bits.iteration := 0.U
   io.out.bits.row := row
   io.out.bits.column := column
   io.out.bits.rows := rows

@@ -35,9 +35,11 @@ object MultiAccelRocketConfig {
       has_loop_conv = true,
       sp_capacity = CapacityInKilobytes(spec.spmBytes / 1024),
       tl_ext_mem_base = spec.spmBase)
+    val cache = AccelGenerated.gemminis(spec.name)
     val link = GemminiLinkParams(
       auto = AutoLinkGenerated.params,
-      commandCapacity = 16,
+      commandCapacity = cache.commandCapacity,
+      patchCapacity = cache.patchCapacity,
       endpoint = spec.name)
     val attach = GemminiLinkAttachParams(link, spec.name, spec.controlAddress)
     implicit val q: Parameters = p.alterPartial {

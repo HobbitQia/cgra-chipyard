@@ -23,8 +23,9 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
   private val params = GemminiLinkParams(auto, commandCapacity = 16)
   private case class Command(funct: Int, rs1: BigInt, rs2: BigInt)
   private case class Patch(command: Int, operand: Boolean, lsb: Int, width: Int,
-      source: Int, scale: Int = 1, offset: Int = 0)
-  private case class Tile(id: Int, row: Int, column: Int, rows: Int, columns: Int)
+      source: Int, scale: Int = 1, offset: Int = 0, source2: Int = 0,
+      scale2: Int = 0, relative: Boolean = false)
+  private case class Tile(id: Int, row: Int, column: Int, rows: Int, columns: Int, iteration: Int = 0)
   private case class Window(rows: Int = 3, columns: Int = 5, rowStep: Int = 1,
       columnStep: Int = 1, top: Int = 1, bottom: Int = 1, left: Int = 1, right: Int = 1,
       address: BigInt = 0x40000, pixelBytes: Int = 3)
@@ -71,6 +72,7 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
     port.column.poke(tile.column.U)
     port.rows.poke(tile.rows.U)
     port.columns.poke(tile.columns.U)
+    port.iteration.poke(tile.iteration.U)
     port.last.poke(false.B)
   }
 
@@ -94,6 +96,9 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
     port.bitCount.poke(patch.width.U)
     port.source.poke(patch.source.U)
     port.scale.poke(patch.scale.U)
+    port.source2.poke(patch.source2.U)
+    port.scale2.poke(patch.scale2.U)
+    port.relative.poke(patch.relative.B)
     port.offset.poke((BigInt(patch.offset) & ((BigInt(1) << 32) - 1)).U)
   }
 
@@ -158,22 +163,26 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
     dut.io.watch.bytes.poke((tile.rows * tile.columns * 8).U)
   }
 
-  private def start(dut: GemminiPatch): Unit = {
+  private def start(dut: GemminiPatch, originals: Seq[Command] = commands): Int = {
     dut.io.ready.expect(true.B)
     dut.io.start.poke(true.B)
     dut.clock.step()
     dut.io.start.poke(false.B)
     var cycles = 0
-    while (!dut.io.ready.peek().litToBoolean && cycles < params.patchCapacity + 1) {
+    while (!dut.io.ready.peek().litToBoolean && cycles < 2 * params.patchCapacity + 1) {
+      pokeCommand(dut.io.command, originals(dut.io.readIndex.peek().litValue.toInt))
       dut.clock.step()
       cycles += 1
     }
     dut.io.ready.expect(true.B)
+    cycles
   }
 
-  private def check(dut: GemminiPatch, index: Int, rs1: BigInt, rs2: BigInt): Unit = {
-    val command = commands(index)
+  private def check(dut: GemminiPatch, index: Int, rs1: BigInt, rs2: BigInt,
+      originals: Seq[Command] = commands): Unit = {
+    val command = originals(index)
     dut.io.index.poke(index.U)
+    dut.io.readIndex.expect(index.U)
     pokeCommand(dut.io.command, command)
     dut.io.patched.inst.funct.expect(command.funct.U)
     dut.io.patched.inst.opcode.expect(0x7b.U)
@@ -207,6 +216,37 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   behavior of "Gemmini field patches"
 
+  it should "add iteration and tile offsets to original fields without accumulating updates" in {
+    test(new GemminiPatch(params)) { dut =>
+      init(dut)
+      val pointer = BigInt("12fffffff0", 16)
+      val packed = BigInt("1122334455fff088", 16)
+      val originals = commands.updated(6, commands(6).copy(rs2 = pointer))
+        .updated(9, commands(9).copy(rs1 = packed))
+      val entries = Seq(
+        Patch(6, true, 0, 64, GemminiValue.Iteration, scale = 32, offset = -3,
+          source2 = GemminiValue.TileId, scale2 = 64, relative = true),
+        Patch(9, false, 8, 12, GemminiValue.Iteration, scale = 128, offset = -2,
+          source2 = GemminiValue.TileId, scale2 = 5, relative = true))
+      capture(dut, entries = entries)
+      for (iteration <- Seq(0, 2, 1, 0)) {
+        request(dut, Tile(3, 0, 0, 1, 1, iteration))
+        assert(start(dut, originals) == 4)
+        request(dut, Tile(99, 99, 99, 1, 1, 99))
+        val address = pointer + iteration * 32 + 3 * 64 - 3
+        val mask = BigInt(0xfff) << 8
+        val field = (((packed >> 8) & 0xfff) + iteration * 128 + 3 * 5 - 2) & 0xfff
+        val updated = (packed & ~mask) | (field << 8)
+        for (_ <- 0 until 3) {
+          check(dut, 6, originals(6).rs1, address, originals)
+          check(dut, 9, updated, originals(9).rs2, originals)
+          check(dut, 0, originals.head.rs1, originals.head.rs2, originals)
+          dut.clock.step()
+        }
+      }
+    }
+  }
+
   it should "bind rectangular tiles without changing unrelated native fields" in {
     test(new GemminiPatch(params)) { dut =>
       init(dut)
@@ -216,7 +256,7 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
         (Tile(8, 0, 2, 2, 2), 1, 1, 0, 0, 0, 0x40003, 0x1ffe0),
         (Tile(11, 2, 4, 1, 1), 0, 0, 0, 1, 1, 0x40018, 0x1ffc0))) {
         request(dut, tile, slot, output)
-        start(dut)
+        assert(start(dut) == patches.size)
         // Changing the next request must not change a stalled command's binding.
         request(dut, Tile(99, 99, 99, 1, 1), 1)
         val expected = commands.updated(2, commands(2).copy(
@@ -324,6 +364,8 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   it should "capture patch metadata before commands and hold replay under native backpressure" in {
     test(new GemminiLinkAdapter(params)) { dut =>
+      val entries = patches.updated(patches.size - 1, patches.last.copy(
+        source2 = GemminiValue.Iteration, scale2 = 128, relative = true))
       dut.io.configIn.valid.poke(false.B)
       dut.io.configAck.ready.poke(false.B)
       dut.io.patchIn.valid.poke(false.B)
@@ -339,7 +381,7 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.autoLink.reportCopy.ready.poke(true.B)
       dut.io.autoLink.requestCompute.valid.poke(false.B)
       dut.io.autoLink.reportCompute.ready.poke(false.B)
-      pokeConfig(dut.io.configIn.bits, Window(), patches)
+      pokeConfig(dut.io.configIn.bits, Window(), entries)
       dut.io.configIn.valid.poke(true.B)
       dut.io.configIn.ready.expect(true.B)
       dut.clock.step()
@@ -349,7 +391,7 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.configAck.ready.poke(true.B)
       dut.clock.step()
       dut.io.configAck.ready.poke(false.B)
-      for (entry <- patches) {
+      for (entry <- entries) {
         dut.io.cpuCommand.ready.expect(false.B)
         dut.io.patchIn.ready.expect(true.B)
         pokePatch(dut.io.patchIn.bits, entry)
@@ -374,7 +416,7 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.clock.step()
       dut.io.configAck.ready.poke(false.B)
 
-      val tile = Tile(3, 0, 2, 2, 2)
+      val tile = Tile(3, 0, 2, 2, 2, iteration = 5)
       val watch = dut.io.autoLink.watchOutput
       watch.bits.job.poke(0.U)
       watch.bits.slot.poke(0.U)
@@ -421,6 +463,7 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
         val rs2 = dut.io.command.bits.rs2.peek().litValue
         if (index == 6) dut.io.command.bits.rs2.expect(0x1ffc0.U)
         if (index == 7) dut.io.command.bits.rs2.expect(0x40003.U)
+        if (index == 9) dut.io.command.bits.rs2.expect((command.rs2 | (tile.id * 3 - 2 + tile.iteration * 128)).U)
         dut.clock.step(3)
         dut.io.command.valid.expect(true.B)
         dut.io.command.bits.rs1.expect(rs1.U)

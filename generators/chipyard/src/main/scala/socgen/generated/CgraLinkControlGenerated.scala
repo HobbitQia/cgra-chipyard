@@ -60,6 +60,9 @@ object CgraLinkControlGenerated {
   val GEMMINI_PATCH_SCALE: Int = 0x0c8
   val GEMMINI_PATCH_OFFSET: Int = 0x0d0
   val GEMMINI_PATCH_PUSH: Int = 0x0d8
+  val GEMMINI_PATCH_SOURCE2: Int = 0x0e0
+  val GEMMINI_PATCH_SCALE2: Int = 0x0e8
+  val GEMMINI_PATCH_RELATIVE: Int = 0x0f0
   val GEMMINI_VALUE_ROWS: Int = 0
   val GEMMINI_VALUE_COLUMNS: Int = 1
   val GEMMINI_VALUE_INPUT_ROWS: Int = 2
@@ -73,7 +76,8 @@ object CgraLinkControlGenerated {
   val GEMMINI_VALUE_RIGHT: Int = 10
   val GEMMINI_VALUE_SLOT: Int = 11
   val GEMMINI_VALUE_TILE_ID: Int = 12
-  val GEMMINI_VALUE_COUNT: Int = 13
+  val GEMMINI_VALUE_ITERATION: Int = 13
+  val GEMMINI_VALUE_COUNT: Int = 14
   val AES_SOURCE: Int = 0x000
   val AES_BYTES: Int = 0x008
   val AES_DESTINATION: Int = 0x010
@@ -116,6 +120,8 @@ object CgraLinkControlGenerated {
   val AUTO_LINK_EDGE_SOURCE_BASE: Int = 0x0c8
   val AUTO_LINK_OUTPUT_FLAGS: Int = 0x0d0
   val AUTO_LINK_OUTPUT_PIXEL_BYTES: Int = 0x0d4
+  val AUTO_LINK_REPEAT_FIRST: Int = 0x0d8
+  val AUTO_LINK_REPEAT_COUNT: Int = 0x0e0
   val AUTO_LINK_OUTPUT_ADDRESS: Int = 0x0e8
   val AUTO_LINK_OUTPUT_STRIDE: Int = 0x0f0
   val AUTO_LINK_OUTPUT_BYTES: Int = 0x0f8

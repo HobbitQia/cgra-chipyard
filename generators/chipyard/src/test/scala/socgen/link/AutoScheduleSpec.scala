@@ -36,6 +36,7 @@ class AutoScheduleSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   private def tile(port: AutoTile, id: Int, last: Boolean): Unit = {
     port.id.poke(id.U)
+    port.iteration.poke(0.U)
     port.row.poke((id / 3 * 2).U)
     port.column.poke((id % 3 * 2).U)
     port.rows.poke(2.U)

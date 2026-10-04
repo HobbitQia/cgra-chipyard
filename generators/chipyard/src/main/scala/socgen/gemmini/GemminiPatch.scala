@@ -29,6 +29,7 @@ object GemminiValue {
   val Right = GEMMINI_VALUE_RIGHT
   val Slot = GEMMINI_VALUE_SLOT
   val TileId = GEMMINI_VALUE_TILE_ID
+  val Iteration = GEMMINI_VALUE_ITERATION
   val Count = GEMMINI_VALUE_COUNT
 }
 
@@ -39,6 +40,9 @@ class GemminiPatchEntry extends Bundle {
   val bitCount = UInt(7.W)
   val source = UInt(4.W)
   val scale = UInt(32.W)
+  val source2 = UInt(4.W)
+  val scale2 = UInt(32.W)
+  val relative = Bool()
   val offset = UInt(32.W)
 }
 
@@ -55,6 +59,7 @@ class GemminiPatch(params: GemminiLinkParams)(implicit p: Parameters) extends Mo
     val ready = Output(Bool())
     val job = Input(UInt(params.auto.jobWidth.W))
     val index = Input(UInt(params.commandCountWidth.W))
+    val readIndex = Output(UInt(params.commandCountWidth.W))
     val command = Input(new RoCCCommand)
     val patched = Output(new RoCCCommand)
   })
@@ -114,6 +119,7 @@ class GemminiPatch(params: GemminiLinkParams)(implicit p: Parameters) extends Mo
   values(GemminiValue.Right) := Mux(endColumn > config.region.columns.zext, endColumn - config.region.columns.zext, 0.S).asUInt
   values(GemminiValue.Slot) := io.request.slot
   values(GemminiValue.TileId) := tile.id
+  values(GemminiValue.Iteration) := tile.iteration
   val enabled = selected(counts, io.request.job) =/= 0.U
 
   val bound = Reg(Vec(GemminiValue.Count, UInt(64.W)))
@@ -122,24 +128,40 @@ class GemminiPatch(params: GemminiLinkParams)(implicit p: Parameters) extends Mo
   val bindJob = Reg(UInt(params.jobIndexWidth.W))
   val bindIndex = RegInit(0.U(log2Ceil(params.patchCapacity).W))
   val preparing = RegInit(false.B)
+  val second = RegInit(false.B)
+  val partial = Reg(UInt(64.W))
+  val entry = selected(entries, bindJob)(bindIndex)
+  io.readIndex := Mux(preparing, entry.command, io.index)
   io.ready := !preparing
   when(io.start) {
     bound := values
     bindJob := io.request.job
     bindIndex := 0.U
     preparing := enabled
+    second := false.B
   }
   // Share one field evaluator; command replay only applies the prepared masks.
+  val source = Mux(second, entry.source2, entry.source)
+  val scale = Mux(second, entry.scale2, entry.scale)
+  val fieldMask = ((1.U(65.W) << entry.bitCount) - 1.U)(63, 0)
+  val operand = Mux(entry.operand, io.command.rs2, io.command.rs1)
+  val original = (operand >> entry.lsb) & fieldMask
+  val base = Mux(entry.relative, original, 0.U) + entry.offset.asSInt.pad(64).asUInt
+  val value = (bound(source) * scale)(63, 0) + Mux(second, partial, base)
   when(preparing) {
-    val entry = selected(entries, bindJob)(bindIndex)
-    val value = (bound(entry.source) * entry.scale)(63, 0) + entry.offset.asSInt.pad(64).asUInt
-    val mask = (((1.U(65.W) << entry.bitCount) - 1.U)(63, 0) << entry.lsb)(63, 0)
-    masks(bindIndex) := mask
-    payloads(bindIndex) := (value << entry.lsb) & mask
-    when(bindIndex +& 1.U === selected(counts, bindJob)) {
-      preparing := false.B
+    when(!second && entry.scale2 =/= 0.U) {
+      partial := value
+      second := true.B
     }.otherwise {
-      bindIndex := bindIndex + 1.U
+      val mask = (fieldMask << entry.lsb)(63, 0)
+      masks(bindIndex) := mask
+      payloads(bindIndex) := (value << entry.lsb) & mask
+      second := false.B
+      when(bindIndex +& 1.U === selected(counts, bindJob)) {
+        preparing := false.B
+      }.otherwise {
+        bindIndex := bindIndex + 1.U
+      }
     }
   }
   def patched(operand: Bool, original: UInt): UInt = {

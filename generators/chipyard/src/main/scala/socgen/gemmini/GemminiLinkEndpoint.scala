@@ -168,6 +168,9 @@ class GemminiLinkEndpoint(gemminiRoCC: GemminiRoCC, params: GemminiLinkParams, a
         GEMMINI_PATCH_WIDTH -> Seq(RegField(7, patch.bitCount)),
         GEMMINI_PATCH_SOURCE -> Seq(RegField(4, patch.source)),
         GEMMINI_PATCH_SCALE -> Seq(RegField(32, patch.scale)),
+        GEMMINI_PATCH_SOURCE2 -> Seq(RegField(4, patch.source2)),
+        GEMMINI_PATCH_SCALE2 -> Seq(RegField(32, patch.scale2)),
+        GEMMINI_PATCH_RELATIVE -> Seq(RegField(1, patch.relative)),
         GEMMINI_PATCH_OFFSET -> Seq(RegField(32, patch.offset)),
         GEMMINI_PATCH_PUSH -> Seq(RegField.w(1, patchPush)),
         GEMMINI_CONFIG_DONE -> Seq(RegField.r(1, configDone)))

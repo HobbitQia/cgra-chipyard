@@ -48,6 +48,7 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
         jobs(stage) := jobWrite.bits
       }
       val staging = Wire(new AutoRun(params))
+      staging.iteration := 0.U
       staging.plan.rows := rows
       staging.plan.columns := columns
       staging.plan.tileRows := tileRows
@@ -73,26 +74,41 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
         val start = Wire(Decoupled(UInt(1.W)))
         val first = RegInit(0.U(indexWidth.W))
         val count = RegInit(1.U(countWidth.W))
+        val repeatFirst = RegInit(0.U(indexWidth.W))
+        val repeatCount = RegInit(0.U(32.W))
         val index = Reg(UInt(indexWidth.W))
-        val remaining = Reg(UInt(countWidth.W))
+        val end = Reg(UInt(countWidth.W))
+        val iteration = RegInit(0.U(32.W))
         val idle :: fetch :: issue :: waitRun :: Nil = Enum(4)
         val phase = RegInit(idle)
-        val descriptions = SyncReadMem(params.runCapacity, new AutoRun(params))
-        val description = Reg(new AutoRun(params))
+        class Description extends Bundle {
+          val run = new AutoRun(params)
+          val repeatFirst = UInt(indexWidth.W)
+          val repeatCount = UInt(32.W)
+        }
+        val descriptions = SyncReadMem(params.runCapacity, new Description)
+        val description = Reg(new Description)
         sequenceBusy := phase =/= idle
         capture.ready := !running
         start.ready := !running && !capture.valid && !inputReady.valid
         val begin = start.fire && start.bits.asBool
-        val advance = phase === waitRun && state.done && !state.failed && remaining > 1.U
-        val next = index + 1.U
+        val repeat = description.repeatCount =/= 0.U && iteration < description.repeatCount - 1.U
+        val following = index +& 1.U
+        val advance = phase === waitRun && state.done && !state.failed && (repeat || following < end)
+        val next = Mux(repeat, description.repeatFirst, following)
         val selected = Mux(begin, first, next)
         val read = descriptions.read(selected, begin || advance)
+        val captured = Wire(new Description)
+        captured.run := staging
+        captured.repeatFirst := repeatFirst
+        captured.repeatCount := repeatCount
         when(capture.fire) {
-          descriptions.write(capture.bits, staging)
+          descriptions.write(capture.bits, captured)
         }
         when(begin) {
           index := first
-          remaining := count
+          end := first +& count
+          iteration := 0.U
           phase := fetch
         }
         when(phase === fetch) {
@@ -102,16 +118,19 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
         when(sequenceBusy) {
           inputReady.ready := false.B
           run.valid := phase === issue
-          run.bits := description
+          run.bits := description.run
+          run.bits.iteration := iteration
           when(run.fire) {
             phase := waitRun
           }
         }
         when(phase === waitRun && state.done) {
           phase := idle
+          when(description.repeatCount =/= 0.U) {
+            iteration := Mux(repeat, iteration + 1.U, 0.U)
+          }
           when(advance) {
             index := next
-            remaining := remaining - 1.U
             phase := fetch
           }
         }
@@ -119,7 +138,9 @@ class AutoLinkRoot(params: AutoLinkParams)(implicit p: Parameters)
           AUTO_LINK_RUN_CAPTURE -> Seq(RegField.w(indexWidth, capture)),
           AUTO_LINK_RUN_FIRST -> Seq(RegField(indexWidth, first)),
           AUTO_LINK_RUN_COUNT -> Seq(RegField(countWidth, count)),
-          AUTO_LINK_RUN_START -> Seq(RegField.w(1, start)))
+          AUTO_LINK_RUN_START -> Seq(RegField.w(1, start)),
+          AUTO_LINK_REPEAT_FIRST -> Seq(RegField(indexWidth, repeatFirst)),
+          AUTO_LINK_REPEAT_COUNT -> Seq(RegField(32, repeatCount)))
       } else Seq.empty
       val transferFields = transfers.zipWithIndex.flatMap { case (transfer, index) =>
         Seq(transfer.sourceOffset, transfer.destinationOffset, transfer.sourceStride,

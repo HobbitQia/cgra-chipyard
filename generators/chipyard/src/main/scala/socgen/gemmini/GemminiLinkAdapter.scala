@@ -13,6 +13,8 @@ object GemminiLinkStatus {
   val Corrupt = 5
 }
 
+case class GemminiCacheParams(commandCapacity: Int = 16, patchCapacity: Int = 32)
+
 case class GemminiLinkParams(auto: AutoLinkParams, commandCapacity: Int, patchCapacity: Int = 32, endpoint: String = "gemmini") {
   require(commandCapacity > 0)
   require(isPow2(patchCapacity) && patchCapacity > 1)
@@ -116,9 +118,6 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   val captureAddress = (config.job * params.commandCapacity.U + configIndex)(
     params.commandAddressWidth - 1,
     0)
-  val replayAddress = (computeJob * params.commandCapacity.U + commandIndex)(
-    params.commandAddressWidth - 1,
-    0)
   def selected[T <: Data](values: Vec[T], job: UInt): T = {
     if (params.jobCount == 1) values.head else values(job(params.jobIndexWidth - 1, 0))
   }
@@ -135,6 +134,9 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   binding.io.watch := watch
   binding.io.job := computeJob
   binding.io.index := commandIndex
+  val replayAddress = (computeJob * params.commandCapacity.U + binding.io.readIndex)(
+    params.commandAddressWidth - 1,
+    0)
   binding.io.command := commands(replayAddress)
 
   io.configIn.ready := configState === ConfigState.idle && execState === ExecState.idle

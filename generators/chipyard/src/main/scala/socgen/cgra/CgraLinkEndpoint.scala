@@ -84,7 +84,9 @@ class CgraLinkEndpoint(params: CgraLinkParams, resultNames: Seq[String], address
       val resultValid = WireDefault(false.B)
       resultPop.ready := true.B
       if (resultIn.nonEmpty) {
-        val results = Module(new Queue(new AutoEvent(params.auto), math.max(2, math.max(1, params.auto.runCapacity) * resultNames.size)))
+        val resultDepth = if (params.auto.resultCapacity > 0) params.auto.resultCapacity else
+          math.max(2, math.max(1, params.auto.runCapacity) * resultNames.size)
+        val results = Module(new Queue(new AutoEvent(params.auto), resultDepth))
         val resultArbiter = Module(new Arbiter(new AutoEvent(params.auto), resultIn.size))
         resultIn.zipWithIndex.foreach { case (input, index) =>
           resultArbiter.io.in(index) <> input

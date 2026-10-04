@@ -48,7 +48,8 @@ case class AutoLinkParams(
   resultWidth: Int = 32,
   runCapacity: Int = 0,
   stageCapacity: Int = 0,
-  dependencyCapacity: Int = 0) {
+  dependencyCapacity: Int = 0,
+  resultCapacity: Int = 0) {
   require(stages.nonEmpty)
   require(dependencies.nonEmpty)
   require(endpoints.map(_.name).distinct.size == endpoints.size)

@@ -70,6 +70,7 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   private def check(port: AutoTile, id: Int, expected: Tile): Unit = {
     port.id.expect(id.U)
+    port.iteration.expect(7.U)
     port.row.expect(expected.row.U)
     port.column.expect(expected.column.U)
     port.rows.expect(expected.rows.U)
@@ -166,6 +167,7 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
           event(dut.io.root.bits.event)
           dut.io.root.bits.slot.poke(0.U)
           dut.io.root.bits.tile.id.poke(id.U)
+          dut.io.root.bits.tile.iteration.poke(7.U)
           dut.io.root.bits.tile.row.poke(root.row.U)
           dut.io.root.bits.tile.column.poke(root.column.U)
           dut.io.root.bits.tile.rows.poke(root.rows.U)
@@ -279,6 +281,7 @@ class AutoBindingSpec extends AnyFlatSpec with ChiselScalatestTester {
       event(dut.io.root.bits.event)
       dut.io.root.bits.slot.poke(0.U)
       dut.io.root.bits.tile.id.poke(0.U)
+      dut.io.root.bits.tile.iteration.poke(0.U)
       dut.io.root.bits.tile.row.poke(0.U)
       dut.io.root.bits.tile.column.poke(0.U)
       dut.io.root.bits.tile.rows.poke(1.U)

@@ -622,6 +622,7 @@ class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters) extends Clo
       val jobs = RegInit(AutoTileBinding.jobs(params))
       val stages = RegInit(AutoTileBinding.stages(params))
       val edges = RegInit(AutoTileBinding.edges(params))
+      val iteration = RegInit(0.U(32.W))
       val cursor = Module(new AutoTileCursor(params.lengthWidth))
       val active = RegInit(false.B)
       val failed = RegInit(false.B)
@@ -640,6 +641,7 @@ class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters) extends Clo
         jobs := run.bits.jobs
         stages := run.bits.stages
         edges := run.bits.edges
+        iteration := run.bits.iteration
         active := true.B
         failed := false.B
         cycles := 0.U
@@ -667,6 +669,7 @@ class AutoLinkFabric(params: AutoLinkParams)(implicit p: Parameters) extends Clo
       scheduler.io.root.valid := cursor.io.out.valid
       scheduler.io.root.bits.event := 0.U.asTypeOf(new AutoEvent(params))
       scheduler.io.root.bits.tile := cursor.io.out.bits
+      scheduler.io.root.bits.tile.iteration := iteration
       scheduler.io.root.bits.slot := 0.U
       cursor.io.out.ready := scheduler.io.root.ready
       stateNode.out.head._1.running := active

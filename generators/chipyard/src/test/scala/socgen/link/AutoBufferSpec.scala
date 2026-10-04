@@ -15,6 +15,7 @@ class AutoBufferSpec extends AnyFlatSpec with ChiselScalatestTester {
 
   private def tile(port: AutoTile, id: Int, last: Boolean): Unit = {
     port.id.poke(id.U)
+    port.iteration.poke(0.U)
     port.row.poke(id.U)
     port.column.poke(0.U)
     port.rows.poke(1.U)
