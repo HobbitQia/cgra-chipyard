@@ -54,7 +54,7 @@ object MultiAccelRocketConfig {
     val auto = AutoLinkGenerated.params
     val results = if (AccelGenerated.instances.find(_.kind == "cgra").contains(spec)) auto.resultNames else Nil
     val attach = CgraLinkAttachParams(
-      CgraLinkParams(auto, CGRAGenerated.params, packetCapacity = 96, endpoint = spec.name),
+      CgraLinkParams(auto, CGRAGenerated.params, packetCapacity = AccelGenerated.cgraPackets(spec.name), endpoint = spec.name),
       spec.name, results, spec.controlAddress, CgraLinkControlGenerated.pageSizeBytes)
     implicit val q: Parameters = p.alterPartial {
       case CGRASpmWindowKey => Some(CGRASpmWindowGenerated.windows(spec.name))

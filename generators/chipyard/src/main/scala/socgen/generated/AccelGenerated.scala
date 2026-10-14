@@ -18,4 +18,6 @@ object AccelGenerated {
     "pool" -> PoolParams())
   val gemminis: Map[String, GemminiCacheParams] = Map(
     "gemmini" -> GemminiCacheParams())
+  val cgraPackets: Map[String, Int] = Map(
+    "cgra" -> 96)
 }
