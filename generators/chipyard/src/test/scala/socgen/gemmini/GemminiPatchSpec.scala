@@ -490,4 +490,162 @@ class GemminiPatchSpec extends AnyFlatSpec with ChiselScalatestTester {
       dut.io.autoLink.reportCompute.bits.status.expect(AutoLinkStatus.Success)
     }
   }
+
+  it should "retain full-depth command jobs across replay and shorter recapture" in {
+    val jobs = auto.copy(stages = Seq(
+      AutoStageSpec("conv", "gemmini", 0, jobs = 32), AutoStageSpec("relu", "cgra", 0)))
+    test(new GemminiLinkAdapter(params.copy(auto = jobs, commandCapacity = 64)))
+      .withAnnotations(Seq(VerilatorBackendAnnotation)) { dut =>
+      dut.clock.setTimeout(10000)
+      dut.io.configIn.valid.poke(false.B)
+      dut.io.configAck.ready.poke(true.B)
+      dut.io.patchIn.valid.poke(false.B)
+      dut.io.cpuCommand.valid.poke(false.B)
+      dut.io.command.ready.poke(false.B)
+      dut.io.nativeBusy.poke(false.B)
+      dut.io.publication.ready.poke(true.B)
+      dut.io.publicationReply.valid.poke(false.B)
+      dut.io.publicationReply.bits.detail.poke(0.U)
+      dut.io.autoLink.watchOutput.valid.poke(false.B)
+      dut.io.autoLink.reportOutput.ready.poke(true.B)
+      dut.io.autoLink.requestCopy.valid.poke(false.B)
+      dut.io.autoLink.reportCopy.ready.poke(true.B)
+      dut.io.autoLink.requestCompute.valid.poke(false.B)
+      dut.io.autoLink.reportCompute.ready.poke(false.B)
+
+      def sequence(seed: Int, count: Int): Seq[Command] = (0 until count).map { index =>
+        Command(index % 38, (BigInt(seed) << 48) | (BigInt(index) << 32) | (index + 1),
+          (BigInt(seed + 1) << 48) | (BigInt(count - index) << 32) | (index * 17))
+      }
+
+      def expectCommand(command: Command): Unit = {
+        dut.io.command.valid.expect(true.B)
+        dut.io.command.bits.inst.funct.expect(command.funct.U)
+        dut.io.command.bits.inst.opcode.expect(0x7b.U)
+        dut.io.command.bits.inst.rd.expect(9.U)
+        dut.io.command.bits.inst.rs1.expect(10.U)
+        dut.io.command.bits.inst.rs2.expect(11.U)
+        dut.io.command.bits.inst.xd.expect(false.B)
+        dut.io.command.bits.inst.xs1.expect(true.B)
+        dut.io.command.bits.inst.xs2.expect(true.B)
+        dut.io.command.bits.rs1.expect(command.rs1.U)
+        dut.io.command.bits.rs2.expect(command.rs2.U)
+      }
+
+      def native(command: Command): Unit = {
+        pokeCommand(dut.io.cpuCommand.bits, command)
+        dut.io.cpuCommand.valid.poke(true.B)
+        dut.io.cpuCommand.ready.expect(false.B)
+        expectCommand(command)
+        dut.clock.step(2)
+        expectCommand(command)
+        dut.io.command.ready.poke(true.B)
+        dut.io.cpuCommand.ready.expect(true.B)
+        dut.io.autoBusy.expect(false.B)
+        dut.clock.step()
+        dut.io.command.ready.poke(false.B)
+        dut.io.cpuCommand.valid.poke(false.B)
+        dut.io.command.valid.expect(false.B)
+      }
+
+      def captureJob(job: Int, stored: Seq[Command]): Unit = {
+        val entry = Patch(stored.size - 1, true, 0, 64, GemminiValue.Iteration,
+          scale = 256, relative = true)
+        pokeConfig(dut.io.configIn.bits, Window(), Seq(entry), job)
+        dut.io.configIn.bits.commandCount.poke(stored.size.U)
+        dut.io.configIn.valid.poke(true.B)
+        dut.io.configIn.ready.expect(true.B)
+        dut.clock.step()
+        dut.io.configIn.valid.poke(false.B)
+        dut.io.configAck.valid.expect(true.B)
+        dut.io.configAck.bits.done.expect(false.B)
+        dut.clock.step()
+        pokePatch(dut.io.patchIn.bits, entry)
+        dut.io.patchIn.valid.poke(true.B)
+        dut.io.patchIn.ready.expect(true.B)
+        dut.clock.step()
+        dut.io.patchIn.valid.poke(false.B)
+        dut.clock.step()
+        for (command <- stored) {
+          pokeCommand(dut.io.cpuCommand.bits, command)
+          dut.io.cpuCommand.valid.poke(true.B)
+          dut.io.cpuCommand.ready.expect(true.B)
+          dut.io.command.valid.expect(false.B)
+          dut.clock.step()
+        }
+        dut.io.cpuCommand.valid.poke(false.B)
+        dut.io.configAck.valid.expect(true.B)
+        dut.io.configAck.bits.done.expect(true.B)
+        dut.io.configAck.bits.status.expect(AutoLinkStatus.Success)
+        dut.clock.step()
+      }
+
+      def replayJob(job: Int, stored: Seq[Command], iteration: Int): Unit = {
+        val compute = dut.io.autoLink.requestCompute
+        compute.bits.job.poke(job.U)
+        compute.bits.slot.poke(0.U)
+        compute.bits.start.poke(true.B)
+        compute.bits.hasInput.poke(false.B)
+        pokeTile(compute.bits.tile, Tile(0, 0, 0, 1, 1, iteration))
+        compute.valid.poke(true.B)
+        compute.ready.expect(true.B)
+        dut.clock.step()
+        compute.valid.poke(false.B)
+        dut.io.nativeBusy.poke(true.B)
+        dut.io.publication.valid.expect(true.B)
+        dut.io.publication.bits.enable.expect(true.B)
+        dut.clock.step()
+        dut.io.publicationReply.ready.expect(true.B)
+        dut.io.publicationReply.valid.poke(true.B)
+        dut.clock.step()
+        dut.io.publicationReply.valid.poke(false.B)
+        pokeTile(compute.bits.tile, Tile(99, 9, 9, 1, 1, 99))
+        for ((command, index) <- stored.zipWithIndex) {
+          val expected = if (index == stored.size - 1)
+            command.copy(rs2 = command.rs2 + iteration * 256) else command
+          dut.io.cpuCommand.ready.expect(false.B)
+          expectCommand(expected)
+          dut.clock.step(2)
+          expectCommand(expected)
+          dut.io.command.ready.poke(true.B)
+          dut.clock.step()
+          dut.io.command.ready.poke(false.B)
+        }
+        dut.io.command.valid.expect(false.B)
+        dut.io.autoLink.reportCompute.valid.expect(false.B)
+        dut.io.nativeBusy.poke(false.B)
+        dut.clock.step()
+        dut.io.publication.valid.expect(true.B)
+        dut.io.publication.bits.enable.expect(false.B)
+        dut.clock.step()
+        dut.io.publicationReply.ready.expect(true.B)
+        dut.io.publicationReply.valid.poke(true.B)
+        dut.clock.step()
+        dut.io.publicationReply.valid.poke(false.B)
+        dut.io.autoLink.reportCompute.valid.expect(true.B)
+        dut.io.autoLink.reportCompute.bits.job.expect(job.U)
+        dut.io.autoLink.reportCompute.bits.status.expect(AutoLinkStatus.Success)
+        dut.io.autoLink.reportCompute.ready.poke(true.B)
+        dut.clock.step()
+        dut.io.autoLink.reportCompute.ready.poke(false.B)
+        dut.io.autoBusy.expect(false.B)
+      }
+
+      val first = sequence(1, 64)
+      val last = sequence(2, 64)
+      val replacement = sequence(3, 7)
+      native(Command(37, 0x12345, 0x67890))
+      captureJob(0, first)
+      captureJob(31, last)
+      for (iteration <- Seq(1, 3)) {
+        replayJob(31, last, iteration)
+        replayJob(0, first, iteration)
+      }
+      captureJob(31, replacement)
+      replayJob(31, replacement, 2)
+      replayJob(0, first, 0)
+      replayJob(31, replacement, 0)
+      native(Command(37, 0xabcde, 0xf0123))
+    }
+  }
 }

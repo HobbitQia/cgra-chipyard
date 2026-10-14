@@ -94,9 +94,9 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
   val configState = RegInit(ConfigState.idle)
   val execState = RegInit(ExecState.idle)
   val config = Reg(new GemminiLinkConfig(params))
-  val commands = Reg(Vec(
+  val commands = Mem(
     params.jobCount * params.commandCapacity,
-    new RoCCCommand))
+    new RoCCCommand)
   val jobCommandCount = Reg(Vec(
     params.jobCount,
     UInt(params.commandCountWidth.W)))
@@ -218,7 +218,7 @@ class GemminiLinkAdapter(params: GemminiLinkParams)(implicit p: Parameters) exte
     configState := ConfigState.collect
   }
   when(capture && io.cpuCommand.fire) {
-    commands(captureAddress) := io.cpuCommand.bits
+    commands.write(captureAddress, io.cpuCommand.bits)
     when(configIndex + 1.U === config.commandCount) {
       selected(jobCommandCount, config.job) := config.commandCount(params.commandCountWidth - 1, 0)
       configDone := true.B
