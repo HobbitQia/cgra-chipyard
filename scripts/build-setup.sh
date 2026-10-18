@@ -164,7 +164,7 @@ if run_step "1"; then
     fi
 
     # create conda-lock only environment to be used in this section.
-    # done with cloning base then installing conda lock to speed up dependency solving.
+    # Keep Python compatible with conda-lock 2.5.7's vendored dependencies.
     CONDA_LOCK_ENV_PATH=$CYDIR/.conda-lock-env
 
     # check if directories already exist
@@ -175,7 +175,7 @@ conda environment or \`source env.sh\` and skip this step with \`-s 1\`." >&2
     fi
     
     rm -rf $CONDA_LOCK_ENV_PATH &&
-    conda create -y -p $CONDA_LOCK_ENV_PATH -c conda-forge $(grep "conda-lock" $CONDA_REQS/chipyard-base.yaml | sed 's/^ \+-//') &&
+    conda create -y -p $CONDA_LOCK_ENV_PATH -c conda-forge python=3.10 $(grep "conda-lock" $CONDA_REQS/chipyard-base.yaml | sed 's/^ \+-//') &&
     source $(conda info --base)/etc/profile.d/conda.sh &&
     conda activate $CONDA_LOCK_ENV_PATH
     exit_if_last_command_failed
